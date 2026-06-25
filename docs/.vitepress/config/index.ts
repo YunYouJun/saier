@@ -1,0 +1,132 @@
+import type { DefaultTheme } from 'vitepress'
+import { transformerTwoslash } from '@shikijs/vitepress-twoslash'
+import { getVitepressConfig } from '@yunyoujun/docs'
+import { defineConfig } from 'vitepress'
+import { groupIconMdPlugin } from 'vitepress-plugin-group-icons'
+import { version } from '../../../package.json'
+
+const GUIDES: DefaultTheme.NavItemWithLink[] = [
+  { text: 'What is pixi-painter?', link: '/guide/what-is' },
+  { text: 'Getting Started', link: '/guide/getting-started' },
+]
+
+// Engineering / planning docs — the source of truth executing agents (codex)
+// follow. Keep this list in sync with the `/design/` sidebar below.
+const DESIGN: DefaultTheme.NavItemWithLink[] = [
+  { text: 'Overview', link: '/design/' },
+  { text: 'Roadmap (P0–P9)', link: '/design/roadmap' },
+  { text: 'Core Interfaces', link: '/design/interfaces' },
+  { text: 'Decisions (ADR)', link: '/design/decisions' },
+  { text: 'Testing & Determinism', link: '/design/testing' },
+]
+
+// Per-phase task cards executing agents pick up one at a time.
+const TASKS_P0: DefaultTheme.NavItemWithLink[] = [
+  { text: 'Index', link: '/design/tasks/' },
+  { text: 'P0-01 · Audit & pin Pixi', link: '/design/tasks/P0-01-audit-and-pin-pixi' },
+  { text: 'P0-02 · Application bootstrap', link: '/design/tasks/P0-02-application-bootstrap-v8' },
+  { text: 'P0-03 · Graphics: brush + eraser', link: '/design/tasks/P0-03-graphics-brush-eraser-v8' },
+  { text: 'P0-04 · canvas + board + layers', link: '/design/tasks/P0-04-graphics-canvas-board-layers-v8' },
+  { text: 'P0-05 · extract / export', link: '/design/tasks/P0-05-extract-export-v8' },
+  { text: 'P0-06 · Test foundation', link: '/design/tasks/P0-06-test-foundation' },
+  { text: 'P0-07 · Verify examples', link: '/design/tasks/P0-07-verify-examples-and-demos' },
+]
+
+const TASKS_P1: DefaultTheme.NavItemWithLink[] = [
+  { text: 'P1-01 · Scaffold core + adapter', link: '/design/tasks/P1-01-scaffold-packages' },
+  { text: 'P1-02 · Core contracts + geometry', link: '/design/tasks/P1-02-core-contracts-and-geometry' },
+  { text: 'P1-03 · SimpleBrushEngine', link: '/design/tasks/P1-03-simple-brush-engine' },
+  { text: 'P1-04 · Document / Undo', link: '/design/tasks/P1-04-document-rasterlayer-undo' },
+  { text: 'P1-05 · RenderTextureBackend', link: '/design/tasks/P1-05-rendertexture-backend' },
+  { text: 'P1-06 · Real eraser', link: '/design/tasks/P1-06-real-eraser' },
+  { text: 'P1-07 · Headless controller', link: '/design/tasks/P1-07-headless-controller' },
+  { text: 'P1-08 · Integrate pixi-painter', link: '/design/tasks/P1-08-integrate-pixi-painter' },
+  { text: 'P1-09 · Verify (watershed)', link: '/design/tasks/P1-09-verify-watershed' },
+]
+
+const TASKS_P2: DefaultTheme.NavItemWithLink[] = [
+  { text: 'P2-01 · TiledSurface', link: '/design/tasks/P2-01-tiled-surface' },
+  { text: 'P2-02 · CPU dab rasterizer', link: '/design/tasks/P2-02-cpu-dab-rasterizer' },
+  { text: 'P2-03 · Tile undo', link: '/design/tasks/P2-03-tile-undo' },
+  { text: 'P2-04 · PixiTileTextureBackend', link: '/design/tasks/P2-04-pixi-tile-backend' },
+  { text: 'P2-05 · Batched tile upload', link: '/design/tasks/P2-05-batched-tile-upload' },
+  { text: 'P2-06 · Switch & verify', link: '/design/tasks/P2-06-switch-and-verify' },
+]
+
+const vpConfig = getVitepressConfig({
+  repo: 'https://github.com/YunYouJun/pixi-painter',
+})
+
+export default defineConfig({
+  ...vpConfig,
+
+  title: 'saier',
+  description: 'saier — an elegant online painting runtime (PixiJS-powered)',
+  lang: 'zh-CN',
+  markdown: {
+    codeTransformers: [
+      transformerTwoslash(),
+    ],
+    languages: ['js', 'jsx', 'ts', 'tsx'],
+    config: (md) => {
+      md.use(groupIconMdPlugin)
+    },
+  },
+  cleanUrls: true,
+
+  themeConfig: {
+    ...vpConfig.themeConfig,
+
+    search: {
+      provider: 'local',
+    },
+
+    nav: [
+      {
+        text: 'Guide',
+        items: [{ items: GUIDES }],
+      },
+      {
+        text: 'Design',
+        items: [
+          { items: DESIGN },
+          { items: [{ text: 'Tasks', link: '/design/tasks/' }] },
+        ],
+      },
+      {
+        text: `v${version}`,
+        items: [
+          { text: 'Release Notes', link: 'https://github.com/YunYouJun/pixi-painter/releases' },
+        ],
+      },
+    ],
+    sidebar: {
+      '/guide/': [
+        { text: 'Guide', items: GUIDES },
+      ],
+      '/design/': [
+        { text: 'Design', items: DESIGN },
+        { text: 'Tasks · P0', collapsed: true, items: TASKS_P0 },
+        { text: 'Tasks · P1', collapsed: false, items: TASKS_P1 },
+        { text: 'Tasks · P2', collapsed: true, items: TASKS_P2 },
+      ],
+    },
+
+    socialLinks: [
+      { icon: 'github', link: 'https://github.com/YunYouJun/pixi-painter' },
+    ],
+
+    footer: {
+      message: 'Released under the MPL-2.0 License.',
+      copyright: 'Copyright © 2023-PRESENT YunYouJun.',
+    },
+  },
+
+  head: [
+    ['link', { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' }],
+    ['meta', { name: 'author', content: 'YunYouJun' }],
+    ['meta', { property: 'og:title', content: 'saier' }],
+    ['meta', { property: 'og:description', content: 'saier — an elegant online painting runtime (PixiJS-powered)' }],
+    ['meta', { name: 'viewport', content: 'width=device-width, initial-scale=1.0, viewport-fit=cover' }],
+  ],
+})

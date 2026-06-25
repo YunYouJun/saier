@@ -1,0 +1,26 @@
+{
+  "name": "@saier/docs",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "docs:dev": "vitepress dev",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview",
+    "docs:api": "typedoc"
+  },
+  "devDependencies": {
+    "@iconify-json/svg-spinners": "catalog:",
+    "@shikijs/vitepress-twoslash": "catalog:",
+    "@unocss/reset": "catalog:",
+    "@vueuse/core": "catalog:",
+    "@yunyoujun/docs": "catalog:",
+    "floating-vue": "catalog:",
+    "pinia": "catalog:",
+    "unocss": "catalog:",
+    "unplugin-vue-components": "catalog:",
+    "vite-plugin-vue-devtools": "catalog:",
+    "vitepress": "catalog:",
+    "vitepress-plugin-group-icons": "catalog:",
+    "vue": "catalog:"
+  }
+}

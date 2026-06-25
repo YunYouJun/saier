@@ -1,4 +1,21 @@
+shellEmulator: true
+trustPolicy: no-downgrade
 packages:
+  - docs
   - examples/*
   - packages/*
   - site
+catalog:
+  '@iconify-json/svg-spinners': ^1.2.4
+  '@shikijs/vitepress-twoslash': ^4.2.0
+  '@unocss/reset': ^66.7.0
+  '@vueuse/core': ^14.3.0
+  '@yunyoujun/docs': ^0.1.14
+  floating-vue: ^5.2.2
+  pinia: ^3.0.4
+  unocss: ^66.7.0
+  unplugin-vue-components: ^32.1.0
+  vite-plugin-vue-devtools: ^8.1.2
+  vitepress: ^2.0.0-alpha.17
+  vitepress-plugin-group-icons: ^1.7.5
+  vue: ^3.5.35

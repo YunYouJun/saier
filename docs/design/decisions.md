@@ -122,7 +122,7 @@ export function usePainter(painter: Painter) {
 
 **执行进度**：① shodo 包名**已修** → `@saier/shodo`（安全、零引用）；② 全部设计文档已统一到 `@saier/*` 口径；③ 新包 `@saier/core` / `@saier/pixi` 在 [P1-01](./tasks/P1-01-scaffold-packages) 建包时落地；④ **已发布包的实际改名**（`pixi-painter → saier`、`@pixi-painter/controls → @saier/vue`）涉及 republish + deprecate alias，作为 restructure 步骤、动手前再确认。
 
-**更大的问题（先于命名）**：core / pixi 拆成**独立发布包**还是 `saier` 内部**模块**？拆包 = 发布 / 版本开销，换"core 连 pixi 都 import 不到"的硬隔离 + 可复用；不拆 = 同样纪律靠目录 + lint 边界，省开销、可后续再拆（YAGNI）。鉴于你偏 monorepo 多包风格、且硬隔离对解耦有真实价值，**倾向拆包**——这决定 [P1-01](./tasks/P1-01-scaffold-packages) 的形态。
+**包拆分（已决定）**：**最小拆分 + lockstep 版本**。只拆承重的一刀——`@saier/core`（无 pixi 依赖）⊥ `@saier/pixi`，让**依赖图**强制"核心与 Pixi 解耦"这个命题（比 lint 可靠）；`core` 内再加 ESLint `no-restricted-imports` 禁 `pixi.js` 作双保险。其余不过度拆：`@saier/shodo` 已是包、`@saier/vue` 可晚点独立、`saier`(umbrella) re-export 串起来。全部 **lockstep 一起 bump**（像 `@vue/*`），消掉独立版本负担、可后续再调。→ [P1-01](./tasks/P1-01-scaffold-packages) 维持原样（core + pixi 两包）。
 
 ---
 

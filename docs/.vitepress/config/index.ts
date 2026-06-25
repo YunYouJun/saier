@@ -53,6 +53,15 @@ const TASKS_P2: DefaultTheme.NavItemWithLink[] = [
   { text: 'P2-06 · Switch & verify', link: '/design/tasks/P2-06-switch-and-verify' },
 ]
 
+const TASKS_P3: DefaultTheme.NavItemWithLink[] = [
+  { text: 'P3-01 · PointerSampler', link: '/design/tasks/P3-01-pointer-sampler' },
+  { text: 'P3-02 · Stabilizer', link: '/design/tasks/P3-02-stabilizer' },
+  { text: 'P3-03 · Pressure dynamics', link: '/design/tasks/P3-03-pressure-dynamics' },
+  { text: 'P3-04 · Harvest shodo', link: '/design/tasks/P3-04-harvest-shodo-calligraphy' },
+  { text: 'P3-05 · Touch & gestures', link: '/design/tasks/P3-05-touch-gestures' },
+  { text: 'P3-06 · Feel verification', link: '/design/tasks/P3-06-feel-verification' },
+]
+
 const vpConfig = getVitepressConfig({
   repo: 'https://github.com/YunYouJun/pixi-painter',
 })
@@ -109,6 +118,7 @@ export default defineConfig({
         { text: 'Tasks · P0', collapsed: true, items: TASKS_P0 },
         { text: 'Tasks · P1', collapsed: false, items: TASKS_P1 },
         { text: 'Tasks · P2', collapsed: true, items: TASKS_P2 },
+        { text: 'Tasks · P3', collapsed: false, items: TASKS_P3 },
       ],
     },
 

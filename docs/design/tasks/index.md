@@ -82,6 +82,23 @@ title: Tasks
 
 **P2 出口（里程碑 M3 起步）**：tile 后端下 P1 三断言 parity；4096² 内存平稳；撤销只触脏 tile；每帧合并上传。
 
-## 后续阶段（P3+）
+## P3 — 输入质感：跟手（可与 P1 / P2 并行）
 
-P3–P9 的任务卡按需续写（`P3-01-*.md` …），参照同一格式。排序与取舍先读 [Roadmap 的 Risks & 排序回顾](../roadmap#risks)。
+> 目标：让线条「跟手、顺、压感舒服」——这类工具的灵魂。core 侧输入层 + 收割 shodo。**可与 P1/P2 并行**，建议[提前 spike](./P3-06-feel-verification) 在现有管线先验手感。
+>
+> 依赖链：`01 → 02`、`01 + P1-03 → 03`；`02,03 → 04`；`05` 触屏（并行）；`06` 验收。
+
+| ID                                         | 卡片                                       | 包   | Depends on  | Effort |
+| ------------------------------------------ | ------------------------------------------ | ---- | ----------- | ------ |
+| [P3-01](./P3-01-pointer-sampler)           | PointerSampler + coalesced + 压感归一      | core | P1-02       | M      |
+| [P3-02](./P3-02-stabilizer)                | Stabilizer（moving avg → exp → lazy/rope） | core | P3-01       | M      |
+| [P3-03](./P3-03-pressure-dynamics)         | PressureCurve + 动态（size/opacity/taper） | core | P1-03       | M      |
+| [P3-04](./P3-04-harvest-shodo-calligraphy) | 收割 shodo → CalligraphyEngine             | core | P3-02,03    | M      |
+| [P3-05](./P3-05-touch-gestures)            | 触屏 / 手势（双指缩放 vs 单指画）          | pixi | viewport    | M      |
+| [P3-06](./P3-06-feel-verification)         | 跟手验收：确定性回放 + 延迟 + 基准         | test | P3-02,03,04 | M      |
+
+**P3 出口**：stabilizer 四档可量化区分；慢速圆无抖；确定性回放像素一致；触屏单指画 / 双指缩放分得清；真机手感留档。
+
+## 后续阶段（P4+）
+
+P4–P9 的任务卡按需续写（`P4-01-*.md` …），参照同一格式与依赖链。优先级与取舍见 [Roadmap](../roadmap) 与 [Risks](../roadmap#risks)。

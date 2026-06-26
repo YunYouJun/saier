@@ -1,14 +1,15 @@
-# What is pixi-painter?
+# What is saier?
 
-`pixi-painter` is a web painting library built on [PixiJS](https://pixijs.com/). It
-provides the building blocks of a drawing application — a pannable / zoomable board,
-brush and eraser tools, image import with transform handles, selection, and undo / redo.
+`saier` (current package: `pixi-painter`) is an **elegant online painting runtime** built on
+[PixiJS](https://pixijs.com/). It provides the building blocks of a drawing application — a
+pannable / zoomable board, pressure-aware brush and eraser, image import with transform
+handles, selection, and undo / redo.
 
 ## Where it is heading
 
 The project is being repositioned from **"a PixiJS brush library"** into:
 
-> **A web painting runtime powered by PixiJS.**
+> **`saier` — an elegant online painting runtime powered by PixiJS,** recreating the painterly feel of tools like SAI / Procreate / Krita on the web (SAI is one reference among several, not a clone).
 
 PixiJS stays responsible for what it is great at — viewport, zoom / pan / rotate,
 high-DPI display, layer compositing, GPU filters, cursor and selection overlays. The

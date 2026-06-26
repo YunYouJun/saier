@@ -62,6 +62,15 @@ const TASKS_P3: DefaultTheme.NavItemWithLink[] = [
   { text: 'P3-06 · Feel verification', link: '/design/tasks/P3-06-feel-verification' },
 ]
 
+const TASKS_P4: DefaultTheme.NavItemWithLink[] = [
+  { text: 'P4-01 · BrushPreset model', link: '/design/tasks/P4-01-brush-preset-model' },
+  { text: 'P4-02 · Tip / stamp system', link: '/design/tasks/P4-02-tip-stamp-system' },
+  { text: 'P4-03 · Pen / pencil / marker', link: '/design/tasks/P4-03-pen-pencil-marker' },
+  { text: 'P4-04 · Airbrush', link: '/design/tasks/P4-04-airbrush' },
+  { text: 'P4-05 · Brush UI', link: '/design/tasks/P4-05-brush-ui' },
+  { text: 'P4-06 · Verify brush family', link: '/design/tasks/P4-06-verify-brush-family' },
+]
+
 const vpConfig = getVitepressConfig({
   repo: 'https://github.com/YunYouJun/pixi-painter',
 })
@@ -118,7 +127,8 @@ export default defineConfig({
         { text: 'Tasks · P0', collapsed: true, items: TASKS_P0 },
         { text: 'Tasks · P1', collapsed: false, items: TASKS_P1 },
         { text: 'Tasks · P2', collapsed: true, items: TASKS_P2 },
-        { text: 'Tasks · P3', collapsed: false, items: TASKS_P3 },
+        { text: 'Tasks · P3', collapsed: true, items: TASKS_P3 },
+        { text: 'Tasks · P4', collapsed: false, items: TASKS_P4 },
       ],
     },
 

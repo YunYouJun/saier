@@ -1,0 +1,33 @@
+---
+title: P4-06 · 笔刷家族验收
+---
+
+# P4-06 · 笔刷家族验收（≥4 笔 + 行为断言）
+
+- **Phase / ID**: P4 / P4-06
+- **Depends on**: P4-03、P4-04、P4-05
+- **Files**: `test/`、`examples/*`
+- **Effort**: S
+- **Status**: 🟡 P4 出口
+
+## Context
+
+把 [roadmap P4](../roadmap#p4-笔刷家族) 的验收落成自动化测试 + demo 冒烟。
+
+## Steps
+
+1. golden：pen / pencil / marker / airbrush 各画一笔，与基准比对。
+2. 行为断言：marker 单笔不发黑（[P4-03](./P4-03-pen-pencil-marker)）；airbrush 停驻累积（[P4-04](./P4-04-airbrush)）。
+3. UI 冒烟：`examples/vue` 切 ≥4 种笔刷、调参生效。
+4. 确定性：各笔刷同输入（airbrush 同注入时钟）→ 同像素哈希。
+
+## Acceptance
+
+- [ ] ≥4 种笔刷 golden 通过且互不相同。
+- [ ] marker / airbrush 专属行为断言通过。
+- [ ] `examples/vue` UI 切换 + 调参主观通过。
+- [ ] `pnpm build` / `typecheck` / `lint` / `test` 全绿。
+
+## Out of scope
+
+- 锁透明 / 蒙版（→ P6）；混色 / 水彩（→ P7）。

@@ -111,7 +111,7 @@ M5 = P8 (+P9)      // 文件 / 回放（+ 外部引擎）
 1. **P1 偏重、风险前置**：P1 一次引入两包 + 新渲染 + 撤销 + 集成（9 卡），M1→M2 跨度大。缓解：[P1-05](./tasks/P1-05-rendertexture-backend) 先做成独立 spike（脱离集成验证 RenderTexture 绘制 + undo），过了再做 [P1-08](./tasks/P1-08-integrate-pixi-painter) 集成。
 2. **两套 dab 光栅化的代价**：P1 在 GPU 光栅化 dab，P2 又在 CPU 重写一套（[P2-02](./tasks/P2-02-cpu-dab-rasterizer)）。这是 D1 阶段化的**已知成本**——用「早交付」换「重复一次光栅器」。若产品**一开始就要混色 / 大画布**，应考虑直接 tile-first（重排 P1/P2）。
 3. **手感（P3）被压在 P1 之后**：`跟手 / stabilizer` 是这类绘画工具的灵魂，却排在大重构后。建议把 P3 的 stabilizer / pressure curve **提前在现有管线做一个最小验证**（P0 之后、P1 期间并行），尽早回答「手感对不对」这个产品级问题。
-4. **命名 / 包分层**（见 [D8](./decisions#d8)）：差异化结论——`plugin-shado` 拼写**已修**；新 adapter 包按 `@saier/pixi` 在 [P1-01](./tasks/P1-01-scaffold-packages) 建包时定（免费）；`controls→vue` 可缓。**更该先拍的是「core/adapter 拆独立包还是内部模块」**（YAGNI vs 硬隔离），它决定 P1-01 的形态。
+4. **命名 / 包分层**（见 [D8](./decisions#d8)）：**已定**——品牌 `saier`、scope `@saier/*`、`shodo` 拼写已修；包拆分采**最小拆分**（`@saier/core` ⊥ `@saier/pixi`，依赖图强制解耦）+ **lockstep 版本**；已发布包实改名（`pixi-painter→saier`、`controls→@saier/vue`）留作 restructure、动手前确认。
 5. **跨切面缺口**：① 触屏 / 手势（双指缩放 vs 画）未显式排期 → 并入 P3 输入层；② 性能预算（dab/s、上传 / 帧、内存曲线）已在 P2 / [Testing](./testing) 出现但无专卡 → 作为各 verify 卡的硬指标持续盯；③ DOM UI 无障碍 → 留待 P5。
 
 这些都不阻断当前推进。P0 / P1 照常，唯第 4 点（restructure & naming）建议尽快拍板。

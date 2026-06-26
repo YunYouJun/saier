@@ -49,16 +49,16 @@ title: Tasks
 
 > 目标：笔迹从「Graphics 累加」→「戳印进图层 `RenderTexture`」；引入栅格图层、真橡皮、bbox 区域撤销。落两个新包 `@saier/core`（**无 Pixi**）+ `@saier/pixi`。
 >
-> 依赖链：`01 → 02 →（03,04,07）`；`05 → 06`（adapter 侧）；`08` 汇合 03/04/05/06/07；`09` 验收。**core 侧（02/03/04/07）纯 TS，可与 adapter 侧（05/06）并行。**
+> 依赖链：`01 → 02 →（03,04,07）`；`05 → 06`（pixi 侧）；`08` 汇合 03/04/05/06/07；`09` 验收。**core 侧（02/03/04/07）纯 TS，可与 pixi 侧（05/06）并行。**
 
 | ID                                           | 卡片                                  | 包           | Depends on     | Effort |
 | -------------------------------------------- | ------------------------------------- | ------------ | -------------- | ------ |
-| [P1-01](./P1-01-scaffold-packages)           | 脚手架 core + adapter 两包            | both         | —              | M      |
+| [P1-01](./P1-01-scaffold-packages)           | 脚手架 core + pixi 两包               | both         | —              | M      |
 | [P1-02](./P1-02-core-contracts-and-geometry) | 核心契约 types + 几何                 | core         | 01             | M      |
 | [P1-03](./P1-03-simple-brush-engine)         | SimpleBrushEngine（spacing + 圆 dab） | core         | 02             | M      |
 | [P1-04](./P1-04-document-rasterlayer-undo)   | Document / RasterLayer / UndoManager  | core         | 02             | M      |
-| [P1-05](./P1-05-rendertexture-backend)       | RenderTextureBackend（normal + 撤销） | adapter      | 02             | L      |
-| [P1-06](./P1-06-real-eraser)                 | 真橡皮（erase 合成）                  | adapter      | 05             | M      |
+| [P1-05](./P1-05-rendertexture-backend)       | RenderTextureBackend（normal + 撤销） | pixi         | 02             | L      |
+| [P1-06](./P1-06-real-eraser)                 | 真橡皮（erase 合成）                  | pixi         | 05             | M      |
 | [P1-07](./P1-07-headless-controller)         | headless controller 表面（D7）        | core         | 04             | S      |
 | [P1-08](./P1-08-integrate-pixi-painter)      | 集成进 pixi-painter（切绘画管线）     | pixi-painter | 03,04,05,06,07 | L      |
 | [P1-09](./P1-09-verify-watershed)            | 验收：分水岭三断言 + 冒烟             | test         | 08             | M      |
@@ -69,15 +69,15 @@ title: Tasks
 
 > 目标：图层像素从「一张 RenderTexture」→「256×256 CPU tile」；绘制改 **CPU 光栅化**（为 P7 混色铺路）；撤销改 tile patch；脏 tile 每帧批量上传。**[D1](../decisions#d1) 下 P2 是条件性的**——RenderTexture（P1）够用就先不做，要做大画布 / 混色 / 低内存撤销时再上。
 >
-> 依赖链：core 侧 `01 → 02`、`01 + P1-04 → 03`；adapter 侧 `01 + P1-05 → 04 → 05`；`06` 切换 + 验收。
+> 依赖链：core 侧 `01 → 02`、`01 + P1-04 → 03`；pixi 侧 `01 + P1-05 → 04 → 05`；`06` 切换 + 验收。
 
 | ID                                   | 卡片                                | 包           | Depends on   | Effort |
 | ------------------------------------ | ----------------------------------- | ------------ | ------------ | ------ |
 | [P2-01](./P2-01-tiled-surface)       | TiledSurface / Tile / dirty 模型    | core         | P1-02        | M      |
 | [P2-02](./P2-02-cpu-dab-rasterizer)  | CPU dab 光栅器（AA + 累积 + erase） | core         | P2-01        | L      |
 | [P2-03](./P2-03-tile-undo)           | tile 撤销（TilePatch）              | core         | P2-01, P1-04 | M      |
-| [P2-04](./P2-04-pixi-tile-backend)   | PixiTileTextureBackend（显示）      | adapter      | P2-01, P1-05 | L      |
-| [P2-05](./P2-05-batched-tile-upload) | 脏 tile 批量上传（rAF）             | adapter      | P2-04        | M      |
+| [P2-04](./P2-04-pixi-tile-backend)   | PixiTileTextureBackend（显示）      | pixi         | P2-01, P1-05 | L      |
+| [P2-05](./P2-05-batched-tile-upload) | 脏 tile 批量上传（rAF）             | pixi         | P2-04        | M      |
 | [P2-06](./P2-06-switch-and-verify)   | 切后端 + 大画布 / 内存验收          | pixi-painter | P2-03,04,05  | M      |
 
 **P2 出口（里程碑 M3 起步）**：tile 后端下 P1 三断言 parity；4096² 内存平稳；撤销只触脏 tile；每帧合并上传。
@@ -99,6 +99,21 @@ title: Tasks
 
 **P3 出口**：stabilizer 四档可量化区分；慢速圆无抖；确定性回放像素一致；触屏单指画 / 双指缩放分得清；真机手感留档。
 
-## 后续阶段（P4+）
+## P4 — 笔刷家族
 
-P4–P9 的任务卡按需续写（`P4-01-*.md` …），参照同一格式与依赖链。优先级与取舍见 [Roadmap](../roadmap) 与 [Risks](../roadmap#risks)。
+> 目标：≥4 种笔刷（pen / pencil / marker / airbrush）+ shodo 毛笔，统一 `BrushEngine` 接口、统一 UI 切换。建立在 P1-03 引擎 + P3-03 动态之上。
+
+| ID                                   | 卡片                          | 包        | Depends on   | Effort |
+| ------------------------------------ | ----------------------------- | --------- | ------------ | ------ |
+| [P4-01](./P4-01-brush-preset-model)  | BrushPreset 模型 + 注册表     | core      | P1-03, P3-03 | M      |
+| [P4-02](./P4-02-tip-stamp-system)    | 笔尖 / 戳印系统（两后端渲染） | core+pixi | P1-05, P2-02 | M      |
+| [P4-03](./P4-03-pen-pencil-marker)   | pen / pencil / marker 预设    | core      | P4-01,02     | M      |
+| [P4-04](./P4-04-airbrush)            | airbrush（时间累积流量）      | core      | P4-01,02     | M      |
+| [P4-05](./P4-05-brush-ui)            | 笔刷 UI（预设切换 + 参数）    | vue       | P1-07, P4-01 | M      |
+| [P4-06](./P4-06-verify-brush-family) | 笔刷家族验收                  | test      | P4-03,04,05  | S      |
+
+**P4 出口**：≥4 笔刷 UI 可切；airbrush 停驻累积、marker 单笔不发黑；golden 通过。
+
+## 后续阶段（P5+）
+
+P5–P9 的任务卡按需续写（`P5-01-*.md` …），参照同一格式与依赖链。优先级与取舍见 [Roadmap](../roadmap) 与 [Risks](../roadmap#risks)。

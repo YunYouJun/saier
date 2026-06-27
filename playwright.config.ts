@@ -11,14 +11,21 @@ export default defineConfig({
     baseURL: 'http://localhost:5173',
     ...devices['Desktop Chrome'],
   },
-  // Only the Vite example is auto-managed here (self-contained + fast).
-  // The Nuxt site e2e (site-demo.pw.ts) is `test.fixme` for now — playwright's
-  // webServer can't reliably detect Nuxt dev's host bind; run it manually:
-  // `pnpm dev:site` then drop the `.fixme`.
-  webServer: {
-    command: 'pnpm dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: true,
-    timeout: 60_000,
-  },
+  // Both example apps are auto-managed. Nuxt is forced onto 127.0.0.1 so
+  // playwright's webServer URL check (IPv4) detects it — Nuxt dev otherwise
+  // binds IPv6 [::1], which the check can't reach.
+  webServer: [
+    {
+      command: 'pnpm dev',
+      url: 'http://localhost:5173',
+      reuseExistingServer: true,
+      timeout: 60_000,
+    },
+    {
+      command: 'pnpm -C site exec nuxt dev --port 8080 --host 127.0.0.1',
+      url: 'http://127.0.0.1:8080',
+      reuseExistingServer: true,
+      timeout: 120_000,
+    },
+  ],
 })

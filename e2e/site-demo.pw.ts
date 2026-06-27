@@ -6,10 +6,7 @@ import { expect, test } from '@playwright/test'
  * rendered against an uninitialised renderer. Same proof as the examples spec:
  * `__PIXI_APP__.renderer` exists only after `await app.init()` completes.
  */
-// fixme: enable once the Nuxt site dev server is auto-managed by playwright
-// (its host bind isn't reliably detected by webServer). To run now:
-// `pnpm dev:site` (serves :8080), then change `test.fixme` → `test`.
-test.fixme('site demo boots the Pixi v8 painter without throwing', async ({ page }) => {
+test('site demo boots the Pixi v8 painter without throwing', async ({ page }) => {
   const pageErrors: string[] = []
   page.on('pageerror', e => pageErrors.push(e.message))
 

@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import '@pixi/unsafe-eval'
-
 import type { Painter } from 'pixi-painter'
+
 import { createPainter } from 'pixi-painter'
 
 // const online = useOnline()
@@ -10,13 +9,19 @@ const srcCanvas = ref<HTMLCanvasElement>()
 const targetCanvas = ref<HTMLCanvasElement>()
 
 const painter = ref<Painter>()
-onMounted(() => {
-  if (!srcCanvas.value || !targetCanvas.value)
+onMounted(async () => {
+  if (!srcCanvas.value)
     return
 
-  painter.value = createPainter({
-    view: targetCanvas.value,
+  // v8: Application is async-init — await init() before exposing the painter,
+  // otherwise the UI (e.g. PainterControls reading painter.background) renders
+  // against an uninitialised renderer.
+  const p = createPainter({
+    debug: import.meta.env.DEV,
+    view: srcCanvas.value,
   })
+  await p.init()
+  painter.value = p
 })
 </script>
 
@@ -26,7 +31,7 @@ onMounted(() => {
 
     <template v-if="painter">
       <PainterControls :painter="painter" class="absolute left-1" />
-      <PainterOptionsBar class="absolute left-1 top-1" />
+      <PainterOptionsBar :painter="painter" class="absolute left-1 top-1" />
     </template>
 
     <Suspense>

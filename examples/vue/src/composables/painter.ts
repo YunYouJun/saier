@@ -1,5 +1,6 @@
-import { type Painter, createPainter } from 'pixi-painter'
+import type { Painter } from 'pixi-painter'
 import type * as PIXI from 'pixi.js'
+import { createPainter } from 'pixi-painter'
 import { postImage } from '../api/index'
 
 interface Tree {
@@ -64,7 +65,7 @@ export function usePixiPainter() {
     // targetCanvas.value.width = tParent?.clientWidth || 0
     // targetCanvas.value.height = tParent?.clientHeight || 0
 
-    painter.value = createPainter({
+    const p = createPainter({
       debug: import.meta.env.DEV,
       view: srcCanvas.value,
       size: {
@@ -72,10 +73,12 @@ export function usePixiPainter() {
         height: window.innerHeight,
       },
     })
-    // painter.value.background.color = 0xFFFFFF
 
-    await painter.value?.loadImage('https://pixijs.com/assets/flowerTop.png')
-    await painter.value.init()
+    // v8: Application is async-init — must `await init()` before using the painter.
+    // Expose it reactively only once ready, otherwise UI (which reads e.g.
+    // `painter.background`) renders against an uninitialised renderer.
+    await p.init()
+    await p.loadImage('https://pixijs.com/assets/flowerTop.png')
 
     const tCanvas = targetCanvas.value
     if (tCanvas) {
@@ -83,13 +86,12 @@ export function usePixiPainter() {
       tCanvas.height = tCanvas.parentElement?.clientHeight || 0
     }
 
-    const canvasContainer = painter.value?.canvas.container
+    const canvasContainer = p.canvas.container
     data.value = getLayersData(canvasContainer)
-    painter.value.emitter.on('history:record', async () => {
+    p.emitter.on('history:record', async () => {
       data.value = getLayersData(canvasContainer)
-      // todo
 
-      const extractedData = await painter.value?.extractCanvas('canvas') as HTMLCanvasElement
+      const extractedData = await p.extractCanvas('canvas') as HTMLCanvasElement
       extractedData.toBlob(async (blob) => {
         if (!blob)
           return
@@ -101,6 +103,9 @@ export function usePixiPainter() {
         onExtract(URL.createObjectURL(res.data))
       })
     })
+
+    // expose only after fully initialised
+    painter.value = p
   })
 
   return {

@@ -1,19 +1,18 @@
+import type { PainterCanvas } from './canvas'
 import { Application, Container } from 'pixi.js'
-import type * as PIXI from 'pixi.js'
-import { PainterBrush, createBrush } from './brush'
-import { statement } from './statement'
+import { PainterBoard } from './board'
+import { createBrush, PainterBrush } from './brush'
+import { createCanvas } from './canvas'
+import { addImageDropListener } from './dom'
+import { createEraser, PainterEraser } from './eraser'
 import { createEmitter } from './event'
 import { PainterHistory } from './features/history'
-import type { PainterCanvas } from './canvas'
-import { createCanvas } from './canvas'
-import { PainterBoard } from './board'
-import { addImageDropListener } from './dom'
 import { importImageSprite } from './import'
-import { EditableLayer } from './layers'
 import { Keyboard } from './keyboard'
+import { EditableLayer } from './layers'
 
-import '@pixi/math-extras'
-import { PainterEraser, createEraser } from './eraser'
+import { statement } from './statement'
+import 'pixi.js/math-extras'
 
 export const PAINTER_TOOLS = [
   'brush',
@@ -47,7 +46,7 @@ export interface PainterOptions {
   /**
    * override PIXI.Application options
    */
-  pixiOptions?: Partial<PIXI.IApplicationOptions>
+  pixiOptions?: Parameters<Application['init']>[0]
 }
 
 export interface PainterStore {}
@@ -70,17 +69,17 @@ export class Painter {
    * board
    * canvas is board's child
    */
-  board: PainterBoard
+  board!: PainterBoard
   boundingBoxes = new Container()
   /**
    * not HTMLCanvasElement
    * workspace canvas
    * workspace is app.stage
    */
-  canvas: PainterCanvas
-  brush: PainterBrush
-  eraser: PainterEraser
-  store: PainterStore
+  canvas!: PainterCanvas
+  brush!: PainterBrush
+  eraser!: PainterEraser
+  store!: PainterStore
 
   history = new PainterHistory(this)
 
@@ -96,44 +95,51 @@ export class Painter {
 
   constructor(options: PainterOptions) {
     this.options = options
+    const { debug = false } = options
+
+    // v8: `Application` is async-init. The constructor only constructs the
+    // instance; everything that needs the renderer / stage moves into `init()`.
+    this.app = new Application()
+
+    if (debug)
+      this.debug = debug
+  }
+
+  /**
+   * init
+   *
+   * v8 requires `await app.init()` before the renderer / stage are usable, so
+   * all renderer-dependent setup lives here rather than in the constructor.
+   */
+  async init() {
     const {
       size: { width, height } = { width: 768, height: 768 },
-      debug = false,
       resolution = window.devicePixelRatio || 1,
-
       pixiOptions = {},
-    } = options
+    } = this.options
 
-    this.app = new Application({
-      view: options.view,
-      // resizeTo: window,
-      // backgroundColor: 0xFFFFFF,
-      backgroundColor: 0x333333,
+    await this.app.init({
+      canvas: this.options.view, // v7 `view` → v8 `canvas`
+      background: 0x333333, // v7 `backgroundColor` → v8 `background`
       width,
       height,
-
       antialias: true,
       resolution,
-
-      // for toBlob
-      // preserveDrawingBuffer: true,
-
+      preference: 'webgl', // production renderer (see docs/design D3)
       ...pixiOptions,
     })
-    const stage = this.app.stage
+
+    const { app } = this
+    const stage = app.stage
     stage.eventMode = 'static'
-    stage.hitArea = this.app.screen
+    stage.hitArea = app.screen
 
-    // add image drop
-    addImageDropListener(this, options.view)
-
-    if (debug) {
-      this.debug = debug
+    if (this.debug) {
       // @ts-expect-error pixi-inspector
-      globalThis.__PIXI_APP__ = this.app
+      globalThis.__PIXI_APP__ = app
     }
 
-    // board
+    // board (created after the renderer exists)
     this.board = new PainterBoard(this)
     const boardContainer = this.board.container
 
@@ -141,29 +147,24 @@ export class Painter {
     this.brush = createBrush(this)
     this.eraser = createEraser(this)
 
-    // mount containers
     // add canvas to stage to draw
     boardContainer.addChild(this.canvas.container)
 
-    // ...
-    this.store = createStore(options)
+    this.store = createStore(this.options)
 
     stage.name = 'stage'
     stage.addChild(this.board.container)
 
     // boxes
-    const { app } = this
     this.boundingBoxes.name = 'boundingBoxes'
-    this.boundingBoxes.x = app.view.width / app.renderer.resolution / 2
-    this.boundingBoxes.y = app.view.height / app.renderer.resolution / 2
+    this.boundingBoxes.x = app.canvas.width / app.renderer.resolution / 2
+    this.boundingBoxes.y = app.canvas.height / app.renderer.resolution / 2
     stage.addChild(this.boundingBoxes)
 
-    options.view.addEventListener('contextmenu', (e) => {
+    this.options.view.addEventListener('contextmenu', (e) => {
       e.preventDefault()
-      // console.log(e)
     })
 
-    // app
     stage.sortChildren()
     stage.on('pointerenter', () => {
       this.isPointerInStage = true
@@ -174,20 +175,17 @@ export class Painter {
     stage.on('pointerleave', onPointerLeave)
     stage.on('pointerupoutside', onPointerLeave)
     stage.on('pointercancel', onPointerLeave)
-  }
 
-  /**
-   * init
-   */
-  async init() {
+    // image drag-and-drop import
+    addImageDropListener(this, this.options.view)
+
+    // window listeners + default tool
     this.removeEventListeners = this.addEventListeners()
-    setTimeout(() => {
-      this.useTool('brush')
-    }, 1)
+    this.useTool('brush')
   }
 
   onResize() {
-    const view = this.app.view
+    const view = this.app.canvas
     if (!view)
       return
     const box = view.getBoundingClientRect?.()
@@ -233,7 +231,6 @@ export class Painter {
     layer.name = `Image ${EditableLayer.order++}`
     canvas.layersContainer.addChild(layer)
     layer.addChild(imgSprite)
-    layer.updateTransform()
     layer.updateTransformBoundingBox()
 
     this.boundingBoxes.addChild(layer.boundingBoxContainer)
@@ -380,7 +377,7 @@ export class Painter {
     this.app.destroy(false, {
       children: true,
       texture: true,
-      baseTexture: true,
+      textureSource: true,
     })
   }
 

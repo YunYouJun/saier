@@ -1,5 +1,5 @@
-import { Container } from 'pixi.js'
 import type { Painter } from '../index'
+import { Container } from 'pixi.js'
 import { createBoardDrag } from './drag'
 
 export class PainterBoard {
@@ -24,8 +24,8 @@ export class PainterBoard {
     this.container.name = 'boardContainer'
 
     const { app } = this.painter
-    this.container.x = app.view.width / app.renderer.resolution / 2
-    this.container.y = app.view.height / app.renderer.resolution / 2
+    this.container.x = app.canvas.width / app.renderer.resolution / 2
+    this.container.y = app.canvas.height / app.renderer.resolution / 2
 
     // add drag
     this.boardDrag = createBoardDrag(this)
@@ -35,8 +35,8 @@ export class PainterBoard {
    * reset board position to center
    */
   resetToCenter() {
-    this.container.x = this.painter.app.view.width / this.painter.app.renderer.resolution / 2
-    this.container.y = this.painter.app.view.height / this.painter.app.renderer.resolution / 2
+    this.container.x = this.painter.app.canvas.width / this.painter.app.renderer.resolution / 2
+    this.container.y = this.painter.app.canvas.height / this.painter.app.renderer.resolution / 2
 
     this.container.scale.set(1)
   }

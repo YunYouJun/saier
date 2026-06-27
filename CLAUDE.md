@@ -65,7 +65,7 @@ Target packages introduced by the rewrite (see `docs/design/`): **`core`** (Pixi
 - ESM only (`"type": "module"`).
 - Strict TypeScript.
 - Follow @antfu/eslint-config defaults (no prettier, no semicolons, single quotes). Run `pnpm lint` before finishing.
-- Target **PixiJS v8** APIs. Deps are v8 and `pnpm build:lib` passes, but `createPainter()` currently **throws at runtime** due to the v8 `Application` async-init change (the constructor reads `app.renderer` before `await app.init()`). v7 Graphics calls (`beginFill` / `drawCircle`) still work as **deprecated shims**, so they are not the blocker. Fixing the Application bootstrap is roadmap **P0** (see `docs/design/tasks/P0-02-application-bootstrap-v8.md`).
+- Target **PixiJS v8** APIs. v8 migration is in progress: **P0-02** (async `Application.init` bootstrap) and **P0-04** (canvas / board / layers Graphics → v8, `name` → `label`, SVG icon via `Assets.load`) are **done** — `createPainter()` runs on v8, verified by `pnpm test:e2e`. **brush / eraser still use deprecated v7 Graphics** (`beginFill` / `drawCircle`); left for **P1** to replace with the raster engine (migrating them now would be wasted).
 - All brush math in **document space**, independent of zoom / DPR (decision D2).
 - Avoid `Date.now()` / `Math.random()` in brush / stabilizer logic — use injectable seeds (determinism; see `docs/design/testing.md`).
 

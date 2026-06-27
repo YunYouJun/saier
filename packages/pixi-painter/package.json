@@ -29,14 +29,13 @@
     "release": "bumpp && npm publish"
   },
   "dependencies": {
-    "@ctrl/tinycolor": "^4.0.3",
-    "@pixi/math-extras": "7.3.3",
-    "consola": "^3.2.3",
-    "hotkeys-js": "^3.13.7",
+    "@ctrl/tinycolor": "^4.2.0",
+    "consola": "^3.4.2",
+    "hotkeys-js": "^4.0.4",
     "mitt": "^3.0.1",
-    "pixi.js": "7.3.3"
+    "pixi.js": "^8.19.0"
   },
   "devDependencies": {
-    "unbuild": "^2.0.0"
+    "unbuild": "^3.6.1"
   }
 }

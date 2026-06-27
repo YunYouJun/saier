@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.1.6-beta.0",
   "private": true,
-  "packageManager": "pnpm@8.15.3",
+  "packageManager": "pnpm@10.17.1",
   "description": "Painter based on Pixi.JS",
   "author": {
     "email": "me@yunyoujun.cn",
@@ -21,22 +21,27 @@
     "generate:site": "pnpm -C site run generate",
     "dev": "pnpm -C examples/vue run dev",
     "dev:site": "pnpm -C site run dev",
+    "docs:dev": "pnpm -C docs run docs:dev",
+    "docs:build": "pnpm -C docs run docs:build",
+    "docs:preview": "pnpm -C docs run docs:preview",
     "lint": "eslint .",
     "test": "vitest",
+    "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "prepare": "simple-git-hooks",
     "release": "bumpp"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^2.6.4",
-    "bumpp": "^9.3.0",
-    "eslint": "^8.56.0",
-    "eslint-plugin-format": "^0.1.0",
-    "lint-staged": "^15.2.2",
-    "simple-git-hooks": "^2.9.0",
-    "typescript": "^5.3.3",
-    "unocss": "^0.58.5",
-    "vitest": "^1.3.0"
+    "@antfu/eslint-config": "^9.1.0",
+    "@playwright/test": "^1.61.1",
+    "bumpp": "^11.1.0",
+    "eslint": "^10.5.0",
+    "eslint-plugin-format": "^2.0.1",
+    "lint-staged": "^17.0.8",
+    "simple-git-hooks": "^2.13.1",
+    "typescript": "^5.9.3",
+    "unocss": "^66.7.2",
+    "vitest": "^4.1.9"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged"

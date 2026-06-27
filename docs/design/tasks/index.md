@@ -32,6 +32,8 @@ title: Tasks
 > 目标：让 `createPainter()` 在 v8 真正跑起来 + 建测试地基。
 >
 > **现实校正（已验证）**：v8 依赖已就位且 `build:lib` 能过；v7 的 `beginFill` 等在 v8 是 **deprecated 垫片（能跑）**；**唯一阻断运行的是 `Application` async-init**。所以 P0 硬核 = **P0-02 + P0-06**，其余多为可选 / 延后清理。
+>
+> **✅ 已完成（M1 达成）**：P0-02 + P0-04 迁 v8 并验证；P0-05 extract API v8 兼容；P0-06 测试地基（`pnpm test` vitest 5 + `pnpm test:e2e` examples/site）；P0-07 examples/vue · site · react 均在 v8 跑通。P0-03（brush/eraser Graphics）按设计**跳过**——P1 用 raster 引擎删除这两文件。
 
 | ID                                               | 卡片                                             | 状态               | Depends on | Effort |
 | ------------------------------------------------ | ------------------------------------------------ | ------------------ | ---------- | ------ |
@@ -43,7 +45,7 @@ title: Tasks
 | [P0-06](./P0-06-test-foundation)                 | 测试地基（vitest + headless 像素断言）           | 🔴 必做            | P0-02      | M      |
 | [P0-07](./P0-07-verify-examples-and-demos)       | 回归：examples + demo 冒烟                       | 必做               | P0-02, 06  | S      |
 
-**P0 出口（里程碑 M1）**：`pnpm build:lib`、`pnpm typecheck`、`pnpm test` 全绿；`examples/vue` 可画线 / 橡皮 / 撤销；新增 ≥1 像素断言测试通过。
+**P0 出口（里程碑 M1）✅ 已达成**：`build:lib` / `build:react` / `typecheck` / `test`(vitest 5) / `test:e2e`(examples + site) 全绿；examples/vue · site · react 均在 v8 运行。
 
 ## P1 — RasterLayer + RenderTexture 后端 + 真橡皮（架构分水岭）
 

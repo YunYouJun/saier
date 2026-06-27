@@ -65,7 +65,7 @@ Target packages introduced by the rewrite (see `docs/design/`): **`core`** (Pixi
 - ESM only (`"type": "module"`).
 - Strict TypeScript.
 - Follow @antfu/eslint-config defaults (no prettier, no semicolons, single quotes). Run `pnpm lint` before finishing.
-- Target **PixiJS v8** APIs. v8 migration is in progress: **P0-02** (async `Application.init` bootstrap) and **P0-04** (canvas / board / layers Graphics → v8, `name` → `label`, SVG icon via `Assets.load`) are **done** — `createPainter()` runs on v8, verified by `pnpm test:e2e`. **brush / eraser still use deprecated v7 Graphics** (`beginFill` / `drawCircle`); left for **P1** to replace with the raster engine (migrating them now would be wasted).
+- Target **PixiJS v8** APIs. **P0 (milestone M1) is complete**: `createPainter()` boots on v8 (async `Application.init`; canvas / board / layers Graphics → v8, `name` → `label`, SVG icon via `Assets.load`), verified green by `pnpm typecheck` + `pnpm test` (vitest) + `pnpm test:e2e` (examples + site); examples/vue · site · react all boot on v8. **brush / eraser still use deprecated v7 Graphics** (`beginFill` / `drawCircle`) — intentionally left for **P1** to delete with the raster engine. **Next phase: P1** (raster engine — `@saier/core` + `@saier/pixi`).
 - All brush math in **document space**, independent of zoom / DPR (decision D2).
 - Avoid `Date.now()` / `Math.random()` in brush / stabilizer logic — use injectable seeds (determinism; see `docs/design/testing.md`).
 

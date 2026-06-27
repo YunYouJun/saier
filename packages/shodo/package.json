@@ -1,0 +1,6 @@
+{
+  "name": "@saier/shodo",
+  "devDependencies": {
+    "pixi.js": "8.19.0"
+  }
+}

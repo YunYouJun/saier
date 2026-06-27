@@ -1,5 +1,5 @@
-import { Container, Graphics } from 'pixi.js'
 import type { Painter } from '../painter'
+import { Container, Graphics } from 'pixi.js'
 import { PainterBoard } from '../board'
 
 export class PainterCanvas {
@@ -21,8 +21,8 @@ export class PainterCanvas {
 
   constructor(painter: Painter) {
     this.painter = painter
-    this.container.name = 'canvasContainer'
-    this.layersContainer.name = 'layersContainer'
+    this.container.label = 'canvasContainer'
+    this.layersContainer.label = 'layersContainer'
 
     const { options } = this.painter
     const {
@@ -33,13 +33,13 @@ export class PainterCanvas {
     } = options
     PainterBoard.size = boardSize
 
-    // mask shape
+    const rect = [-boardSize.width / 2, -boardSize.height / 2, boardSize.width, boardSize.height] as const
+
+    // mask shape (v8: describe path, then fill)
     const canvasShape = new Graphics()
-    canvasShape.name = 'canvasShape'
+    canvasShape.label = 'canvasShape'
     canvasShape.position.set(this.container.x, this.container.y)
-    canvasShape.beginFill(0xFFFFFF)
-    canvasShape.drawRect(-boardSize.width / 2, -boardSize.height / 2, boardSize.width, boardSize.height)
-    canvasShape.endFill()
+    canvasShape.rect(...rect).fill(0xFFFFFF)
 
     this.painter.board.container.addChild(canvasShape)
 
@@ -47,10 +47,10 @@ export class PainterCanvas {
     // init shape
     this.shape = canvasShape
 
-    // board background
-    const canvasBg = canvasShape.clone()
-    canvasBg.name = 'canvasBg'
-    canvasBg.position.set(0, 0)
+    // board background (rebuilt rather than clone — v8 Graphics clone differs)
+    const canvasBg = new Graphics()
+    canvasBg.label = 'canvasBg'
+    canvasBg.rect(...rect).fill(0xFFFFFF)
     canvasBg.zIndex = -1
 
     this.background = canvasBg

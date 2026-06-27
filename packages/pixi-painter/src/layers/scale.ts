@@ -1,12 +1,12 @@
-import { Point } from 'pixi.js'
 import type * as PIXI from 'pixi.js'
 import type { EditableLayer } from '.'
+import { Point } from 'pixi.js'
 
-export type ControlPointPosition =
-  'TOP_LEFT' | 'TOP_RIGHT' | 'BOTTOM_RIGHT' | 'BOTTOM_LEFT' |
-  'TOP_CENTER' | 'RIGHT_CENTER' | 'BOTTOM_CENTER' | 'LEFT_CENTER' |
-  'ROTATE' |
-  'CENTER' | 'REMOVE'
+export type ControlPointPosition
+  = 'TOP_LEFT' | 'TOP_RIGHT' | 'BOTTOM_RIGHT' | 'BOTTOM_LEFT'
+    | 'TOP_CENTER' | 'RIGHT_CENTER' | 'BOTTOM_CENTER' | 'LEFT_CENTER'
+    | 'ROTATE'
+    | 'CENTER' | 'REMOVE'
 
 /**
  * add handle to scale

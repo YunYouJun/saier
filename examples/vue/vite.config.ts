@@ -1,12 +1,12 @@
 import path from 'node:path'
-import { defineConfig } from 'vite'
+import { componentsDir } from '@advjs/gui/node'
 import vue from '@vitejs/plugin-vue'
 
+import Unocss from 'unocss/vite'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
-import Unocss from 'unocss/vite'
 
-import { componentsDir } from '@advjs/gui/node'
+import { defineConfig } from 'vite'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -27,10 +27,12 @@ export default defineConfig({
   },
 
   build: {
-    rollupOptions: {
+    cssMinify: 'esbuild',
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          pixi: ['pixi.js'],
+        manualChunks(id) {
+          if (id.includes('/pixi.js/'))
+            return 'pixi'
         },
       },
     },
@@ -69,7 +71,7 @@ export default defineConfig({
       extensions: ['vue', 'md'],
       // allow auto import and register components used in markdown
       include: [/\.vue$/, /\.vue\?vue/, /\.md$/],
-      dts: 'src/components.d.ts',
+      dts: false,
     }),
   ],
 })

@@ -23,8 +23,8 @@ export function createBoardDrag(board: PainterBoard) {
     }
   }
 
-  function setCursorStyle(style: PIXI.ICanvasStyle['cursor']) {
-    containers.forEach(container => container.cursor = style as string)
+  function setCursorStyle(style: string) {
+    containers.forEach(container => container.cursor = style)
     if (app.view)
       app.view.style!.cursor = style
   }
@@ -54,8 +54,12 @@ export function createBoardDrag(board: PainterBoard) {
       return
 
     dragTargets.forEach((dragTarget) => {
-      dragTarget.position.x += e.movement.x / dragTarget.parent.scale.x
-      dragTarget.position.y += e.movement.y / dragTarget.parent.scale.y
+      const { parent } = dragTarget
+      if (!parent)
+        return
+
+      dragTarget.position.x += e.movement.x / parent.scale.x
+      dragTarget.position.y += e.movement.y / parent.scale.y
     })
   }
 

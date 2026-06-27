@@ -2,6 +2,8 @@
 import { modalOptions, usePixiPainter } from '../composables'
 
 const { onExtract, data, painter, srcCanvas, targetCanvas } = usePixiPainter()
+void srcCanvas
+void targetCanvas
 </script>
 
 <template>

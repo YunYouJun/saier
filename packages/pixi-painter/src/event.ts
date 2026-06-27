@@ -1,6 +1,6 @@
-import mitt from 'mitt'
-import type { EditableLayer } from './layers'
 import type { PainterAction } from './features/history'
+import type { EditableLayer } from './layers'
+import mitt from 'mitt'
 
 export function createEmitter() {
   const emitter = mitt<{

@@ -1,6 +1,6 @@
 import reactLogo from './assets/react.svg'
-import './App.css'
 import { PixiPainter } from './Canvas'
+import './App.css'
 
 function App() {
   return (

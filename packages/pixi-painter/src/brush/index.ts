@@ -1,8 +1,8 @@
-import { Graphics, Point } from 'pixi.js'
 import type * as PIXI from 'pixi.js'
-import { isAABBIntersect } from '../utils/intersect'
-import { PainterEraser } from '../eraser'
 import type { Painter } from '../painter'
+import { Graphics, Point } from 'pixi.js'
+import { PainterEraser } from '../eraser'
+import { isAABBIntersect } from '../utils/intersect'
 
 export interface BrushOptions {
   renderTexture?: PIXI.RenderTexture
@@ -125,7 +125,7 @@ export class PainterBrush {
 
     if (this.dragging) {
       graphics.beginFill(PainterBrush.color)
-        .lineStyle({ width: 0, color: PainterBrush.color })
+        .lineStyle(0, PainterBrush.color)
         .drawCircle(localPos.x, localPos.y, PainterBrush.size * this.getPressure(event))
 
       // app.renderer.render(brush, {
@@ -141,7 +141,7 @@ export class PainterBrush {
         const lastDrawnPoint = this.lastDrawnPoint
         graphics
           // .clear()
-          .lineStyle({ width: PainterBrush.size * 2 * this.getPressure(event), color: PainterBrush.color })
+          .lineStyle(PainterBrush.size * 2 * this.getPressure(event), PainterBrush.color)
           .moveTo(lastDrawnPoint.x, lastDrawnPoint.y)
           .lineTo(localPos.x, localPos.y)
 
@@ -219,7 +219,7 @@ export class PainterBrush {
       const localPos = event.getLocalPosition(this.parentContainer, global)
       this.graphics!
       // .clear()
-        .lineStyle({ width: PainterBrush.size * 2 * this.getPressure(event), color: PainterBrush.color })
+        .lineStyle(PainterBrush.size * 2 * this.getPressure(event), PainterBrush.color)
         .moveTo(this.lastDrawnPoint.x, this.lastDrawnPoint.y)
         .lineTo(localPos.x, localPos.y)
 

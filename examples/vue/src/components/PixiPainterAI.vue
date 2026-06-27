@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
 import type { Painter } from 'pixi-painter'
-import { createPainter } from 'pixi-painter'
-
-import consola from 'consola'
 import axios from 'axios'
+import consola from 'consola'
+
+import { createPainter } from 'pixi-painter'
+import { onMounted, ref } from 'vue'
 
 // const online = useOnline()
 

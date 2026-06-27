@@ -19,7 +19,8 @@ export async function importImageSprite(src: string) {
       }
       sprite.anchor.set(0.5)
       sprite.eventMode = 'static'
-      sprite.accessibleType = 'Image Sprite'
+      sprite.accessibleType = 'img'
+      sprite.accessibleTitle = 'Image Sprite'
       resolve(sprite)
     }
     img.src = src

@@ -8,6 +8,11 @@ A library for building drawing scene.
 
 - Demo: <https://pixi-painter.pages.dev/>
 
+## Documentation
+
+- **Guide & Design docs**: run `pnpm docs:dev` (VitePress site under [`docs/`](./docs))
+- **Architecture roadmap** (for contributors / coding agents): [`docs/design/`](./docs/design/index.md) — the phased plan (P0–P9) to evolve pixi-painter into a Pixi-agnostic raster painting runtime. See also [`AGENTS.md`](./AGENTS.md).
+
 ## Usage
 
 ```bash
@@ -19,16 +24,14 @@ pnpm add pixi-painter
 ```ts
 import { createPainter } from 'pixi-painter'
 
-async function main() {
-  const painter = await createPainter({
-    container: document.getElementById('app'),
-    width: 800,
-    height: 600,
-  })
-  await painter.init()
-}
+const painter = createPainter({
+  // PIXI.Application view
+  view: document.querySelector('#canvas') as HTMLCanvasElement,
+  size: { width: 800, height: 600 },
+})
 
-main()
+await painter.init()
+painter.useTool('brush')
 ```
 
 ## Development

@@ -1,10 +1,10 @@
 import path from 'node:path'
-import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
-import UnoCSS from 'unocss/vite'
-
 // for windows
 import { resolve } from 'pathe'
+import UnoCSS from 'unocss/vite'
+
+import { defineConfig } from 'vite'
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname)
 

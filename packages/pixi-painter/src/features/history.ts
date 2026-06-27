@@ -1,9 +1,9 @@
-import consola from 'consola'
 import type { Painter } from '../painter'
+import consola from 'consola'
 
 export interface PainterAction {
-  undo(): void
-  redo(): void
+  undo: () => void
+  redo: () => void
 }
 
 export class PainterHistory {
@@ -25,14 +25,10 @@ export class PainterHistory {
   }
 
   record(action: PainterAction) {
-    this.undoStack.push(action)
-    this.redoStack.length = 0
-
     this.undoStack.unshift(action)
     if (this.capacity && this.undoStack.length > this.capacity)
       this.undoStack.splice(this.capacity, Number.POSITIVE_INFINITY)
-    if (this.redoStack.length)
-      this.redoStack.splice(0, this.redoStack.length)
+    this.redoStack.length = 0
 
     this.painter.emitter.emit('history:record', action)
   }

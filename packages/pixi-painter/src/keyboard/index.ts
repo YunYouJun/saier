@@ -1,7 +1,7 @@
-import consola from 'consola'
 import type { KeyHandler } from 'hotkeys-js'
-import hotkeys from 'hotkeys-js'
 import type { Painter } from '../painter'
+import consola from 'consola'
+import hotkeys from 'hotkeys-js'
 
 export class Keyboard {
   static shortcuts: {

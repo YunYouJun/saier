@@ -1,9 +1,9 @@
 <script lang="ts" setup>
-import { ref, watch } from 'vue'
 import type { Painter } from '../../pixi-painter/src'
+import { ref, watch } from 'vue'
 import { PainterBrush } from '../../pixi-painter/src'
-import '@advjs/gui/dist/icons.css'
 import { PainterEraser } from '../../pixi-painter/src/eraser'
+import '@advjs/gui/dist/icons.css'
 
 const props = defineProps<{
   painter: Painter

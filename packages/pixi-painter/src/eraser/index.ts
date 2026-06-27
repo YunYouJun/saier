@@ -1,6 +1,6 @@
-import { Graphics, Point } from 'pixi.js'
 import type * as PIXI from 'pixi.js'
 import type { Painter } from '../painter'
+import { Graphics, Point } from 'pixi.js'
 
 export class PainterEraser {
   static index = 0
@@ -100,7 +100,7 @@ export class PainterEraser {
     const graphics = this.graphics
     if (this.dragging && graphics) {
       graphics.beginFill(PainterEraser.color)
-        .lineStyle({ width: 0, color: PainterEraser.color })
+        .lineStyle(0, PainterEraser.color)
         .drawCircle(localPos.x, localPos.y, PainterEraser.size * this.getPressure(event))
 
       // Smooth out the drawing a little bit to make it look nicer
@@ -110,7 +110,7 @@ export class PainterEraser {
         const lastDrawnPoint = this.lastDrawnPoint
         graphics
           // .clear()
-          .lineStyle({ width: PainterEraser.size * 2 * this.getPressure(event), color: PainterEraser.color })
+          .lineStyle(PainterEraser.size * 2 * this.getPressure(event), PainterEraser.color)
           .moveTo(lastDrawnPoint.x, lastDrawnPoint.y)
           .lineTo(localPos.x, localPos.y)
       }
@@ -171,7 +171,7 @@ export class PainterEraser {
       const localPos = event.getLocalPosition(this.parentContainer, global)
       graphics
       // .clear()
-        .lineStyle({ width: PainterEraser.size * 2 * this.getPressure(event), color: PainterEraser.color })
+        .lineStyle(PainterEraser.size * 2 * this.getPressure(event), PainterEraser.color)
         .moveTo(this.lastDrawnPoint.x, this.lastDrawnPoint.y)
         .lineTo(localPos.x, localPos.y)
 

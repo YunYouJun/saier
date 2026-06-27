@@ -1,7 +1,7 @@
 <script lang="ts" setup>
+import type { Painter } from '../../pixi-painter/src'
 import { ref } from 'vue'
 import { PainterBrush } from '../../pixi-painter/src'
-import type { Painter } from '../../pixi-painter/src'
 
 const props = defineProps<{
   painter: Painter

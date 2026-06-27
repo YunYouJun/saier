@@ -1,7 +1,7 @@
-import { Point } from 'pixi.js'
 import type * as PIXI from 'pixi.js'
-import type { Painter } from '../painter'
 import type { EditableLayer } from '.'
+import type { Painter } from '../painter'
+import { Point } from 'pixi.js'
 
 /**
  * add drag for container
@@ -43,12 +43,14 @@ export function createDrag({
     area.on('pointermove', onDragMove)
 
     dragTargets.forEach((dragTarget) => {
-      dragTarget.parent.setChildIndex(dragTarget, dragTarget.parent.children.length - 1)
+      const { parent } = dragTarget
+      if (parent)
+        parent.setChildIndex(dragTarget, parent.children.length - 1)
     })
   }
 
-  function setCursorStyle(style: PIXI.ICanvasStyle['cursor']) {
-    containers.forEach(container => container.cursor = style as string)
+  function setCursorStyle(style: string) {
+    containers.forEach(container => container.cursor = style)
     if (app.view)
       app.view.style!.cursor = style
   }
@@ -61,7 +63,11 @@ export function createDrag({
       return
 
     dragTargets.forEach((dragTarget) => {
-      const newPos = dragTarget.parent!.toLocal(e.global.subtract(offset), undefined)
+      const { parent } = dragTarget
+      if (!parent)
+        return
+
+      const newPos = parent.toLocal(e.global.subtract(offset), undefined)
       dragTarget.position = newPos
     })
   }

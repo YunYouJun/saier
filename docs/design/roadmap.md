@@ -70,7 +70,8 @@ title: Roadmap (P0–P9)
 
 - **范围**：`Document` 支持多 `RasterLayer`、opacity、显隐、顺序、blend mode（显示用 Pixi blend，存储是各自像素）；图层缩略图。
 - **UI 脱离库静态**（见 [D7](./decisions#d7)）：把 `@saier/vue` 的 `v-model="PainterBrush.color"`、`PainterBrush.enablePressure` 等直接操纵静态字段改为走 controller API；图层面板读 `document.layers` 而非 `painter.canvas.container.children`。
-- **验收**：图层面板增删 / 排序 / 改透明度即时反映；导出合成结果正确；UI 不再直接引用 `PainterBrush.*` 静态字段。
+- **bootstrap 去重**（见 [D8](./decisions#d8)）：把画板装配（`createPainter` + `await init()` + 默认图层 / 工具 + extract 接线）抽成 `@saier/vue` 的 `usePainter()` composable，`examples/vue` 与 `site` **都消费它**——消除当前各写一套 bootstrap 的重复（正是 site demo 漏调 v8 `init()` 而坏掉的根因；快修已落，结构性去重在此）。
+- **验收**：图层面板增删 / 排序 / 改透明度即时反映；导出合成结果正确；UI 不再直接引用 `PainterBrush.*` 静态字段；`examples/vue` 与 `site` 共用同一 `usePainter`（无重复 bootstrap）。
 
 ## P6 — 锁透明 / 剪贴 / 蒙版 / 带 transform 图层绘画
 

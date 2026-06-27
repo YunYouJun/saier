@@ -1,12 +1,12 @@
-import { Container, Graphics, Sprite, Texture } from 'pixi.js'
 import type * as PIXI from 'pixi.js'
-import { PainterBrush } from '../brush'
 import type { Painter } from '../painter'
-import { deleteBinSvg } from '../assets'
-import { createDrag } from './drag'
 import type { ControlPointPosition } from './scale'
-import { createScaleHandle } from './scale'
+import { Assets, Container, Graphics, Sprite, Texture } from 'pixi.js'
+import { deleteBinSvg } from '../assets'
+import { PainterBrush } from '../brush'
+import { createDrag } from './drag'
 import { createRotateHandle } from './rotate'
+import { createScaleHandle } from './scale'
 
 let layerMenuContainer: HTMLDivElement | null = null
 
@@ -65,7 +65,9 @@ export class EditableLayer extends Container {
 
     CENTER: new Sprite(Texture.WHITE),
 
-    REMOVE: new Sprite(Texture.from(deleteBinSvg)),
+    // placeholder; the real SVG icon is loaded async in the constructor
+    // (v8 Texture.from doesn't load raw SVG strings — use Assets.load)
+    REMOVE: new Sprite(Texture.WHITE),
   }
 
   constructor(painter: Painter) {
@@ -82,9 +84,9 @@ export class EditableLayer extends Container {
     // })
 
     this.boundingBoxContainer.eventMode = 'static'
-    this.boundingBoxContainer.name = 'boundingBoxContainer'
+    this.boundingBoxContainer.label = 'boundingBoxContainer'
 
-    this.boundingBox.name = 'boundingBox'
+    this.boundingBox.label = 'boundingBox'
     this.boundingBox.visible = true
     PainterBrush.enabled = false
 
@@ -94,7 +96,7 @@ export class EditableLayer extends Container {
     this.app = app
 
     Object.entries(this.controlPoints).forEach(([key, sprite]) => {
-      sprite.name = key
+      sprite.label = key
       // sprite.tint = 0x3D5CAA
       sprite.anchor.set(0.5)
       sprite.cursor = getCursor(key as ControlPointPosition)
@@ -133,7 +135,7 @@ export class EditableLayer extends Container {
 
     // add remove icon
     const removeIcon = this.controlPoints.REMOVE
-    removeIcon.name = 'removeIcon'
+    removeIcon.label = 'removeIcon'
     removeIcon.anchor.set(0.5)
     removeIcon.alpha = 0.8
     removeIcon.width = 16
@@ -156,6 +158,16 @@ export class EditableLayer extends Container {
       e.stopPropagation()
       this.remove()
     })
+
+    // v8: load the SVG trash icon via Assets (Texture.from can't load raw SVG strings)
+    Assets
+      .load<Texture>(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(deleteBinSvg)}`)
+      .then((tex) => {
+        removeIcon.texture = tex
+        removeIcon.width = 16
+        removeIcon.height = 16
+      })
+      .catch(() => {})
 
     // contextmenu
     this.on('rightclick', (e) => {
@@ -215,7 +227,7 @@ export class EditableLayer extends Container {
         })
       })
       menuContainer.appendChild(deleteBtn)
-      this.painter.app.view.parentNode?.appendChild(menuContainer)
+      this.painter.app.canvas.parentNode?.appendChild(menuContainer)
 
       const removeMenu = () => {
         menuContainer.remove()
@@ -242,10 +254,8 @@ export class EditableLayer extends Container {
 
     // clear
     boundingBox.clear()
-    // box style
-    boundingBox.lineStyle(1, 0x3D5CAA, 1)
-    // draw
-    boundingBox.drawRect(bounds.x, bounds.y, bounds.width, bounds.height)
+    // box outline (v8: describe path, then stroke)
+    boundingBox.rect(bounds.x, bounds.y, bounds.width, bounds.height).stroke({ width: 1, color: 0x3D5CAA, alpha: 1 })
 
     const controlPointsPos = {
       TOP_LEFT: [bounds.x, bounds.y], // top left
@@ -273,9 +283,9 @@ export class EditableLayer extends Container {
       const [x, y] = controlPointsPos[key as keyof typeof controlPointsPos]
 
       if (key !== 'REMOVE') {
-        boundingBox.beginFill(0xFFFFFF, 0.5)
-        boundingBox.drawRect(x - controlPointSize / 2, y - controlPointSize / 2, controlPointSize, controlPointSize)
-        boundingBox.endFill()
+        boundingBox
+          .rect(x - controlPointSize / 2, y - controlPointSize / 2, controlPointSize, controlPointSize)
+          .fill({ color: 0xFFFFFF, alpha: 0.5 })
       }
       // update handle position
       this.controlPoints[key as ControlPointPosition].position.set(x, y)
@@ -283,9 +293,11 @@ export class EditableLayer extends Container {
 
     // rotate handle line
     const [topCenterX, topCenterY] = controlPointsPos.TOP_CENTER
-    boundingBox.moveTo(topCenterX, topCenterY)
     const [rotateHandleX, rotateHandleY] = controlPointsPos.ROTATE
-    boundingBox.lineTo(rotateHandleX, rotateHandleY)
+    boundingBox
+      .moveTo(topCenterX, topCenterY)
+      .lineTo(rotateHandleX, rotateHandleY)
+      .stroke({ width: 1, color: 0x3D5CAA, alpha: 1 })
 
     return this.boundingBoxContainer
   }
@@ -294,8 +306,12 @@ export class EditableLayer extends Container {
    * not destroy
    */
   remove() {
-    this.lastParent = this.parent
-    this.parent.removeChild(this)
+    const { parent } = this
+    if (!parent)
+      return
+
+    this.lastParent = parent
+    parent.removeChild(this)
     this.painter.boundingBoxes.removeChild(this.boundingBoxContainer)
   }
 
@@ -304,7 +320,7 @@ export class EditableLayer extends Container {
     this.painter.boundingBoxes.addChild(this.boundingBoxContainer)
   }
 
-  destroy(options?: boolean | PIXI.IDestroyOptions | undefined): void {
+  destroy(options?: Parameters<Container['destroy']>[0]): void {
     super.destroy(options)
 
     // destroy bounding box and all children

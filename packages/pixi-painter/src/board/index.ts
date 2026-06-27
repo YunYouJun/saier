@@ -21,7 +21,7 @@ export class PainterBoard {
 
   constructor(painter: Painter) {
     this.painter = painter
-    this.container.name = 'boardContainer'
+    this.container.label = 'boardContainer'
 
     const { app } = this.painter
     this.container.x = app.canvas.width / app.renderer.resolution / 2

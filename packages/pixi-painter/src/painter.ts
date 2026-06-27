@@ -152,11 +152,11 @@ export class Painter {
 
     this.store = createStore(this.options)
 
-    stage.name = 'stage'
+    stage.label = 'stage'
     stage.addChild(this.board.container)
 
     // boxes
-    this.boundingBoxes.name = 'boundingBoxes'
+    this.boundingBoxes.label = 'boundingBoxes'
     this.boundingBoxes.x = app.canvas.width / app.renderer.resolution / 2
     this.boundingBoxes.y = app.canvas.height / app.renderer.resolution / 2
     stage.addChild(this.boundingBoxes)

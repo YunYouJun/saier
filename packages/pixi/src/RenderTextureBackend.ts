@@ -159,12 +159,13 @@ export class RenderTextureBackend implements SurfaceBackend {
   }
 
   beginStroke(layerId: string): void {
-    this.getLayer(layerId)
+    const layer = this.getLayer(layerId)
     this.clearTexture(this.strokeRT)
     this.dirty = empty()
     this.bufferedCpuDabs = []
     this.activeLayerId = layerId
     this.strokeMode = undefined
+    this.syncStrokePreviewTransform(layer.sprite)
 
     if (!this.strokeSprite.parent)
       this.stage.addChild(this.strokeSprite)
@@ -361,6 +362,15 @@ export class RenderTextureBackend implements SurfaceBackend {
     this.bufferedCpuDabs = []
   }
 
+  private syncStrokePreviewTransform(layerSprite: Sprite): void {
+    this.strokeSprite.position.copyFrom(layerSprite.position)
+    this.strokeSprite.scale.copyFrom(layerSprite.scale)
+    this.strokeSprite.pivot.copyFrom(layerSprite.pivot)
+    this.strokeSprite.skew.copyFrom(layerSprite.skew)
+    this.strokeSprite.anchor.copyFrom(layerSprite.anchor)
+    this.strokeSprite.rotation = layerSprite.rotation
+  }
+
   private flushBufferedCpuDabs(rect: DirtyRect): void {
     if (this.bufferedCpuDabs.length === 0)
       return
@@ -403,7 +413,8 @@ function createTextureFromPremultipliedPixels(
     canvas.height = height
     const context = canvas.getContext('2d')
     if (context) {
-      context.putImageData(new ImageData(toStraightAlphaPixels(pixels), width, height), 0, 0)
+      const straightPixels = toStraightAlphaPixels(pixels)
+      context.putImageData(new ImageData(straightPixels, width, height), 0, 0)
       return Texture.from(canvas)
     }
   }
@@ -419,8 +430,8 @@ function createTextureFromPremultipliedPixels(
   })
 }
 
-function toStraightAlphaPixels(pixels: Uint8Array): Uint8ClampedArray {
-  const out = new Uint8ClampedArray(pixels.length)
+function toStraightAlphaPixels(pixels: Uint8Array): Uint8ClampedArray<ArrayBuffer> {
+  const out = new Uint8ClampedArray(pixels.length) as Uint8ClampedArray<ArrayBuffer>
   for (let offset = 0; offset < pixels.length; offset += 4) {
     const alpha = pixels[offset + 3]
     out[offset + 3] = alpha

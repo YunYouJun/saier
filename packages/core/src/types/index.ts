@@ -13,5 +13,6 @@ export type {
   DirtyRect,
   StrokePatch,
   SurfaceBackend,
+  SurfaceLayerState,
   TilePatch,
 } from './surface'

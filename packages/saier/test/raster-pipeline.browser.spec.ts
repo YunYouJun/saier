@@ -168,6 +168,30 @@ describe('saier raster pipeline', () => {
     expect(painted[3]).toBeGreaterThan(0)
   })
 
+  it('aligns RenderTexture stroke preview with the centered layer display', async () => {
+    const painter = await createFixture()
+    const layerId = painter.document.activeLayerId
+    if (!layerId)
+      throw new Error('missing active layer')
+    const layer = painter.surface.getDisplayHandle(layerId)
+    if (!(layer instanceof Sprite))
+      throw new TypeError('expected RenderTexture layer sprite')
+
+    painter.useTool('brush')
+    painter.brush.setSize(20)
+    painter.brush.pointerDown(eventAt(painter, 0, 0, 0))
+
+    const preview = painter.canvas.layersContainer.children.find(
+      child => child.label === 'saier-stroke-preview',
+    )
+    if (!(preview instanceof Sprite))
+      throw new TypeError('missing RenderTexture stroke preview sprite')
+
+    expect(preview.position.x).toBe(layer.position.x)
+    expect(preview.position.y).toBe(layer.position.y)
+    painter.brush.pointerUp(eventAt(painter, 0, 0, 1))
+  })
+
   it('keeps P1 paint/erase/history parity on the tiled backend', async () => {
     const painter = await createFixture('tiled')
     const childCount = painter.canvas.layersContainer.children.length

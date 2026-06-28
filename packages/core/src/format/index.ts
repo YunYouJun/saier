@@ -1,4 +1,13 @@
 export {
+  type ImportedRasterDocument,
+  type ImportedRasterImage,
+  type ImportedRasterLayer,
+  isPsdBuffer,
+  readPsdDocument,
+  type ReadPsdDocumentOptions,
+} from './psd'
+
+export {
   fromShodoStroke,
   SHODO_OPERATION,
   type ShodoHistory,

@@ -374,7 +374,7 @@ export class Painter {
       thumb.height = size
       const context = thumb.getContext('2d')
       context?.clearRect(0, 0, size, size)
-      context?.drawImage(canvas, 0, 0, size, size)
+      context?.drawImage(canvas as unknown as CanvasImageSource, 0, 0, size, size)
       return thumb.toDataURL('image/png')
     }
     finally {

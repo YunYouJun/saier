@@ -20,7 +20,7 @@ title: Tasks
 - **Acceptance**：可勾选、尽量可自动化的验收项。
 - **Out of scope**：明确不在本卡内做的事（防止范围蔓延）。
 
-通用规则（同 [`AGENTS.md`](https://github.com/YunYouJun/pixi-painter/blob/main/AGENTS.md)）：
+通用规则（同 [`AGENTS.md`](https://github.com/YunYouJun/saier/blob/main/AGENTS.md)）：
 
 - 一次只做一张卡；保持 `examples/vue`、`examples/react`、site `/shodo` 可运行。
 - 收尾前跑 `pnpm lint` + `pnpm typecheck`。
@@ -138,6 +138,24 @@ title: Tasks
 
 **P5 出口 ✅ 已达成**：图层面板增删 / 排序 / 改透明度即时反映；导出合成结果正确；UI 不再直接引用 `PainterBrush.*` 静态字段；`examples/vue` 与 `site` 共用同一 `usePainter()`。
 
-## 后续阶段（P6+）
+## P6 — 锁透明 / 剪贴 / 蒙版 / 带 transform 图层绘画
 
-P6–P9 的任务卡按需续写（`P6-01-*.md` …），参照同一格式与依赖链。优先级与取舍见 [Roadmap](../roadmap) 与 [Risks](../roadmap#risks)。
+> 目标：把图层从「显隐 + opacity + blend」升级到专业绘画手感——锁透明、剪贴图层、图层蒙版，并补齐 [interfaces.md 第 3 点](../interfaces#坐标与变换正确性)推迟的**带 transform 图层逆变换绘画**（硬骨头）。四能力先在 [P6-01](./P6-01-layer-attributes-model) 落模型，再分别落像素 / 显示，最后 UI + 验收。
+>
+> 依赖链：`01 →（02,03,04,05）`；`04` 复用 `02` 的合成；`06` 汇合 01..05 的 UI；`07` 验收。**core 侧（02/04/05 的算法）与 pixi 显示侧可部分并行。**
+
+| ID                                          | 卡片                                                | 包        | Depends on          | Effort |
+| ------------------------------------------- | --------------------------------------------------- | --------- | ------------------- | ------ |
+| [P6-01](./P6-01-layer-attributes-model)     | 图层属性模型 + controller（锁/剪贴/蒙版/transform） | core      | P1-04, P5-01        | M      |
+| [P6-02](./P6-02-lock-alpha)                 | 锁透明合成（两后端）                                | core+pixi | P6-01, P1-05, P2-02 | L      |
+| [P6-03](./P6-03-clipping-layers)            | 剪贴图层（显示 + 导出）                             | pixi      | P6-01, P5-02        | M      |
+| [P6-04](./P6-04-layer-mask)                 | 图层蒙版（独立 raster + 目标切换）                  | core+pixi | P6-01, P6-02, P5-02 | L      |
+| [P6-05](./P6-05-transformed-layer-painting) | 带 transform 图层绘画（逆变换落点）                 | core+pixi | P6-01, P1-02, P3-01 | L      |
+| [P6-06](./P6-06-layer-panel-ui)             | 图层面板 UI（锁/剪贴/蒙版）                         | vue       | P6-01..05, P5-03    | M      |
+| [P6-07](./P6-07-verify-layer-features)      | P6 验收                                             | test      | P6-02..06           | S      |
+
+**P6 出口（里程碑 M4 起步）目标**：锁透明只改已有像素不扩边；剪贴层只在下层不透明区显示、导出 = 屏显；蒙版可画黑遮蔽 / 画白露出且独立 undo；缩放 / 旋转图层上落点准确（≤ 1px）。
+
+## 后续阶段（P7+）
+
+P7–P9 的任务卡按需续写（`P7-01-*.md` …），参照同一格式与依赖链。优先级与取舍见 [Roadmap](../roadmap) 与 [Risks](../roadmap#risks)。

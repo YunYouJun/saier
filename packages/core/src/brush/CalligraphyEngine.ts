@@ -176,7 +176,7 @@ export class CalligraphyEngine implements BrushEngine {
     }
 
     const n = this.buffer.length
-    const latest = this.buffer.at(-1)!
+    const latest = this.buffer[this.buffer.length - 1]!
     return {
       ...latest,
       x: x / n,

@@ -2,14 +2,15 @@
  * Customize default theme styling by overriding CSS variables:
  * https://github.com/vuejs/vitepress/blob/main/src/client/theme-default/styles/vars.css
  *
- * Brand palette follows pixi-painter's identity color (#f70a8d, a pink ramp).
+ * Brand palette follows saier's identity color (#e8402e, a 朱砂/vermilion ramp —
+ * the traditional seal-ink red, echoing the shodo calligraphy engine).
  */
 
 :root {
-  --vp-c-brand-1: #db2777;
-  --vp-c-brand-2: #ec4899;
-  --vp-c-brand-3: #f472b6;
-  --vp-c-brand-soft: #f472b650;
+  --vp-c-brand-1: #d6371f;
+  --vp-c-brand-2: #e8402e;
+  --vp-c-brand-3: #f4654f;
+  --vp-c-brand-soft: #f4654f50;
   --vp-c-bg-alt: #f9f9f9;
 
   --vp-c-yellow-1: #edb253;
@@ -22,10 +23,10 @@
 }
 
 .dark {
-  --vp-c-brand-1: #f9a8d4;
-  --vp-c-brand-2: #ec4899;
-  --vp-c-brand-3: #db2777;
-  --vp-c-brand-soft: #f472b650;
+  --vp-c-brand-1: #ff8a6e;
+  --vp-c-brand-2: #f4654f;
+  --vp-c-brand-3: #e8402e;
+  --vp-c-brand-soft: #f4654f50;
   --vp-c-bg-alt: #18181b;
 
   --vp-c-yellow-1: #e6cc78;
@@ -87,9 +88,9 @@
 
 :root {
   --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: -webkit-linear-gradient(120deg, #f70a8d 30%, #ec4899);
+  --vp-home-hero-name-background: -webkit-linear-gradient(120deg, #e8402e 30%, #ff7a5c);
 
-  --vp-home-hero-image-background-image: linear-gradient(-45deg, #f70a8d50 50%, #ec489950 50%);
+  --vp-home-hero-image-background-image: linear-gradient(-45deg, #e8402e50 50%, #ff7a5c50 50%);
   --vp-home-hero-image-filter: blur(44px);
 }
 

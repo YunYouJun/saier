@@ -70,4 +70,7 @@ export interface SurfaceBackend {
 
   /** opaque display handle (e.g. a Pixi Sprite); core does not type it */
   getDisplayHandle: (layerId: string) => unknown
+
+  /** release renderer-owned resources associated with the surface */
+  destroy: () => void
 }

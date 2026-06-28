@@ -74,7 +74,7 @@ function createPointCurve(points: PressureCurvePoint[]): PressureCurve {
       return clamp01(lerp(prev.y, next.y, t))
     }
 
-    return sorted.at(-1)!.y
+    return sorted[sorted.length - 1]!.y
   }
 }
 

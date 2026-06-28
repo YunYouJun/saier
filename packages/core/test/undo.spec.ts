@@ -54,6 +54,8 @@ class FakeBackend implements SurfaceBackend {
     return id
   }
 
+  destroy(): void {}
+
   snapshot(): number[] {
     return Array.from(this.pixels)
   }

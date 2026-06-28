@@ -1,6 +1,15 @@
 import { Sprite, Texture } from 'pixi.js'
 import { PainterBoard } from '../board'
 
+export {
+  type ImportedRasterDocument,
+  type ImportedRasterImage,
+  type ImportedRasterLayer,
+  isPsdBuffer,
+  readPsdDocument,
+  type ReadPsdDocumentOptions,
+} from '@saier/core'
+
 /**
  * import image as PIXI.Sprite
  * blob url

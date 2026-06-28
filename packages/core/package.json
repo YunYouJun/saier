@@ -33,6 +33,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
+    "ag-psd": "^31.0.0",
     "mitt": "^3.0.1"
   },
   "devDependencies": {

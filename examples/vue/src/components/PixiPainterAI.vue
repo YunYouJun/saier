@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ComponentPublicInstance } from 'vue'
 import { usePainter } from '@saier/vue/composables/usePainter'
 import axios from 'axios'
 import consola from 'consola'
@@ -17,6 +18,10 @@ const {
   layers,
   painter,
 } = usePainter()
+
+function setSrcCanvas(element: Element | ComponentPublicInstance | null): void {
+  srcCanvas.value = element instanceof HTMLCanvasElement ? element : undefined
+}
 
 watch(painter, (p, _previous, onCleanup) => {
   if (!p)
@@ -95,7 +100,7 @@ watch(painter, (p, _previous, onCleanup) => {
 
     <div class="canvas-container" grid="~ cols-2" gap="2">
       <div h-full w-full text-center shadow>
-        <canvas ref="srcCanvas" width="768" height="768" class="m-auto rounded" />
+        <canvas :ref="setSrcCanvas" width="768" height="768" class="m-auto rounded" />
       </div>
       <div h-full w-full text-center>
         <canvas ref="targetCanvas" width="768" height="768" class="m-auto rounded bg-gray" />

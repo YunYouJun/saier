@@ -71,8 +71,26 @@ const TASKS_P4: DefaultTheme.NavItemWithLink[] = [
   { text: 'P4-06 · Verify brush family', link: '/design/tasks/P4-06-verify-brush-family' },
 ]
 
+const TASKS_P5: DefaultTheme.NavItemWithLink[] = [
+  { text: 'P5-01 · Layer stack controller', link: '/design/tasks/P5-01-layer-stack-controller' },
+  { text: 'P5-02 · Pixi layer display sync', link: '/design/tasks/P5-02-pixi-layer-display-sync' },
+  { text: 'P5-03 · Layer panel UI', link: '/design/tasks/P5-03-layer-panel-ui' },
+  { text: 'P5-04 · Shared usePainter()', link: '/design/tasks/P5-04-use-painter-composable' },
+  { text: 'P5-05 · Verify layer stack', link: '/design/tasks/P5-05-verify-layer-stack' },
+]
+
+const TASKS_P6: DefaultTheme.NavItemWithLink[] = [
+  { text: 'P6-01 · Layer attributes model', link: '/design/tasks/P6-01-layer-attributes-model' },
+  { text: 'P6-02 · Lock alpha', link: '/design/tasks/P6-02-lock-alpha' },
+  { text: 'P6-03 · Clipping layers', link: '/design/tasks/P6-03-clipping-layers' },
+  { text: 'P6-04 · Layer mask', link: '/design/tasks/P6-04-layer-mask' },
+  { text: 'P6-05 · Transformed-layer painting', link: '/design/tasks/P6-05-transformed-layer-painting' },
+  { text: 'P6-06 · Layer panel UI', link: '/design/tasks/P6-06-layer-panel-ui' },
+  { text: 'P6-07 · Verify layer features', link: '/design/tasks/P6-07-verify-layer-features' },
+]
+
 const vpConfig = getVitepressConfig({
-  repo: 'https://github.com/YunYouJun/pixi-painter',
+  repo: 'https://github.com/YunYouJun/saier',
 })
 
 export default defineConfig({
@@ -114,7 +132,7 @@ export default defineConfig({
       {
         text: `v${version}`,
         items: [
-          { text: 'Release Notes', link: 'https://github.com/YunYouJun/pixi-painter/releases' },
+          { text: 'Release Notes', link: 'https://github.com/YunYouJun/saier/releases' },
         ],
       },
     ],
@@ -128,12 +146,14 @@ export default defineConfig({
         { text: 'Tasks · P1', collapsed: false, items: TASKS_P1 },
         { text: 'Tasks · P2', collapsed: true, items: TASKS_P2 },
         { text: 'Tasks · P3', collapsed: true, items: TASKS_P3 },
-        { text: 'Tasks · P4', collapsed: false, items: TASKS_P4 },
+        { text: 'Tasks · P4', collapsed: true, items: TASKS_P4 },
+        { text: 'Tasks · P5', collapsed: true, items: TASKS_P5 },
+        { text: 'Tasks · P6', collapsed: false, items: TASKS_P6 },
       ],
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/YunYouJun/pixi-painter' },
+      { icon: 'github', link: 'https://github.com/YunYouJun/saier' },
     ],
 
     footer: {

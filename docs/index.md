@@ -6,7 +6,7 @@ hero:
   text: "优雅的在线画板"
   tagline: 一个体验优雅的在线绘画运行时 —— 融合 SAI / Procreate / Krita 之长，把画意手感搬到 web（PixiJS 显示 + 可脱离 Pixi 的 raster 引擎）
   image:
-    src: /favicon.svg
+    src: /logo.svg
     alt: saier
   actions:
     - theme: brand

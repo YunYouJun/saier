@@ -31,7 +31,7 @@ jobs:
           cache: pnpm
 
       # https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
-      - run: cd packages/pixi-painter && npm publish
+      - run: cd packages/saier && npm publish
         env:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
           NPM_CONFIG_PROVENANCE: true

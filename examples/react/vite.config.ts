@@ -24,7 +24,7 @@ export default defineConfig({
     alias: {
       '@saier/core': resolve(__dirname, '../../packages/core/src/index.ts'),
       '@saier/pixi': resolve(__dirname, '../../packages/pixi/src/index.ts'),
-      'pixi-painter': resolve(__dirname, '../../packages/pixi-painter/src/index.ts'),
+      'saier': resolve(__dirname, '../../packages/saier/src/index.ts'),
     },
   },
 

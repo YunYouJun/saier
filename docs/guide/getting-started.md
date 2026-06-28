@@ -5,15 +5,15 @@
 ### Install
 
 ```bash
-pnpm add pixi-painter
+pnpm add saier
 ```
 
-`pixi-painter` ships ESM and lists `pixi.js` as a dependency.
+`saier` ships ESM and lists `pixi.js` as a dependency. (The package was previously published as `pixi-painter`, kept as a deprecated alias during the transition.)
 
 ### Create a painter
 
 ```ts
-import { createPainter } from 'pixi-painter'
+import { createPainter } from 'saier'
 
 const painter = createPainter({
   // PIXI.Application view
@@ -34,7 +34,7 @@ painter.history.undo()
 painter.history.redo()
 ```
 
-See the [`examples/`](https://github.com/YunYouJun/pixi-painter/tree/main/examples)
+See the [`examples/`](https://github.com/YunYouJun/saier/tree/main/examples)
 directory for full Vue and React integrations.
 
 ## Develop this repo
@@ -47,8 +47,8 @@ directory for full Vue and React integrations.
 ### Install & run
 
 ```bash
-git clone https://github.com/YunYouJun/pixi-painter.git
-cd pixi-painter
+git clone https://github.com/YunYouJun/saier.git
+cd saier
 pnpm install
 
 # run the Nuxt site (default final experience)
@@ -67,14 +67,16 @@ pnpm docs:dev
 ### Repository layout
 
 ```
-pixi-painter/
+saier/
 ├── docs/                  # this VitePress documentation site
 │   ├── guide/             # usage guide
 │   └── design/            # architecture & execution roadmap (for codex)
 ├── packages/
-│   ├── pixi-painter/      # main library
-│   ├── controls/          # @saier/vue — Vue UI
-│   └── shodo/             # experimental calligraphy stroke engine
+│   ├── saier/             # main library (umbrella; re-exports core + pixi)
+│   ├── core/              # @saier/core — Pixi-agnostic engine
+│   ├── pixi/              # @saier/pixi — Pixi backends
+│   ├── vue/               # @saier/vue — Vue UI
+│   └── shodo/             # @saier/shodo — calligraphy stroke engine
 ├── examples/              # vue / react integration examples
 ├── site/                  # Nuxt landing + interactive demo site
 ├── AGENTS.md / CLAUDE.md  # instructions for coding agents
@@ -85,7 +87,7 @@ pixi-painter/
 
 ```bash
 pnpm build        # build library + site
-pnpm build:lib    # build packages/pixi-painter only
+pnpm build:lib    # build packages/saier only
 pnpm lint         # eslint
 pnpm typecheck    # tsc --noEmit
 pnpm test         # vitest

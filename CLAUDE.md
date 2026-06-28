@@ -5,7 +5,7 @@
 
 ## Project Overview
 
-`saier` (current package name: `pixi-painter`) — **an elegant online painting runtime powered by PixiJS**.
+`saier` (published as `saier`; the legacy `pixi-painter` name is kept as a deprecated alias) — **an elegant online painting runtime powered by PixiJS**.
 
 - **Purpose**: an elegant **online painting board**. Recreates the _painterly feel_ of tools like SAI / Procreate / Krita on the web (SAI is one reference among several, not a clone). Evolving from a PixiJS brush demo into a **Pixi-agnostic raster painting engine** + a Pixi display / interaction layer.
 - **Architecture**: pnpm workspace monorepo.
@@ -40,7 +40,7 @@ pnpm dev:site       # run the Nuxt site (landing + /shodo demo)
 pnpm dev:vue        # run the lightweight Vue example sandbox
 pnpm docs:dev       # run the VitePress docs site
 pnpm build          # build library + site
-pnpm build:lib      # build packages/pixi-painter only
+pnpm build:lib      # build packages/saier only
 pnpm lint           # eslint
 pnpm typecheck      # tsc --noEmit
 pnpm test           # vitest
@@ -51,9 +51,11 @@ pnpm docs:build     # build docs
 
 ```
 packages/
-  pixi-painter/   # main library (painter, board, brush, eraser, layers, history)
-  controls/       # @saier/vue — Vue UI
-  shodo/          # experimental calligraphy stroke engine (algorithms to harvest)
+  saier/          # umbrella library (painter, board, brush, eraser, layers, history; re-exports core + pixi)
+  core/           # @saier/core — Pixi-agnostic raster engine
+  pixi/           # @saier/pixi — Pixi backends (RenderTexture + tile) + viewport
+  vue/            # @saier/vue — Vue UI
+  shodo/          # @saier/shodo — experimental calligraphy stroke engine (algorithms to harvest)
 examples/         # vue / react integrations
 site/             # Nuxt landing + interactive demos
 docs/             # VitePress documentation (guide + design/roadmap)

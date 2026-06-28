@@ -120,7 +120,7 @@ export function usePainter(painter: Painter) {
 
 目录约定 `packages/{core,pixi,vue,shodo,saier}`（dir 与包名后缀一致）。**品牌张力已消解**：核心刻意与 Pixi 无关，而 `saier` 本就不含 pixi，名实相符。
 
-**执行进度**：① shodo 包名**已修** → `@saier/shodo`（安全、零引用）；② 全部设计文档已统一到 `@saier/*` 口径；③ 新包 `@saier/core` / `@saier/pixi` 在 [P1-01](./tasks/P1-01-scaffold-packages) 建包时落地；④ **已发布包的实际改名**（`pixi-painter → saier`、`@pixi-painter/controls → @saier/vue`）涉及 republish + deprecate alias，作为 restructure 步骤、动手前再确认。
+**执行进度**：① shodo 包名**已修** → `@saier/shodo`（安全、零引用）；② 全部设计文档已统一到 `@saier/*` 口径；③ 新包 `@saier/core` / `@saier/pixi` 在 [P1-01](./tasks/P1-01-scaffold-packages) 建包时落地；④ **已发布包的实际改名已完成**：`packages/pixi-painter → packages/saier`（包名 `pixi-painter → saier`）、`packages/controls → packages/vue`（`@pixi-painter/controls → @saier/vue`），全仓引用 / 别名 / CI 发布路径已切换，typecheck·lint·test·build 全绿。**遗留**：npm 上 `pixi-painter` 的 deprecate alias 包仍待在首次 republish 时发布（纯发布期工作）。
 
 **包拆分（已决定）**：**最小拆分 + lockstep 版本**。只拆承重的一刀——`@saier/core`（无 pixi 依赖）⊥ `@saier/pixi`，让**依赖图**强制"核心与 Pixi 解耦"这个命题（比 lint 可靠）；`core` 内再加 ESLint `no-restricted-imports` 禁 `pixi.js` 作双保险。其余不过度拆：`@saier/shodo` 已是包、`@saier/vue` 可晚点独立、`saier`(umbrella) re-export 串起来。全部 **lockstep 一起 bump**（像 `@vue/*`），消掉独立版本负担、可后续再调。→ [P1-01](./tasks/P1-01-scaffold-packages) 维持原样（core + pixi 两包）。
 

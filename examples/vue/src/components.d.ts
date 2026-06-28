@@ -17,10 +17,10 @@ declare module 'vue' {
     AGUISlider: GlobalComponent
     AGUITree: GlobalComponent
     Logos: typeof import('./components/Logos.vue')['default']
-    PainterColorPicker: typeof import('./../../../packages/controls/components/PainterColorPicker.vue')['default']
-    PainterControls: typeof import('./../../../packages/controls/components/PainterControls.vue')['default']
-    PainterIconButton: typeof import('./../../../packages/controls/components/PainterIconButton.vue')['default']
-    PainterOptionsBar: typeof import('./../../../packages/controls/components/PainterOptionsBar.vue')['default']
+    PainterColorPicker: typeof import('./../../../packages/vue/components/PainterColorPicker.vue')['default']
+    PainterControls: typeof import('./../../../packages/vue/components/PainterControls.vue')['default']
+    PainterIconButton: typeof import('./../../../packages/vue/components/PainterIconButton.vue')['default']
+    PainterOptionsBar: typeof import('./../../../packages/vue/components/PainterOptionsBar.vue')['default']
     PixiPainterAI: typeof import('./components/PixiPainterAI.vue')['default']
     PixiPainterApp: typeof import('./components/PixiPainterApp.vue')['default']
     RouterLink: typeof RouterLink

@@ -12,7 +12,7 @@
     "paths": {
       "@saier/core": ["../../packages/core/src/index.ts"],
       "@saier/pixi": ["../../packages/pixi/src/index.ts"],
-      "pixi-painter": ["../../packages/pixi-painter/src/index.ts"]
+      "saier": ["../../packages/saier/src/index.ts"]
     },
 
     "resolveJsonModule": true,

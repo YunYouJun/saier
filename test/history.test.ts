@@ -1,8 +1,8 @@
-import type { PainterAction } from '../packages/pixi-painter/src/features/history'
-import type { Painter } from '../packages/pixi-painter/src/painter'
+import type { PainterAction } from '../packages/saier/src/features/history'
+import type { Painter } from '../packages/saier/src/painter'
 import consola from 'consola'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { PainterHistory } from '../packages/pixi-painter/src/features/history'
+import { PainterHistory } from '../packages/saier/src/features/history'
 
 function createPainterMock() {
   const emit = vi.fn()

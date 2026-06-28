@@ -1,5 +1,5 @@
 {
-  "name": "pixi-painter",
+  "name": "saier",
   "type": "module",
   "version": "0.1.6-beta.1",
   "color": "#F70A8D",
@@ -10,7 +10,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/YunYouJun/pixi-painter"
+    "url": "https://github.com/YunYouJun/saier"
   },
   "exports": {
     ".": {

@@ -27,8 +27,8 @@ export default defineNuxtConfig({
   alias: {
     '@saier/core': '../packages/core/src/index.ts',
     '@saier/pixi': '../packages/pixi/src/index.ts',
-    '@saier/vue': path.resolve(import.meta.dirname, '../packages/controls'),
-    'pixi-painter': '../packages/pixi-painter/src/index.ts',
+    '@saier/vue': path.resolve(import.meta.dirname, '../packages/vue'),
+    'saier': '../packages/saier/src/index.ts',
   },
 
   vite: {
@@ -51,7 +51,7 @@ export default defineNuxtConfig({
     dirs: [
       '~/components',
       {
-        path: path.resolve(import.meta.dirname, '../packages/controls/components'),
+        path: path.resolve(import.meta.dirname, '../packages/vue/components'),
         prefix: '',
       },
     ],

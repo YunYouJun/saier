@@ -1,6 +1,6 @@
 # What is saier?
 
-`saier` (current package: `pixi-painter`) is an **elegant online painting runtime** built on
+`saier` is an **elegant online painting runtime** built on
 [PixiJS](https://pixijs.com/). It provides the building blocks of a drawing application — a
 pannable / zoomable board, pressure-aware brush and eraser, image import with transform
 handles, selection, and undo / redo.
@@ -22,11 +22,13 @@ If you want to understand the architecture or contribute to the rewrite, start w
 
 ## Packages
 
-| Package                                                                                     | Description                                                                 |
-| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| [`pixi-painter`](https://github.com/YunYouJun/pixi-painter/tree/main/packages/pixi-painter) | The main library: painter, board, brush, eraser, layers, history            |
-| `@saier/vue`                                                                                | Vue UI controls (toolbar / options)                                         |
-| `shodo`                                                                                     | Experimental Japanese-calligraphy stroke engine (brush dynamics playground) |
+| Package                                                                     | Description                                                                 |
+| --------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| [`saier`](https://github.com/YunYouJun/saier/tree/main/packages/saier)      | Umbrella library: painter, board, brush, eraser, layers, history            |
+| [`@saier/core`](https://github.com/YunYouJun/saier/tree/main/packages/core) | Pixi-agnostic raster engine (brush / surface / document / undo / input)     |
+| [`@saier/pixi`](https://github.com/YunYouJun/saier/tree/main/packages/pixi) | Pixi backends (RenderTexture + tile) and viewport                           |
+| `@saier/vue`                                                                | Vue UI controls (toolbar / options / layer panel / preset picker)           |
+| `@saier/shodo`                                                              | Experimental Japanese-calligraphy stroke engine (brush dynamics playground) |
 
 ## Features
 

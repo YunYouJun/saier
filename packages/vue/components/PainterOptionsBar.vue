@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { BrushPresetId, PainterBrushState } from '@saier/core'
-import type { Painter } from '../../pixi-painter/src'
+import type { Painter } from '../../saier/src'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import BrushPresetPicker from './BrushPresetPicker.vue'
 import '@advjs/gui/dist/icons.css'

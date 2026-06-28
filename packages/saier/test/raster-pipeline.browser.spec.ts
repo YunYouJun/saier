@@ -110,7 +110,7 @@ async function readExportCenterPixel(painter: Painter): Promise<Uint8ClampedArra
   return context.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data
 }
 
-describe('pixi-painter raster pipeline', () => {
+describe('saier raster pipeline', () => {
   it('paints into RenderTexture layers without adding stroke Graphics', async () => {
     const painter = await createFixture()
     const childCount = painter.canvas.layersContainer.children.length

@@ -37,11 +37,11 @@ features:
 ## Quick Start
 
 ```bash
-pnpm add pixi-painter
+pnpm add saier
 ```
 
 ```ts
-import { createPainter } from 'pixi-painter'
+import { createPainter } from 'saier'
 
 const painter = createPainter({
   view: document.querySelector('#canvas') as HTMLCanvasElement,
@@ -54,7 +54,7 @@ painter.useTool('brush')
 
 ## Status
 
-pixi-painter is under active architectural evolution — from a PixiJS brush demo into a
+saier is under active architectural evolution — from a PixiJS brush demo into a
 **elegant, multi-inspiration web painting runtime** (synthesizing SAI / Procreate / Krita). The full plan lives in the [Design](/design/) section,
 written to be executed phase-by-phase by humans or coding agents.
 

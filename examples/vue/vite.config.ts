@@ -37,8 +37,8 @@ export default defineConfig({
     alias: {
       '@saier/core': path.resolve(__dirname, '../../packages/core/src'),
       '@saier/pixi': path.resolve(__dirname, '../../packages/pixi/src'),
-      '@saier/vue': path.resolve(__dirname, '../../packages/controls'),
-      'pixi-painter': path.resolve(__dirname, '../../packages/pixi-painter/src'),
+      '@saier/vue': path.resolve(__dirname, '../../packages/vue'),
+      'saier': path.resolve(__dirname, '../../packages/saier/src'),
     },
   },
 
@@ -83,7 +83,7 @@ export default defineConfig({
     // https://github.com/antfu/unplugin-vue-components
     Components({
       // allow auto load markdown components under `./src/components/`
-      dirs: ['src/components', '../../packages/controls/components', componentsDir],
+      dirs: ['src/components', '../../packages/vue/components', componentsDir],
       extensions: ['vue', 'md'],
       // allow auto import and register components used in markdown
       include: [/\.vue$/, /\.vue\?vue/, /\.md$/],

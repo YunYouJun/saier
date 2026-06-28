@@ -3,9 +3,9 @@ import type {
   PainterControllerState,
   PainterLayerState,
 } from '@saier/core'
-import type { Painter, PainterOptions } from 'pixi-painter'
+import type { Painter, PainterOptions } from 'saier'
 import type { ComputedRef, Ref, ShallowRef } from 'vue'
-import { createPainter } from 'pixi-painter'
+import { createPainter } from 'saier'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 
 type MaybeFactory<T> = T | (() => T)

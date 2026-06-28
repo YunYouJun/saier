@@ -14,6 +14,10 @@ test-results
 playwright-report
 .last-run.json
 
+# Vitest browser failure artifacts
+.vitest-attachments
+**/__screenshots__
+
 # Logs
 logs
 *.log

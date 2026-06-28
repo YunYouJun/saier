@@ -42,7 +42,7 @@ export default defineConfig({
         test: {
           name: 'browser',
           include: [
-            'packages/pixi-painter/test/**/*.browser.spec.ts',
+            'packages/saier/test/**/*.browser.spec.ts',
             'packages/pixi/test/**/*.browser.spec.ts',
           ],
           browser: {

@@ -23,7 +23,7 @@
     "eslint": "^10.5.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
-    "pixi-painter": "workspace:*",
+    "saier": "workspace:*",
     "typescript": "^5.9.3",
     "unocss": "^66.7.2",
     "vite": "^8.1.0"

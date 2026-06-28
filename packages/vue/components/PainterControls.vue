@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { PainterBrushState } from '@saier/core'
-import type { Painter } from '../../pixi-painter/src'
+import type { Painter } from '../../saier/src'
 import { computed, onBeforeUnmount, ref } from 'vue'
 
 interface PainterControlsLabels {
@@ -148,7 +148,7 @@ const tools = computed(() => [
 
       const a = document.createElement('a')
       a.href = dataUrl as string
-      a.download = 'pixi-painter-img.png'
+      a.download = 'saier-img.png'
       a.click()
     },
   },

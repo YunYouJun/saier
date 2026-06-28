@@ -1,5 +1,5 @@
 {
-  "name": "pixi-painter",
+  "name": "saier-monorepo",
   "type": "module",
   "version": "0.1.6-beta.0",
   "private": true,
@@ -16,7 +16,7 @@
     "build": "pnpm build:lib && pnpm build:site",
     "build:react": "pnpm -C examples/react run build",
     "build:vue": "pnpm -C examples/vue run build",
-    "build:lib": "pnpm -C packages/pixi-painter run build",
+    "build:lib": "pnpm -C packages/saier run build",
     "build:site": "pnpm -C site run build",
     "generate:site": "pnpm -C site run generate",
     "dev": "pnpm -C site run dev",

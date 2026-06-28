@@ -1,7 +1,17 @@
 <script lang="ts" setup>
 import { modalOptions, usePixiPainter } from '../composables'
 
-const { onExtract, data, painter, srcCanvas, targetCanvas } = usePixiPainter()
+const {
+  activeLayerId,
+  data,
+  layerActions,
+  layerThumbnails,
+  layers,
+  onExtract,
+  painter,
+  srcCanvas,
+  targetCanvas,
+} = usePixiPainter()
 void srcCanvas
 void targetCanvas
 </script>
@@ -11,9 +21,23 @@ void targetCanvas
     <template v-if="painter">
       <PainterControls :painter="painter" class="absolute left-2 top-13" @extract="onExtract" />
       <PainterOptionsBar :painter="painter" class="absolute left-2 top-2" />
+      <PainterLayerPanel
+        class="absolute right-2 top-2"
+        :layers="layers"
+        :active-layer-id="activeLayerId"
+        :thumbnails="layerThumbnails"
+        @add="layerActions.add"
+        @remove="layerActions.remove"
+        @move="layerActions.move"
+        @select="layerActions.setActive"
+        @update:visible="layerActions.setVisible"
+        @update:opacity="layerActions.setOpacity"
+        @update:blend-mode="layerActions.setBlendMode"
+        @update:label="layerActions.setLabel"
+      />
     </template>
 
-    <div class="absolute right-2 top-2 w-80 text-left">
+    <div class="absolute right-2 top-120 w-80 text-left">
       <AGUITree :data="data" />
     </div>
 

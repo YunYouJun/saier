@@ -8,11 +8,15 @@ title: P4-03 · pen / pencil / marker 预设
 - **Depends on**: P4-01、P4-02
 - **Files**: `packages/core/src/brush/presets/`、`test/`
 - **Effort**: M
-- **Status**: 🟡
+- **Status**: ✅ 已完成
 
 ## Context
 
 三支"不随时间累积"的基础笔，都是 `BrushPreset` + `SimpleBrushEngine` 的实例，验证 preset 模型 + 笔尖系统够用。
+
+## Result
+
+默认 registry 已包含 `pen` / `pencil` / `marker`。pen 使用 hard round tip，pencil 使用 textured tip，marker 使用 chisel tip + `max-alpha` dab accumulation；tile 与 RT 后端都用 stroke-local scratch 保证单笔内不过度叠深、跨笔仍可叠加。
 
 ## Steps
 
@@ -23,9 +27,9 @@ title: P4-03 · pen / pencil / marker 预设
 
 ## Acceptance
 
-- [ ] pen/pencil/marker 三种产出肉眼可辨（golden）。
-- [ ] **marker 单笔自叠不发黑**：一笔来回涂同一处，alpha 不超过单笔上限（断言）。
-- [ ] 跨笔叠加仍会加深（marker 的"多层"特性保留）。
+- [x] pen/pencil/marker 三种产出肉眼可辨（golden）。
+- [x] **marker 单笔自叠不发黑**：一笔来回涂同一处，alpha 不超过单笔上限（断言）。
+- [x] 跨笔叠加仍会加深（marker 的"多层"特性保留）。
 
 ## Out of scope
 

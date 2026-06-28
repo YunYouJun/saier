@@ -8,7 +8,7 @@ title: P2-03 · tile 撤销（TilePatch）
 - **Depends on**: P2-01、P1-04（UndoManager）
 - **Files**: `packages/core/src/document/UndoManager.ts`、`src/surface/**`、`test/`
 - **Effort**: M
-- **Status**: 🟡 条件性
+- **Status**: ✅ 已完成（TilePatch undo / redo）
 
 ## Context
 
@@ -23,9 +23,9 @@ title: P2-03 · tile 撤销（TilePatch）
 
 ## Acceptance
 
-- [ ] `test/tile-undo.spec.ts`：画跨多 tile 一笔 → undo 后逐 tile == 画前；redo == 画后。
-- [ ] 撤销只复制 / 恢复**脏 tile**（数量断言：未触碰的 tile 不进 patch）。
-- [ ] 与 P1 的 UndoManager 行为兼容（容量、双栈、事件）。
+- [x] `test/tile-undo.spec.ts`：画跨多 tile 一笔 → undo 后逐 tile == 画前；redo == 画后。
+- [x] 撤销只复制 / 恢复**脏 tile**（数量断言：未触碰的 tile 不进 patch）。
+- [x] 与 P1 的 UndoManager 行为兼容（容量、双栈、事件）。
 
 ## Out of scope
 

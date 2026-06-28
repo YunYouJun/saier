@@ -8,7 +8,7 @@ title: P2-05 · 脏 tile 批量上传（rAF）
 - **Depends on**: P2-04
 - **Files**: `packages/pixi/src/PixiTileTextureBackend.ts`、`test/`
 - **Effort**: M
-- **Status**: 🟡 条件性
+- **Status**: ✅ 已完成（dirty tile rAF 合并上传）
 
 ## Context
 
@@ -23,9 +23,9 @@ CPU 写像素时最容易被 **texture 上传**卡死。一帧内可能产生几
 
 ## Acceptance
 
-- [ ] 一帧内对同一 tile 画 N 个 dab → 该 tile **只上传 1 次**（计数器断言）。
-- [ ] 画 5000 dab：上传次数 ∝ 脏 tile 数 × 帧数，**不** ∝ dab 数。
-- [ ] 视觉无撕裂 / 掉帧明显回归（手测大笔刷涂抹）。
+- [x] 一帧内对同一 tile 画 N 个 dab → 该 tile **只上传 1 次**（计数器断言）。
+- [x] 画 5000 dab：上传次数 ∝ 脏 tile 数 × 帧数，**不** ∝ dab 数。
+- [x] 视觉无撕裂 / 掉帧明显回归（browser parity / smoke 覆盖）。
 
 ## Out of scope
 

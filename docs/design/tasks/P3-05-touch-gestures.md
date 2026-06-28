@@ -8,7 +8,7 @@ title: P3-05 · 触屏 / 手势
 - **Depends on**: viewport（现有 board/canvas pan/zoom）、P3-01（pointer 通道）
 - **Files**: `packages/pixi/src/PixiViewport.ts`、gesture 路由、`test/`
 - **Effort**: M
-- **Status**: 🟡（补 [Risks #5①](../roadmap#risks) 缺口）
+- **Status**: ✅ 已完成（touch gesture router + painter cancel path）
 
 ## Context
 
@@ -24,10 +24,10 @@ title: P3-05 · 触屏 / 手势
 
 ## Acceptance
 
-- [ ] 双指：能平移 + 捏合缩放，且**不留下笔迹**。
-- [ ] 单指：正常画。
-- [ ] 单指起笔后第二指落下 → 笔迹回退、转入手势（不残留断线）。
-- [ ] 笔 / 鼠标行为未回归。
+- [x] 双指：能平移 + 捏合缩放，且**不留下笔迹**。
+- [x] 单指：正常画。
+- [x] 单指起笔后第二指落下 → 笔迹回退、转入手势（不残留断线）。
+- [x] 笔 / 鼠标行为未回归。
 
 ## Out of scope
 

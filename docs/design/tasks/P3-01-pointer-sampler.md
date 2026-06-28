@@ -8,7 +8,7 @@ title: P3-01 · PointerSampler + coalesced events
 - **Depends on**: P1-02（`BrushInputPoint` 类型）；viewport `toDocument`（[interfaces · 坐标](../interfaces#坐标与变换正确性)）
 - **Files**: `packages/core/src/input/PointerSampler.ts`、`test/`
 - **Effort**: M
-- **Status**: 🟡 P3 输入地基（可与 P1/P2 并行）
+- **Status**: ✅ 已完成（coalesced sampler + pressure provenance）
 
 ## Context
 
@@ -23,9 +23,9 @@ title: P3-01 · PointerSampler + coalesced events
 
 ## Acceptance
 
-- [ ] 快速划动时，一次 `pointermove` 能展开出多个 coalesced 点（计数断言 / 真机肉眼）。
-- [ ] 鼠标输入 `hasPressure=false`，pressure 不被伪造成 0.5（断言）。
-- [ ] 输出点全在 document space，与缩放无关（缩放后同屏幕路径 → 不同 doc 坐标，正确）。
+- [x] 快速划动时，一次 `pointermove` 能展开出多个 coalesced 点（计数断言 / 真机肉眼）。
+- [x] 鼠标输入 `hasPressure=false`，pressure 不被伪造成 0.5（断言）。
+- [x] 输出点全在 document space，与缩放无关（缩放后同屏幕路径 → 不同 doc 坐标，正确）。
 
 ## Out of scope
 

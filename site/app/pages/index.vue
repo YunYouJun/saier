@@ -1,58 +1,280 @@
 <script setup lang="ts">
-import type { Painter } from 'pixi-painter'
+import type { SitePainterMenuCommand, SitePainterTool } from '~/types/painter-app'
+import { usePainter } from '@saier/vue/composables/usePainter'
+import { computed, shallowRef } from 'vue'
 
-import { createPainter } from 'pixi-painter'
+const {
+  htmlLang,
+  locale,
+  nextLocaleLabel,
+  setLocale,
+  text,
+  toggleLocale,
+} = useSiteI18n()
 
-// const online = useOnline()
+const exportPreview = shallowRef<string>()
 
-const srcCanvas = ref<HTMLCanvasElement>()
-const targetCanvas = ref<HTMLCanvasElement>()
+const {
+  activeLayerId,
+  canvas: srcCanvas,
+  layerActions,
+  layerThumbnails,
+  layers,
+  painter,
+  state,
+} = usePainter({
+  debug: import.meta.env.DEV,
+})
 
-const painter = ref<Painter>()
-onMounted(async () => {
-  if (!srcCanvas.value)
+const pageTitle = computed(() => `${text.value.appName} - ${text.value.tagline}`)
+const activeLayer = computed(() => layers.value.find(layer => layer.id === activeLayerId.value))
+const activeLayerIndex = computed(() => layers.value.findIndex(layer => layer.id === activeLayerId.value))
+const activeTool = computed<SitePainterTool>(() => {
+  const tool = state.value?.tool
+  return isSitePainterTool(tool) ? tool : 'brush'
+})
+const toolLabels = computed<Record<SitePainterTool, string>>(() => ({
+  brush: text.value.menu.brush,
+  drag: text.value.menu.pan,
+  eraser: text.value.menu.eraser,
+  image: text.value.menu.image,
+  selection: text.value.menu.selection,
+}))
+const canMoveLayerUp = computed(() => activeLayerIndex.value >= 0 && activeLayerIndex.value < layers.value.length - 1)
+const canMoveLayerDown = computed(() => activeLayerIndex.value > 0)
+const canRemoveLayer = computed(() => layers.value.length > 1 && Boolean(activeLayer.value))
+const statusLabel = computed(() => {
+  if (!painter.value)
+    return text.value.loading
+
+  const toolLabel = toolLabels.value[activeTool.value]
+  const layerLabel = activeLayer.value?.label ?? text.value.status.noLayer
+  return `${text.value.status.ready} · ${text.value.status.tool}: ${toolLabel} · ${text.value.status.layer}: ${layerLabel}`
+})
+
+useHead(() => ({
+  title: pageTitle.value,
+  htmlAttrs: {
+    lang: htmlLang.value,
+  },
+}))
+
+async function handleMenuCommand(command: SitePainterMenuCommand): Promise<void> {
+  if (command.startsWith('tool:')) {
+    painter.value?.useTool(command.slice(5) as SitePainterTool)
+    return
+  }
+
+  switch (command) {
+    case 'file:new':
+      createNewCanvas()
+      break
+    case 'file:import-image':
+      painter.value?.useTool('image')
+      break
+    case 'file:export-preview':
+      await previewExport()
+      break
+    case 'file:download':
+      await downloadCanvas()
+      break
+    case 'edit:undo':
+      painter.value?.history.undo()
+      break
+    case 'edit:redo':
+      painter.value?.history.redo()
+      break
+    case 'view:zoom-in':
+      painter.value?.canvas.scaleUp()
+      break
+    case 'view:zoom-out':
+      painter.value?.canvas.scaleDown()
+      break
+    case 'layer:add':
+      addLayer()
+      break
+    case 'layer:move-up':
+      moveActiveLayer(1)
+      break
+    case 'layer:move-down':
+      moveActiveLayer(-1)
+      break
+    case 'layer:remove':
+      removeActiveLayer()
+      break
+  }
+}
+
+function addLayer(): void {
+  const p = painter.value
+  if (!p)
     return
 
-  // v8: Application is async-init — await init() before exposing the painter,
-  // otherwise the UI (e.g. PainterControls reading painter.background) renders
-  // against an uninitialised renderer.
-  const p = createPainter({
-    debug: import.meta.env.DEV,
-    view: srcCanvas.value,
-  })
-  await p.init()
-  painter.value = p
-})
+  p.controller.layer.add({ label: layerLabel(layers.value.length + 1) })
+}
+
+function closePreview(): void {
+  exportPreview.value = undefined
+}
+
+function createNewCanvas(): void {
+  const p = painter.value
+  if (!p)
+    return
+
+  closePreview()
+  p.clearCanvas()
+  p.controller.layer.setLabel('layer-1', layerLabel(1))
+}
+
+async function downloadCanvas(): Promise<void> {
+  const dataUrl = await extractBase64()
+  if (!dataUrl)
+    return
+
+  const link = document.createElement('a')
+  link.href = dataUrl
+  link.download = 'saier.png'
+  link.click()
+}
+
+async function extractBase64(): Promise<string | undefined> {
+  const dataUrl = await painter.value?.extractCanvas('base64')
+  return typeof dataUrl === 'string' ? dataUrl : undefined
+}
+
+function layerLabel(index: number): string {
+  return `${text.value.layers.defaultLayerName} ${index}`
+}
+
+function moveActiveLayer(offset: 1 | -1): void {
+  const layer = activeLayer.value
+  if (!layer)
+    return
+
+  const nextIndex = activeLayerIndex.value + offset
+  if (nextIndex < 0 || nextIndex >= layers.value.length)
+    return
+
+  layerActions.move(layer.id, nextIndex)
+}
+
+function onExtract(dataUrl: string): void {
+  exportPreview.value = dataUrl
+}
+
+async function previewExport(): Promise<void> {
+  const dataUrl = await extractBase64()
+  if (dataUrl)
+    onExtract(dataUrl)
+}
+
+function removeActiveLayer(): void {
+  const layer = activeLayer.value
+  if (!layer || !canRemoveLayer.value)
+    return
+
+  layerActions.remove(layer.id)
+}
+
+function setActiveLayerVisible(visible: boolean): void {
+  const layer = activeLayer.value
+  if (layer)
+    layerActions.setVisible(layer.id, visible)
+}
+
+function isSitePainterTool(tool: unknown): tool is SitePainterTool {
+  return tool === 'brush'
+    || tool === 'drag'
+    || tool === 'eraser'
+    || tool === 'image'
+    || tool === 'selection'
+}
 </script>
 
 <template>
-  <div px-10>
-    <Logos mb-6 />
-
-    <template v-if="painter">
-      <PainterControls :painter="painter" class="absolute left-1" />
-      <PainterOptionsBar :painter="painter" class="absolute left-1 top-1" />
+  <SitePainterShell
+    :app-name="text.appName"
+    :close-preview-label="text.closePreview"
+    :export-preview="exportPreview"
+    :export-preview-label="text.exportPreview"
+    :language-label="text.language"
+    :loading="!painter"
+    :loading-label="text.loading"
+    :next-locale-label="nextLocaleLabel"
+    :status-label="statusLabel"
+    :tagline="text.tagline"
+    @close-preview="closePreview"
+    @toggle-locale="toggleLocale"
+  >
+    <template #menubar>
+      <SitePainterMenubar
+        :active-layer-visible="activeLayer?.visible ?? false"
+        :active-tool="activeTool"
+        :can-move-layer-down="canMoveLayerDown"
+        :can-move-layer-up="canMoveLayerUp"
+        :can-redo="state?.history.canRedo ?? false"
+        :can-remove-layer="canRemoveLayer"
+        :can-undo="state?.history.canUndo ?? false"
+        :disabled="!painter"
+        :has-active-layer="Boolean(activeLayer)"
+        :labels="text.menu"
+        :locale="locale"
+        @command="handleMenuCommand"
+        @set-active-layer-visible="setActiveLayerVisible"
+        @set-locale="setLocale"
+      />
     </template>
 
-    <Suspense>
-      <ClientOnly />
-      <template #fallback>
-        <div italic op50>
-          <span animate-pulse>Loading...</span>
-        </div>
-      </template>
-    </Suspense>
+    <template #toolbar>
+      <SitePainterToolbar
+        :active-tool="activeTool"
+        :can-redo="state?.history.canRedo ?? false"
+        :can-undo="state?.history.canUndo ?? false"
+        :disabled="!painter"
+        :labels="text.menu"
+        @command="handleMenuCommand"
+      />
+    </template>
 
-    <div class="canvas-container" grid="~ cols-2" gap="2">
-      <canvas ref="srcCanvas" class="h-full w-full rounded shadow" />
+    <template #canvas>
+      <canvas ref="srcCanvas" />
+    </template>
 
-      <canvas ref="targetCanvas" class="h-full w-full rounded shadow" />
-    </div>
-  </div>
+    <template #options>
+      <PainterOptionsBar
+        v-if="painter"
+        :painter="painter"
+        :labels="text.brushOptions"
+      />
+    </template>
+
+    <template #controls>
+      <PainterControls
+        v-if="painter"
+        :painter="painter"
+        :labels="text.controls"
+        mode="palette"
+        @extract="onExtract"
+      />
+    </template>
+
+    <template #layers>
+      <PainterLayerPanel
+        v-if="painter"
+        :layers="layers"
+        :active-layer-id="activeLayerId"
+        :thumbnails="layerThumbnails"
+        :labels="text.layers"
+        @add="addLayer"
+        @remove="layerActions.remove"
+        @move="layerActions.move"
+        @select="layerActions.setActive"
+        @update:visible="layerActions.setVisible"
+        @update:opacity="layerActions.setOpacity"
+        @update:blend-mode="layerActions.setBlendMode"
+        @update:label="layerActions.setLabel"
+      />
+    </template>
+  </SitePainterShell>
 </template>
-
-<style lang="scss">
-.canvas-container {
-  height: calc(100vh - 200px);
-}
-</style>

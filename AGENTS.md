@@ -35,8 +35,9 @@ The architecture rewrite is planned in **`docs/design/`** (a VitePress section).
 
 ```bash
 pnpm install
-pnpm dev            # run the Vue example (default dev target)
+pnpm dev            # run the Nuxt site (default final experience)
 pnpm dev:site       # run the Nuxt site (landing + /shodo demo)
+pnpm dev:vue        # run the lightweight Vue example sandbox
 pnpm docs:dev       # run the VitePress docs site
 pnpm build          # build library + site
 pnpm build:lib      # build packages/pixi-painter only
@@ -65,7 +66,7 @@ Target packages introduced by the rewrite (see `docs/design/`): **`core`** (Pixi
 - ESM only (`"type": "module"`).
 - Strict TypeScript.
 - Follow @antfu/eslint-config defaults (no prettier, no semicolons, single quotes). Run `pnpm lint` before finishing.
-- Target **PixiJS v8** APIs. **P0 (milestone M1) is complete**: `createPainter()` boots on v8 (async `Application.init`; canvas / board / layers Graphics → v8, `name` → `label`, SVG icon via `Assets.load`), verified green by `pnpm typecheck` + `pnpm test` (vitest) + `pnpm test:e2e` (examples + site); examples/vue · site · react all boot on v8. **brush / eraser still use deprecated v7 Graphics** (`beginFill` / `drawCircle`) — intentionally left for **P1** to delete with the raster engine. **Next phase: P1** (raster engine — `@saier/core` + `@saier/pixi`).
+- Target **PixiJS v8** APIs (decision D3). **P0–P5 are implemented** (milestones M1–M3) in the new packages `@saier/core` (Pixi-agnostic engine) + `@saier/pixi` (RenderTexture + tile backends): raster paint pipeline, real eraser, bbox/tile undo, headless controller, input feel (sampler / stabilizer / pressure curves), brush family (pen / pencil / marker / airbrush / calligraphy), and the layer stack + shared `usePainter()`. The old per-stroke `Graphics` brush/eraser are gone (deleted by P1). **Gates verified green**: `pnpm typecheck` (0 errors), `pnpm lint` (clean), `pnpm test` (vitest 575 passing). ⚠️ **All P1–P5 work is currently uncommitted in the working tree** — git history ends at P0 (`79f1dbb`); slice it into per-phase commits before continuing. **Next: confirm the D8 restructure/rename (`pixi-painter → saier`, `controls → @saier/vue`), then P6** (lock-alpha / clipping / mask).
 - All brush math in **document space**, independent of zoom / DPR (decision D2).
 - Avoid `Date.now()` / `Math.random()` in brush / stabilizer logic — use injectable seeds (determinism; see `docs/design/testing.md`).
 

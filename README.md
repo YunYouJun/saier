@@ -6,11 +6,20 @@
 
 A library for building drawing scene.
 
-- Demo: <https://pixi-painter.pages.dev/>
+## Links
+
+|                   | URL                                          |
+| ----------------- | -------------------------------------------- |
+| 🖼️ **App / Demo** | <https://saier.yunle.fun>                    |
+| 📖 **Docs**       | <https://docs.saier.yunle.fun>               |
+| 📦 **npm**        | <https://www.npmjs.com/package/pixi-painter> |
+
+> Both sites are deployed on Cloudflare Pages (connected to this GitHub repo).
+> `site/` (Nuxt app) → App / Demo · `docs/` (VitePress) → Docs.
 
 ## Documentation
 
-- **Guide & Design docs**: run `pnpm docs:dev` (VitePress site under [`docs/`](./docs))
+- **Guide & Design docs**: <https://docs.saier.yunle.fun> — or run `pnpm docs:dev` (VitePress site under [`docs/`](./docs))
 - **Architecture roadmap** (for contributors / coding agents): [`docs/design/`](./docs/design/index.md) — the phased plan (P0–P9) to evolve pixi-painter into a Pixi-agnostic raster painting runtime. See also [`AGENTS.md`](./AGENTS.md).
 
 ## Usage
@@ -38,7 +47,8 @@ painter.useTool('brush')
 
 ```bash
 pnpm i
-pnpm dev
+pnpm dev      # final site experience
+pnpm dev:vue  # lightweight Vue example sandbox
 ```
 
 ## License

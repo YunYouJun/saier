@@ -8,11 +8,15 @@ title: P4-01 · BrushPreset 模型 + 注册表
 - **Depends on**: P1-03（SimpleBrushEngine）、P3-03（动态）
 - **Files**: `packages/core/src/brush/{BrushPreset,registry}.ts`、`test/`
 - **Effort**: M
-- **Status**: 🟡 P4 地基
+- **Status**: ✅ 已完成
 
 ## Context
 
 把"一支笔"数据化：`BrushPreset` 描述一支笔的所有参数，喂给 `BrushEngine` 驱动 dab。先有数据模型 + 注册表，后面 pen/pencil/airbrush/marker 都是它的实例。
+
+## Result
+
+已新增 `BrushPreset` / `BrushPresetRegistry` / 默认 preset 集合与 `createBrushEngineFromPreset()` factory。controller 的 brush state 现在暴露 preset、spacing、hardness、flow 与 preset summary，供 UI 直接镜像。
 
 ## Steps
 
@@ -23,9 +27,9 @@ title: P4-01 · BrushPreset 模型 + 注册表
 
 ## Acceptance
 
-- [ ] 用不同 preset 驱动 `SimpleBrushEngine`，产出的 dab 序列按参数可见不同（spacing/hardness/flow）。
-- [ ] 注册表可增删列举；默认集存在。
-- [ ] 仍无 pixi.js。
+- [x] 用不同 preset 驱动 `SimpleBrushEngine`，产出的 dab 序列按参数可见不同（spacing/hardness/flow）。
+- [x] 注册表可增删列举；默认集存在。
+- [x] 仍无 pixi.js。
 
 ## Out of scope
 

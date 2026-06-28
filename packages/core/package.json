@@ -1,0 +1,41 @@
+{
+  "name": "@saier/core",
+  "type": "module",
+  "version": "0.1.6-beta.1",
+  "description": "Pixi-agnostic raster painting engine for saier (brush engine, surface backend contracts, document model).",
+  "author": {
+    "name": "YunYouJun",
+    "email": "me@yunyoujun.cn"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YunYouJun/pixi-painter",
+    "directory": "packages/core"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "unbuild",
+    "dev": "unbuild --stub",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "mitt": "^3.0.1"
+  },
+  "devDependencies": {
+    "unbuild": "^3.6.1"
+  }
+}

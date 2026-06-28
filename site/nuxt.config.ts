@@ -3,6 +3,7 @@ import { pwa } from './app/config/pwa'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  compatibilityDate: '2026-06-28',
   ssr: false,
   devtools: { enabled: false },
 
@@ -24,7 +25,26 @@ export default defineNuxtConfig({
   pwa,
 
   alias: {
+    '@saier/core': '../packages/core/src/index.ts',
+    '@saier/pixi': '../packages/pixi/src/index.ts',
+    '@saier/vue': path.resolve(import.meta.dirname, '../packages/controls'),
     'pixi-painter': '../packages/pixi-painter/src/index.ts',
+  },
+
+  vite: {
+    optimizeDeps: {
+      include: [
+        '@ctrl/tinycolor',
+        'axios',
+        'consola',
+        'hotkeys-js',
+        'mitt',
+        'pixi.js/advanced-blend-modes',
+        'pixi.js',
+        'pixi.js/math-extras',
+        'reka-ui',
+      ],
+    },
   },
 
   components: {

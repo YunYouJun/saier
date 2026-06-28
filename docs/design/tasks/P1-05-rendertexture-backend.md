@@ -8,7 +8,7 @@ title: P1-05 · RenderTextureBackend（normal 绘制 + 撤销快照）
 - **Depends on**: P1-02（契约）、P1-01
 - **Files**: `packages/pixi/src/{RenderTextureBackend,dab-cache}.ts`、`test/`
 - **Effort**: L
-- **Status**: 🔴 P1 核心
+- **Status**: ✅ normal + undo spike 已完成
 
 ## Context
 
@@ -33,10 +33,10 @@ title: P1-05 · RenderTextureBackend（normal 绘制 + 撤销快照）
 
 ## Acceptance
 
-- [ ] `createLayer` 后画布出现该层 sprite，可被 board 缩放 / 平移带动。
-- [ ] **连续 5000 dab，`stage` 子节点数不增长**（dab 进 RT，非场景图）——计数断言。
-- [ ] golden：画一笔 → `endStroke` 后 committed 像素与基准一致。
-- [ ] undo→redo 后该层像素与各时刻一致（区域回写正确，含 alpha）。
+- [x] `createLayer` 后画布出现该层 sprite，可被 board 缩放 / 平移带动。
+- [x] **连续 5000 dab，`stage` 子节点数不增长**（dab 进 RT，非场景图）——计数断言。
+- [x] golden：画一笔 → `endStroke` 后 committed 像素与基准一致。
+- [x] undo→redo 后该层像素与各时刻一致（区域回写正确，含 alpha）。
 
 ## Out of scope
 

@@ -1,40 +1,152 @@
-<script lang="ts" setup>
-import { TinyColor } from '@ctrl/tinycolor'
-import { ref } from 'vue'
+<script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, shallowRef, useId, useTemplateRef, watch } from 'vue'
+import ColorWheelPicker from './ColorWheelPicker.vue'
+
+interface PainterColorPickerLabels {
+  current: string
+  hex: string
+  hue: string
+  palette: string
+  saturation: string
+  value: string
+}
 
 const props = defineProps<{
+  label?: string
+  labels?: Partial<PainterColorPickerLabels>
   modelValue: number | string
 }>()
 
-const emit = defineEmits(['update:modelValue'])
-const color = ref<TinyColor>(new TinyColor(props.modelValue ?? 0))
+const emit = defineEmits<{
+  'update:modelValue': [value: string]
+}>()
 
-function onChange(e: Event) {
-  const target = e.target as HTMLInputElement
-  color.value = new TinyColor(target.value)
-  emit('update:modelValue', color.value.toHex8String())
+const root = useTemplateRef<HTMLElement>('root')
+const isOpen = shallowRef(false)
+const color = shallowRef(toHex(props.modelValue))
+
+const panelId = useId()
+const swatches = [
+  '#000000',
+  '#ffffff',
+  '#ef4444',
+  '#f97316',
+  '#facc15',
+  '#22c55e',
+  '#06b6d4',
+  '#3b82f6',
+  '#8b5cf6',
+  '#ec4899',
+  '#7c2d12',
+  '#525252',
+]
+
+const buttonStyle = computed(() => ({
+  backgroundColor: color.value,
+}))
+
+watch(() => props.modelValue, (value) => {
+  color.value = toHex(value)
+})
+
+onMounted(() => {
+  document.addEventListener('pointerdown', closeOnOutsidePointer)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', closeOnOutsidePointer)
+})
+
+function closeOnOutsidePointer(event: PointerEvent): void {
+  if (!isOpen.value || root.value?.contains(event.target as Node))
+    return
+
+  isOpen.value = false
+}
+
+function closeOnEscape(event: KeyboardEvent): void {
+  if (event.key === 'Escape')
+    isOpen.value = false
+}
+
+function onColorChange(value: string | number): void {
+  const next = toHex(value)
+  color.value = next
+  emit('update:modelValue', next)
+}
+
+function toHex(value: string | number): string {
+  if (typeof value === 'number')
+    return `#${Math.round(value).toString(16).padStart(6, '0').slice(-6)}`
+
+  const trimmed = value.trim()
+  if (!/^#?(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(trimmed))
+    return '#000000'
+
+  let hex = trimmed.replace(/^#/, '')
+  if (hex.length === 3 || hex.length === 4)
+    hex = hex.split('').map(char => char + char).join('')
+  return `#${hex.slice(0, 6).toLowerCase()}`
 }
 </script>
 
 <template>
-  <input
-    class="color-picker" type="color"
-    :value="color.toHexString()"
-    @input="onChange"
-    @change="onChange"
-  >
+  <div ref="root" class="painter-color-picker" @keydown="closeOnEscape">
+    <button
+      class="painter-color-picker__button"
+      type="button"
+      :aria-controls="panelId"
+      :aria-expanded="isOpen"
+      :aria-label="label"
+      :style="buttonStyle"
+      @click="isOpen = !isOpen"
+    />
+
+    <div v-if="isOpen" :id="panelId" class="painter-color-picker__panel">
+      <ColorWheelPicker
+        :model-value="color"
+        :labels="labels"
+        :swatches="swatches"
+        @update:model-value="onColorChange"
+      />
+    </div>
+  </div>
 </template>
 
-<style>
-.color-picker {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
+<style scoped>
+.painter-color-picker {
+  position: relative;
 }
 
-.color-picker::-webkit-color-swatch {
-  border: none;
+.painter-color-picker__button {
+  width: 36px;
+  height: 36px;
+  border: 2px solid rgb(255 255 255 / 86%);
   border-radius: 50%;
-  padding: 0;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 46%);
+}
+
+.painter-color-picker__button:focus-visible {
+  outline: 2px solid rgb(96 165 250 / 78%);
+  outline-offset: 3px;
+}
+
+.painter-color-picker__panel {
+  position: absolute;
+  z-index: 40;
+  top: 0;
+  left: calc(100% + 10px);
+  width: 306px;
+  padding: 12px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 8px;
+  background: rgb(30 30 32 / 96%);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 38%);
+}
+
+@media (max-width: 640px) {
+  .painter-color-picker__panel {
+    width: min(306px, calc(100vw - 82px));
+  }
 }
 </style>

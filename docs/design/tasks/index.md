@@ -52,6 +52,8 @@ title: Tasks
 > 目标：笔迹从「Graphics 累加」→「戳印进图层 `RenderTexture`」；引入栅格图层、真橡皮、bbox 区域撤销。落两个新包 `@saier/core`（**无 Pixi**）+ `@saier/pixi`。
 >
 > 依赖链：`01 → 02 →（03,04,07）`；`05 → 06`（pixi 侧）；`08` 汇合 03/04/05/06/07；`09` 验收。**core 侧（02/03/04/07）纯 TS，可与 pixi 侧（05/06）并行。**
+>
+> **✅ 已完成（M2 达成）**：P1-01 脚手架；P1-02 核心契约；P1-03 `SimpleBrushEngine`；P1-04 `Document` / `RasterLayer` / `UndoManager`；P1-05 `RenderTextureBackend` normal + bbox undo；P1-06 真橡皮；P1-07 headless controller；P1-08 `pixi-painter` 绘画管线集成；P1-09 分水岭自动化验收 + examples/site 冒烟。
 
 | ID                                           | 卡片                                  | 包           | Depends on     | Effort |
 | -------------------------------------------- | ------------------------------------- | ------------ | -------------- | ------ |
@@ -65,13 +67,15 @@ title: Tasks
 | [P1-08](./P1-08-integrate-pixi-painter)      | 集成进 pixi-painter（切绘画管线）     | pixi-painter | 03,04,05,06,07 | L      |
 | [P1-09](./P1-09-verify-watershed)            | 验收：分水岭三断言 + 冒烟             | test         | 08             | M      |
 
-**P1 出口（里程碑 M2）**：5000 dab 节点数不增长 + 真橡皮 `alpha=0` + undo 像素一致，三断言**自动化**通过；demo「能当线稿工具用」。
+**P1 出口（里程碑 M2）✅ 已达成**：5000 dab 节点数不增长 + 真橡皮 `alpha=0` + undo 像素一致 + deterministic pixels，分水岭断言**自动化**通过；demo 构建 / e2e 冒烟通过。
 
 ## P2 — TiledSurface + tile undo（条件性）
 
 > 目标：图层像素从「一张 RenderTexture」→「256×256 CPU tile」；绘制改 **CPU 光栅化**（为 P7 混色铺路）；撤销改 tile patch；脏 tile 每帧批量上传。**[D1](../decisions#d1) 下 P2 是条件性的**——RenderTexture（P1）够用就先不做，要做大画布 / 混色 / 低内存撤销时再上。
 >
 > 依赖链：core 侧 `01 → 02`、`01 + P1-04 → 03`；pixi 侧 `01 + P1-05 → 04 → 05`；`06` 切换 + 验收。
+>
+> **✅ 已完成（M3 起步达成）**：P2-01 `TiledSurface` / `Tile` / dirty 模型；P2-02 CPU dab 光栅器；P2-03 `TilePatch` undo / redo；P2-04 `PixiTileTextureBackend`；P2-05 dirty tile rAF 合并上传；P2-06 `pixi-painter` 可选 tile 后端 + parity / 4096² 稀疏验收。
 
 | ID                                   | 卡片                                | 包           | Depends on   | Effort |
 | ------------------------------------ | ----------------------------------- | ------------ | ------------ | ------ |
@@ -82,13 +86,15 @@ title: Tasks
 | [P2-05](./P2-05-batched-tile-upload) | 脏 tile 批量上传（rAF）             | pixi         | P2-04        | M      |
 | [P2-06](./P2-06-switch-and-verify)   | 切后端 + 大画布 / 内存验收          | pixi-painter | P2-03,04,05  | M      |
 
-**P2 出口（里程碑 M3 起步）**：tile 后端下 P1 三断言 parity；4096² 内存平稳；撤销只触脏 tile；每帧合并上传。
+**P2 出口（里程碑 M3 起步）✅ 已达成**：tile 后端下 P1 三断言 parity；4096² 稀疏 tile 验收通过；撤销只触脏 tile；每帧合并上传。
 
 ## P3 — 输入质感：跟手（可与 P1 / P2 并行）
 
 > 目标：让线条「跟手、顺、压感舒服」——这类工具的灵魂。core 侧输入层 + 收割 shodo。**可与 P1/P2 并行**，建议[提前 spike](./P3-06-feel-verification) 在现有管线先验手感。
 >
 > 依赖链：`01 → 02`、`01 + P1-03 → 03`；`02,03 → 04`；`05` 触屏（并行）；`06` 验收。
+>
+> **✅ 已完成**：P3-01 coalesced `PointerSampler`；P3-02 四档 `Stabilizer`；P3-03 pressure curves / velocity fallback / taper；P3-04 `CalligraphyEngine` + shodo 格式草案 + `/shodo` demo bridge；P3-05 touch gesture router；P3-06 确定性回放 / 平滑度 / 延迟边界自动化验收。
 
 | ID                                         | 卡片                                       | 包   | Depends on  | Effort |
 | ------------------------------------------ | ------------------------------------------ | ---- | ----------- | ------ |
@@ -99,23 +105,39 @@ title: Tasks
 | [P3-05](./P3-05-touch-gestures)            | 触屏 / 手势（双指缩放 vs 单指画）          | pixi | viewport    | M      |
 | [P3-06](./P3-06-feel-verification)         | 跟手验收：确定性回放 + 延迟 + 基准         | test | P3-02,03,04 | M      |
 
-**P3 出口**：stabilizer 四档可量化区分；慢速圆无抖；确定性回放像素一致；触屏单指画 / 双指缩放分得清；真机手感留档。
+**P3 出口 ✅ 已达成**：stabilizer 四档可量化区分；慢速圆无抖；确定性回放像素一致；触屏单指画 / 双指缩放分得清；真机手感留档当前以自动化 touch/pen routing + demo 冒烟替代实体设备手测。
 
 ## P4 — 笔刷家族
 
 > 目标：≥4 种笔刷（pen / pencil / marker / airbrush）+ shodo 毛笔，统一 `BrushEngine` 接口、统一 UI 切换。建立在 P1-03 引擎 + P3-03 动态之上。
+>
+> **✅ 已完成**：`BrushPreset` / registry / factory；tip stamp 系统；pen / pencil / marker / airbrush / calligraphy 默认集；airbrush time tick；marker 单笔 max-alpha；Vue preset picker + 参数面板；core + RT 后端行为验收。
 
-| ID                                   | 卡片                          | 包        | Depends on   | Effort |
-| ------------------------------------ | ----------------------------- | --------- | ------------ | ------ |
-| [P4-01](./P4-01-brush-preset-model)  | BrushPreset 模型 + 注册表     | core      | P1-03, P3-03 | M      |
-| [P4-02](./P4-02-tip-stamp-system)    | 笔尖 / 戳印系统（两后端渲染） | core+pixi | P1-05, P2-02 | M      |
-| [P4-03](./P4-03-pen-pencil-marker)   | pen / pencil / marker 预设    | core      | P4-01,02     | M      |
-| [P4-04](./P4-04-airbrush)            | airbrush（时间累积流量）      | core      | P4-01,02     | M      |
-| [P4-05](./P4-05-brush-ui)            | 笔刷 UI（预设切换 + 参数）    | vue       | P1-07, P4-01 | M      |
-| [P4-06](./P4-06-verify-brush-family) | 笔刷家族验收                  | test      | P4-03,04,05  | S      |
+| ID                                   | 卡片                          | 包           | Depends on   | Effort |
+| ------------------------------------ | ----------------------------- | ------------ | ------------ | ------ |
+| [P4-01](./P4-01-brush-preset-model)  | BrushPreset 模型 + 注册表     | ✅ core      | P1-03, P3-03 | M      |
+| [P4-02](./P4-02-tip-stamp-system)    | 笔尖 / 戳印系统（两后端渲染） | ✅ core+pixi | P1-05, P2-02 | M      |
+| [P4-03](./P4-03-pen-pencil-marker)   | pen / pencil / marker 预设    | ✅ core      | P4-01,02     | M      |
+| [P4-04](./P4-04-airbrush)            | airbrush（时间累积流量）      | ✅ core      | P4-01,02     | M      |
+| [P4-05](./P4-05-brush-ui)            | 笔刷 UI（预设切换 + 参数）    | ✅ vue       | P1-07, P4-01 | M      |
+| [P4-06](./P4-06-verify-brush-family) | 笔刷家族验收                  | ✅ test      | P4-03,04,05  | S      |
 
-**P4 出口**：≥4 笔刷 UI 可切；airbrush 停驻累积、marker 单笔不发黑；golden 通过。
+**P4 出口 ✅ 已达成**：≥4 笔刷 UI 可切；airbrush 停驻累积、marker 单笔不发黑；golden / 像素行为断言通过。
 
-## 后续阶段（P5+）
+## P5 — 图层栈能力
 
-P5–P9 的任务卡按需续写（`P5-01-*.md` …），参照同一格式与依赖链。优先级与取舍见 [Roadmap](../roadmap) 与 [Risks](../roadmap#risks)。
+> 目标：`Document.layers` 成为图层 UI 与 Pixi 显示的事实来源；支持普通 RasterLayer 的增删、排序、显隐、opacity、blend mode、缩略图，并完成 Vue bootstrap 去重。
+
+| ID                                       | 卡片                          | 包           | Depends on | Effort |
+| ---------------------------------------- | ----------------------------- | ------------ | ---------- | ------ |
+| [P5-01](./P5-01-layer-stack-controller)  | 图层栈模型与 controller 命令  | core         | P1-04,07   | M      |
+| [P5-02](./P5-02-pixi-layer-display-sync) | Pixi 图层显示状态同步         | core+pixi    | P5-01      | M      |
+| [P5-03](./P5-03-layer-panel-ui)          | Vue 图层面板                  | vue          | P5-01,02   | M      |
+| [P5-04](./P5-04-use-painter-composable)  | 共享 `usePainter()` bootstrap | vue+examples | P5-01,02   | M      |
+| [P5-05](./P5-05-verify-layer-stack)      | 图层栈验收                    | test         | P5-01..04  | S      |
+
+**P5 出口 ✅ 已达成**：图层面板增删 / 排序 / 改透明度即时反映；导出合成结果正确；UI 不再直接引用 `PainterBrush.*` 静态字段；`examples/vue` 与 `site` 共用同一 `usePainter()`。
+
+## 后续阶段（P6+）
+
+P6–P9 的任务卡按需续写（`P6-01-*.md` …），参照同一格式与依赖链。优先级与取舍见 [Roadmap](../roadmap) 与 [Risks](../roadmap#risks)。

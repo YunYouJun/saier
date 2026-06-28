@@ -11,20 +11,20 @@ export default defineConfig({
     baseURL: 'http://localhost:5173',
     ...devices['Desktop Chrome'],
   },
-  // Both example apps are auto-managed. Nuxt is forced onto 127.0.0.1 so
-  // playwright's webServer URL check (IPv4) detects it — Nuxt dev otherwise
+  // Vue example and Nuxt site are auto-managed. Nuxt is forced onto 127.0.0.1 so
+  // playwright's webServer URL check (IPv4) detects it. Nuxt dev otherwise
   // binds IPv6 [::1], which the check can't reach.
   webServer: [
     {
-      command: 'pnpm dev',
+      command: 'pnpm dev:vue',
       url: 'http://localhost:5173',
       reuseExistingServer: true,
       timeout: 60_000,
     },
     {
-      command: 'pnpm -C site exec nuxt dev --port 8080 --host 127.0.0.1',
-      url: 'http://127.0.0.1:8080',
-      reuseExistingServer: true,
+      command: 'NUXT_IGNORE_LOCK=1 pnpm -C site exec nuxt dev --port 8090 --host 127.0.0.1',
+      url: 'http://127.0.0.1:8090',
+      reuseExistingServer: false,
       timeout: 120_000,
     },
   ],

@@ -25,6 +25,9 @@ export function createEmitter() {
 
     // history
     'history:record': PainterAction
+
+    // document
+    'canvas:clear': void
   }>()
   return emitter
 }

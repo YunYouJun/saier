@@ -8,7 +8,7 @@ title: P1-07 · headless controller 表面
 - **Depends on**: P1-04
 - **Files**: `packages/core/src/controller/**`、`src/index.ts`、`test/`
 - **Effort**: S
-- **Status**: 🟡 铺路（D7；UI 真正改造在 P5）
+- **Status**: ✅ 已完成（D7 铺路；UI 真正改造在 P5）
 
 ## Context
 
@@ -25,9 +25,9 @@ title: P1-07 · headless controller 表面
 
 ## Acceptance
 
-- [ ] controller 暴露上述命令 / 快照 / 事件，纯 node 可测、无 Pixi。
-- [ ] 改任一笔刷参数会 emit `brush:change` 且 `getState()` 同步。
-- [ ] 文档/JSDoc 标注：UI 应只读 `getState()` + 订阅事件 + 调 setter，**不得**直接写 core 内部字段。
+- [x] controller 暴露上述命令 / 快照 / 事件，纯 node 可测、无 Pixi。
+- [x] 改任一笔刷参数会 emit `brush:change` 且 `getState()` 同步。
+- [x] 文档/JSDoc 标注：UI 应只读 `getState()` + 订阅事件 + 调 setter，**不得**直接写 core 内部字段。
 
 ## Out of scope
 

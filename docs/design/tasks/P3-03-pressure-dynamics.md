@@ -8,7 +8,7 @@ title: P3-03 · PressureCurve + 笔迹动态
 - **Depends on**: P1-02（类型）、P1-03（SimpleBrushEngine 基础动态）
 - **Files**: `packages/core/src/input/PressureCurve.ts`、`src/brush/dynamics.ts`、`test/`
 - **Effort**: M
-- **Status**: 🟡
+- **Status**: ✅ 已完成（pressure curves + fallback + taper）
 
 ## Context
 
@@ -24,10 +24,10 @@ title: P3-03 · PressureCurve + 笔迹动态
 
 ## Acceptance
 
-- [ ] 同一条压感序列，linear vs ease 曲线产出可见不同的 size 包络（断言）。
-- [ ] 鼠标（无压感）下笔迹按所选 fallback 行为（velocity 模拟时快慢粗细可见）。
-- [ ] taper in/out：一笔两端 size 渐细，肉眼 / 包络断言。
-- [ ] 确定性：同输入同参数 → 同 dab 序列。
+- [x] 同一条压感序列，linear vs ease 曲线产出可见不同的 size 包络（断言）。
+- [x] 鼠标（无压感）下笔迹按所选 fallback 行为（velocity 模拟时快慢粗细可见）。
+- [x] taper in/out：一笔两端 size 渐细，肉眼 / 包络断言。
+- [x] 确定性：同输入同参数 → 同 dab 序列。
 
 ## Out of scope
 

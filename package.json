@@ -19,8 +19,9 @@
     "build:lib": "pnpm -C packages/pixi-painter run build",
     "build:site": "pnpm -C site run build",
     "generate:site": "pnpm -C site run generate",
-    "dev": "pnpm -C examples/vue run dev",
+    "dev": "pnpm -C site run dev",
     "dev:site": "pnpm -C site run dev",
+    "dev:vue": "pnpm -C examples/vue run dev",
     "docs:dev": "pnpm -C docs run docs:dev",
     "docs:build": "pnpm -C docs run docs:build",
     "docs:preview": "pnpm -C docs run docs:preview",
@@ -34,6 +35,7 @@
   "devDependencies": {
     "@antfu/eslint-config": "^9.1.0",
     "@playwright/test": "^1.61.1",
+    "@vitest/browser-playwright": "4.1.9",
     "bumpp": "^11.1.0",
     "eslint": "^10.5.0",
     "eslint-plugin-format": "^2.0.1",

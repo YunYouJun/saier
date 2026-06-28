@@ -9,6 +9,9 @@
     /* Bundler mode */
     "moduleResolution": "bundler",
     "paths": {
+      "@saier/core": ["../../packages/core/src/index.ts"],
+      "@saier/pixi": ["../../packages/pixi/src/index.ts"],
+      "@saier/vue/*": ["../../packages/controls/*"],
       "pixi-painter": ["../../packages/pixi-painter/src/index.ts"]
     },
     "resolveJsonModule": true,

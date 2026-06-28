@@ -8,7 +8,7 @@ title: P1-06 · 真橡皮（erase 合成）
 - **Depends on**: P1-05
 - **Files**: `packages/pixi/src/RenderTextureBackend.ts`、`test/`
 - **Effort**: M
-- **Status**: 🔴（用户明确要的「真橡皮」）
+- **Status**: ✅ 已完成
 
 ## Context
 
@@ -26,10 +26,10 @@ title: P1-06 · 真橡皮（erase 合成）
 
 ## Acceptance
 
-- [ ] **透明背景**上用橡皮划过 → `extract pixels` 该区域 `alpha == 0`（golden / 断言）。
-- [ ] 有色背景图层上擦 → 露出下层 / 透明，而非盖白。
-- [ ] 擦后 undo 能**还原被擦像素**；redo 再擦掉。
-- [ ] 擦 5000 dab，`stage` 节点数不增长。
+- [x] **透明背景**上用橡皮划过 → `extract pixels` 该区域 `alpha == 0`（golden / 断言）。
+- [x] 有色背景图层上擦 → 露出下层 / 透明，而非盖白。
+- [x] 擦后 undo 能**还原被擦像素**；redo 再擦掉。
+- [x] 擦 5000 dab，`stage` 节点数不增长。
 
 ## Out of scope
 

@@ -1,4 +1,7 @@
+import process from 'node:process'
 import { expect, test } from '@playwright/test'
+
+const SITE_URL = process.env.SAIER_SITE_E2E_URL ?? 'http://127.0.0.1:8090'
 
 /**
  * The Nuxt site's index page sets up its own painter (separate bootstrap from
@@ -10,7 +13,7 @@ test('site demo boots the Pixi v8 painter without throwing', async ({ page }) =>
   const pageErrors: string[] = []
   page.on('pageerror', e => pageErrors.push(e.message))
 
-  await page.goto('http://127.0.0.1:8080/')
+  await page.goto(`${SITE_URL}/`)
 
   await expect
     .poll(

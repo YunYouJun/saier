@@ -8,7 +8,7 @@ title: P3-04 · 收割 shodo → CalligraphyEngine
 - **Depends on**: P3-02、P3-03、P1-03（`BrushEngine` 接口）
 - **Files**: `packages/core/src/brush/CalligraphyEngine.ts`、`packages/shodo/src/{stroke-engine,tablet}.ts`（来源）、`test/`
 - **Effort**: M
-- **Status**: 🟡（兑现"收割 shodo"，见 [overview 修正 #3](../#对原始建议的-5-点修正)）
+- **Status**: ✅ 已完成（CalligraphyEngine + shodo demo bridge）
 
 ## Context
 
@@ -24,10 +24,10 @@ title: P3-04 · 收割 shodo → CalligraphyEngine
 
 ## Acceptance
 
-- [ ] `CalligraphyEngine` 在同一 `BrushEngine` 接口下可与 `SimpleBrushEngine` 互换。
-- [ ] 毛笔特性可见：快笔细、顿笔粗、收尾出锋。
-- [ ] 确定性：seed 固定时同输入 → 同像素（替换掉 `Math.random()` 后可测）。
-- [ ] `/shodo` demo 仍可写、手感不劣于现状。
+- [x] `CalligraphyEngine` 在同一 `BrushEngine` 接口下可与 `SimpleBrushEngine` 互换。
+- [x] 毛笔特性可见：快笔细、顿笔粗、收尾出锋。
+- [x] 确定性：seed 固定时同输入 → 同像素（替换掉 `Math.random()` 后可测）。
+- [x] `/shodo` demo 仍可写、手感不劣于现状。
 
 ## Out of scope
 

@@ -20,8 +20,24 @@ export default defineConfig({
     },
   },
 
+  optimizeDeps: {
+    include: [
+      '@ctrl/tinycolor',
+      'axios',
+      'consola',
+      'hotkeys-js',
+      'mitt',
+      'pixi.js/advanced-blend-modes',
+      'pixi.js',
+      'pixi.js/math-extras',
+    ],
+  },
+
   resolve: {
     alias: {
+      '@saier/core': path.resolve(__dirname, '../../packages/core/src'),
+      '@saier/pixi': path.resolve(__dirname, '../../packages/pixi/src'),
+      '@saier/vue': path.resolve(__dirname, '../../packages/controls'),
       'pixi-painter': path.resolve(__dirname, '../../packages/pixi-painter/src'),
     },
   },

@@ -8,7 +8,7 @@ title: P1-09 · 验收：架构分水岭三断言 + 冒烟
 - **Depends on**: P1-08、P0-06（测试地基）
 - **Files**: `test/`、`examples/*`
 - **Effort**: M
-- **Status**: 🔴 M2 出口
+- **Status**: ✅ M2 出口已达成
 
 ## Context
 
@@ -25,10 +25,10 @@ title: P1-09 · 验收：架构分水岭三断言 + 冒烟
 
 ## Acceptance
 
-- [ ] 上述 1–4 全部为**自动化测试**且绿（`pnpm test`）。
-- [ ] `examples/vue` / `examples/react` 冒烟通过。
-- [ ] `pnpm build`、`typecheck`、`lint` 全绿。
-- [ ] M2 出口确认：P1 全卡勾掉，demo「能当线稿工具用」。
+- [x] 上述 1–4 全部为**自动化测试**且绿（`pnpm test`）。
+- [x] `examples/vue` / `examples/react` 冒烟通过。
+- [x] `pnpm build`、`typecheck`、`lint` 全绿。
+- [x] M2 出口确认：P1 全卡勾掉，demo「能当线稿工具用」。
 
 ## Out of scope
 

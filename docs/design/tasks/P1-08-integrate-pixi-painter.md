@@ -8,7 +8,7 @@ title: P1-08 · 集成进 pixi-painter（切换绘画管线）
 - **Depends on**: P1-03、P1-04、P1-05、P1-06、P1-07；运行依赖 P0-02
 - **Files**: `packages/pixi-painter/src/{painter,brush/index,eraser/index,canvas/index,features/history}.ts`
 - **Effort**: L
-- **Status**: 🔴 把前面所有件接成可用
+- **Status**: ✅ 已完成
 
 ## Context
 
@@ -33,10 +33,10 @@ title: P1-08 · 集成进 pixi-painter（切换绘画管线）
 
 ## Acceptance
 
-- [ ] `examples/vue`：brush 连续画线、改尺寸/颜色生效；eraser **真擦透明**；undo/redo 正常。
-- [ ] 一次 stroke **不再新增** `Graphics` 子节点；连续多笔 `stage` 子节点数稳定。
-- [ ] 图片导入 + 变换 + selection + 缩放平移仍工作（未回归）。
-- [ ] `pnpm typecheck` / `lint` 绿。
+- [x] `examples/vue`：brush 连续画线、改尺寸/颜色生效；eraser **真擦透明**；undo/redo 正常。
+- [x] 一次 stroke **不再新增** `Graphics` 子节点；连续多笔 `stage` 子节点数稳定。
+- [x] 图片导入 + 变换 + selection + 缩放平移仍工作（未回归）。
+- [x] `pnpm typecheck` / `lint` 绿。
 
 ## Out of scope
 

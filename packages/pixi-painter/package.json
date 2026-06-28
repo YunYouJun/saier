@@ -30,6 +30,8 @@
   },
   "dependencies": {
     "@ctrl/tinycolor": "^4.2.0",
+    "@saier/core": "workspace:*",
+    "@saier/pixi": "workspace:*",
     "consola": "^3.4.2",
     "hotkeys-js": "^4.0.4",
     "mitt": "^3.0.1",

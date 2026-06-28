@@ -8,11 +8,15 @@ title: P4-02 · 笔尖 / 戳印系统
 - **Depends on**: P1-02（`BrushDab.tipId/hardness`）、P1-05（GPU dab）、P2-02（CPU dab）
 - **Files**: `packages/core/src/brush/tips.ts`、`packages/pixi/src/dab-cache.ts`、`packages/core/src/surface/rasterizer.ts`、`test/`
 - **Effort**: M
-- **Status**: 🟡
+- **Status**: ✅ 已完成
 
 ## Context
 
 笔尖决定 dab 长什么样：软圆、硬圆、带纹理的笔触。`BrushDab.tipId` + `hardness` 是契约，**两个后端都要按它渲染**（[P1-05](./P1-05-rendertexture-backend) 的 dab 缓存、[P2-02](./P2-02-cpu-dab-rasterizer) 的 CPU 光栅器）。
+
+## Result
+
+已新增 core tip registry 与 `sampleBrushTipAlpha()`，CPU rasterizer 使用同一采样函数。RenderTexture 后端保留硬圆 GPU stamp 快路径，非硬圆 / textured / marker tip 走 core CPU rasterizer 生成 stroke pixels 后写回 RT，tile 后端继续经 CPU rasterizer 渲染。
 
 ## Steps
 
@@ -23,9 +27,9 @@ title: P4-02 · 笔尖 / 戳印系统
 
 ## Acceptance
 
-- [ ] `round-soft` vs `round-hard` 边缘可见不同（采样断言）。
-- [ ] 带纹理 tip 能渲染出笔触质感（golden）。
-- [ ] 两后端对同一 dab 的输出在容差内一致。
+- [x] `round-soft` vs `round-hard` 边缘可见不同（采样断言）。
+- [x] 带纹理 tip 能渲染出笔触质感（golden）。
+- [x] 两后端对同一 dab 的输出在容差内一致。
 
 ## Out of scope
 

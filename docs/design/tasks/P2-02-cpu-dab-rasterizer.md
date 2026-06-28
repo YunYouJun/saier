@@ -8,7 +8,7 @@ title: P2-02 · CPU dab 光栅器
 - **Depends on**: P2-01
 - **Files**: `packages/core/src/surface/rasterizer.ts`、`test/`
 - **Effort**: L
-- **Status**: 🟡 条件性
+- **Status**: ✅ 已完成（CPU tile 光栅器）
 
 ## Context
 
@@ -28,10 +28,10 @@ P1 的 dab 在 GPU（RenderTexture render）光栅化；P2 改为 **CPU 把 `Bru
 
 ## Acceptance
 
-- [ ] `test/rasterizer.spec.ts`：单 dab 覆盖率 / 边缘 AA 符合预期（采样若干像素断言）。
-- [ ] erase dab 使被覆盖像素 `alpha` 下降到 0。
-- [ ] 同输入两次像素逐字节一致（确定性）。
-- [ ] 跨 tile 边界的 dab 在两 tile 上无缝。
+- [x] `test/rasterizer.spec.ts`：单 dab 覆盖率 / 边缘 AA 符合预期（采样若干像素断言）。
+- [x] erase dab 使被覆盖像素 `alpha` 下降到 0。
+- [x] 同输入两次像素逐字节一致（确定性）。
+- [x] 跨 tile 边界的 dab 在两 tile 上无缝。
 
 ## Out of scope
 

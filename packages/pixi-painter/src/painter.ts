@@ -1,5 +1,14 @@
+import type { BrushPresetRegistry, RasterLayer, StrokePatch, SurfaceBackend } from '@saier/core'
 import type { PainterCanvas } from './canvas'
-import { Application, Container } from 'pixi.js'
+import {
+  createDefaultBrushPresetRegistry,
+  isEmpty,
+  PainterController,
+  Document as RasterDocument,
+  UndoManager,
+} from '@saier/core'
+import { PixiTileTextureBackend, RenderTextureBackend, TouchGestureRouter } from '@saier/pixi'
+import { Application, Container, Sprite } from 'pixi.js'
 import { PainterBoard } from './board'
 import { createBrush, PainterBrush } from './brush'
 import { createCanvas } from './canvas'
@@ -12,6 +21,7 @@ import { Keyboard } from './keyboard'
 import { EditableLayer } from './layers'
 
 import { statement } from './statement'
+import { painterColorToRGBA } from './utils/color'
 import 'pixi.js/math-extras'
 
 export const PAINTER_TOOLS = [
@@ -26,6 +36,7 @@ export type PainterTool = typeof PAINTER_TOOLS[number]
 
 export interface PainterOptions {
   debug?: boolean
+  backend?: 'rendertexture' | 'tiled'
 
   size?: {
     width: number
@@ -79,6 +90,12 @@ export class Painter {
   canvas!: PainterCanvas
   brush!: PainterBrush
   eraser!: PainterEraser
+  document!: RasterDocument
+  surface!: SurfaceBackend
+  undoManager!: UndoManager
+  controller!: PainterController
+  brushRegistry: BrushPresetRegistry = createDefaultBrushPresetRegistry()
+  touchGestureRouter!: TouchGestureRouter
   store!: PainterStore
 
   history = new PainterHistory(this)
@@ -92,6 +109,11 @@ export class Painter {
    * pointer in stage
    */
   isPointerInStage = false
+  private readonly handleResize = () => this.onResize()
+  private readonly surfaceLayerIds = new Set<string>()
+  private readonly handleDocumentLayersChange = (event: { layers: RasterLayer[] }) => {
+    this.syncSurfaceLayers(event.layers)
+  }
 
   constructor(options: PainterOptions) {
     this.options = options
@@ -126,6 +148,7 @@ export class Painter {
       antialias: true,
       resolution,
       preference: 'webgl', // production renderer (see docs/design D3)
+      useBackBuffer: true, // required by Pixi advanced layer blend modes on WebGL
       ...pixiOptions,
     })
 
@@ -144,8 +167,10 @@ export class Painter {
     const boardContainer = this.board.container
 
     this.canvas = createCanvas(this)
+    this.setupRasterPipeline()
     this.brush = createBrush(this)
     this.eraser = createEraser(this)
+    const removeTouchGestures = this.setupTouchGestures()
 
     // add canvas to stage to draw
     boardContainer.addChild(this.canvas.container)
@@ -180,7 +205,11 @@ export class Painter {
     addImageDropListener(this, this.options.view)
 
     // window listeners + default tool
-    this.removeEventListeners = this.addEventListeners()
+    const removeWindowListeners = this.addEventListeners()
+    this.removeEventListeners = () => {
+      removeWindowListeners()
+      removeTouchGestures()
+    }
     this.useTool('brush')
   }
 
@@ -197,13 +226,162 @@ export class Painter {
 
   addEventListeners() {
     // resize
-    window.addEventListener('resize', this.onResize.bind(this))
+    window.addEventListener('resize', this.handleResize)
     return () => {
-      window.removeEventListener('resize', this.onResize.bind(this))
+      window.removeEventListener('resize', this.handleResize)
     }
   }
 
   removeEventListeners() { }
+
+  setupTouchGestures(): () => void {
+    const canvas = this.app.canvas
+    const localEvent = (event: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect()
+      return {
+        pointerId: event.pointerId,
+        pointerType: event.pointerType,
+        clientX: event.clientX - rect.left,
+        clientY: event.clientY - rect.top,
+      }
+    }
+
+    this.touchGestureRouter = new TouchGestureRouter({
+      viewport: {
+        panBy: (dx, dy) => {
+          this.board.container.position.set(
+            this.board.container.position.x + dx,
+            this.board.container.position.y + dy,
+          )
+          this.boundingBoxes.position.set(
+            this.boundingBoxes.position.x + dx,
+            this.boundingBoxes.position.y + dy,
+          )
+        },
+        zoomAt: (point, scaleFactor) => {
+          const board = this.board.container
+          const scale = Math.max(board.scale.x * scaleFactor, this.board.minScale)
+          const docX = (point.x - board.position.x) / board.scale.x
+          const docY = (point.y - board.position.y) / board.scale.y
+          board.position.set(point.x - docX * scale, point.y - docY * scale)
+          this.boundingBoxes.position.set(board.position.x, board.position.y)
+          this.canvas.scaleTo(scale)
+        },
+      },
+      onStrokeCancel: () => {
+        this.brush.cancelStroke()
+        this.eraser.cancelStroke()
+      },
+    })
+
+    const onPointerDown = (event: PointerEvent) => this.touchGestureRouter.pointerDown(localEvent(event))
+    const onPointerMove = (event: PointerEvent) => this.touchGestureRouter.pointerMove(localEvent(event))
+    const onPointerUp = (event: PointerEvent) => this.touchGestureRouter.pointerUp(localEvent(event))
+    const onPointerCancel = (event: PointerEvent) => this.touchGestureRouter.pointerCancel(localEvent(event))
+
+    canvas.style.touchAction = 'none'
+    canvas.addEventListener('pointerdown', onPointerDown)
+    canvas.addEventListener('pointermove', onPointerMove)
+    canvas.addEventListener('pointerup', onPointerUp)
+    canvas.addEventListener('pointercancel', onPointerCancel)
+
+    return () => {
+      canvas.removeEventListener('pointerdown', onPointerDown)
+      canvas.removeEventListener('pointermove', onPointerMove)
+      canvas.removeEventListener('pointerup', onPointerUp)
+      canvas.removeEventListener('pointercancel', onPointerCancel)
+    }
+  }
+
+  isTouchGestureActive(): boolean {
+    return this.touchGestureRouter?.isGestureActive ?? false
+  }
+
+  activeTouchCount(): number {
+    return this.touchGestureRouter?.activeTouchCount ?? 0
+  }
+
+  setupRasterPipeline() {
+    const { width, height } = PainterBoard.size
+    this.document = new RasterDocument({ width, height })
+    this.surface = this.createSurfaceBackend(width, height)
+    this.undoManager = new UndoManager({ backend: this.surface })
+    this.controller = new PainterController({
+      document: this.document,
+      history: this.undoManager,
+      tool: this.tool,
+      brushPresets: this.brushRegistry.list(),
+      brush: {
+        presetId: PainterBrush.presetId,
+        size: PainterBrush.size,
+        color: painterColorToRGBA(PainterBrush.color),
+      },
+    })
+    this.document.on('layers:change', this.handleDocumentLayersChange)
+
+    const layer = this.document.addLayer({ id: 'layer-1', label: 'Layer 1' })
+    this.syncSurfaceLayers([layer])
+  }
+
+  createSurfaceBackend(width: number, height: number): SurfaceBackend {
+    if (this.options.backend === 'tiled') {
+      return new PixiTileTextureBackend({
+        renderer: this.app.renderer,
+        stage: this.canvas.layersContainer,
+        width,
+        height,
+      })
+    }
+
+    return new RenderTextureBackend({
+      renderer: this.app.renderer,
+      stage: this.canvas.layersContainer,
+      width,
+      height,
+    })
+  }
+
+  flushSurfaceUploads() {
+    if (this.surface instanceof PixiTileTextureBackend)
+      this.surface.flushUploads()
+  }
+
+  recordStrokePatch(patch: StrokePatch) {
+    if (isEmpty(patch.rect))
+      return
+
+    this.undoManager.record(patch)
+    this.history.record({
+      undo: () => this.undoManager.undo(),
+      redo: () => this.undoManager.redo(),
+    })
+  }
+
+  async extractLayerThumbnail(layerId: string, size = 48): Promise<string> {
+    const handle = this.surface.getDisplayHandle(layerId)
+    if (!(handle instanceof Sprite || handle instanceof Container))
+      throw new TypeError('Unsupported layer display handle')
+
+    const visible = handle.visible
+    const alpha = handle.alpha
+    handle.visible = true
+    handle.alpha = 1
+
+    try {
+      const canvas = await this.app.renderer.extract.canvas({ target: handle })
+      const thumb = document.createElement('canvas')
+      thumb.width = size
+      thumb.height = size
+      const context = thumb.getContext('2d')
+      context?.clearRect(0, 0, size, size)
+      context?.drawImage(canvas, 0, 0, size, size)
+      return thumb.toDataURL('image/png')
+    }
+    finally {
+      handle.visible = visible
+      handle.alpha = alpha
+    }
+  }
 
   /**
    * board background
@@ -223,12 +401,12 @@ export class Painter {
     autoToggleSelection: true,
   }) {
     const imgSprite = await importImageSprite(src)
-    imgSprite.name = src
+    imgSprite.label = src
 
     const { canvas } = this
     const layer = new EditableLayer(this)
     layer.eventMode = 'static'
-    layer.name = `Image ${EditableLayer.order++}`
+    layer.label = `Image ${EditableLayer.order++}`
     canvas.layersContainer.addChild(layer)
     layer.addChild(imgSprite)
     layer.updateTransformBoundingBox()
@@ -272,6 +450,7 @@ export class Painter {
    * toggle tool
    */
   useTool(name: PainterTool) {
+    this.controller?.setTool(name)
     this.emitter.emit('tool:change', name)
     this.tool = name
 
@@ -364,14 +543,24 @@ export class Painter {
    * clear content in inner canvas
    */
   clearCanvas() {
+    this.document.off('layers:change', this.handleDocumentLayersChange)
+    this.controller.dispose()
+    this.surface.destroy()
+    this.surfaceLayerIds.clear()
+    this.history.clear()
     this.canvas.clearLayers()
     this.boundingBoxes.removeChildren()
+    this.setupRasterPipeline()
+    this.emitter.emit('canvas:clear')
   }
 
   destroy() {
     this.removeEventListeners()
     this.brush.destroy()
     this.eraser.destroy()
+    this.document.off('layers:change', this.handleDocumentLayersChange)
+    this.controller.dispose()
+    this.surface.destroy()
     this.board.destroy()
 
     this.app.destroy(false, {
@@ -397,6 +586,39 @@ export class Painter {
 
   brushSizeUp() {
     this.brush.sizeUp()
+  }
+
+  private syncSurfaceLayers(layers: RasterLayer[]): void {
+    const nextIds = new Set(layers.map(layer => layer.id))
+
+    for (const id of [...this.surfaceLayerIds]) {
+      if (!nextIds.has(id)) {
+        this.surface.removeLayer(id)
+        this.surfaceLayerIds.delete(id)
+      }
+    }
+
+    for (const layer of layers) {
+      if (!this.surfaceLayerIds.has(layer.id)) {
+        this.surface.createLayer(layer.id)
+        this.surfaceLayerIds.add(layer.id)
+        this.positionSurfaceLayer(layer.id)
+      }
+
+      this.surface.setLayerState?.(layer.id, {
+        visible: layer.visible,
+        opacity: layer.opacity,
+        blendMode: layer.blendMode,
+      })
+    }
+
+    this.surface.reorderLayers?.(layers.map(layer => layer.id))
+  }
+
+  private positionSurfaceLayer(layerId: string): void {
+    const handle = this.surface.getDisplayHandle(layerId)
+    if (handle instanceof Sprite || handle instanceof Container)
+      handle.position.set(-this.surface.width / 2, -this.surface.height / 2)
   }
 }
 

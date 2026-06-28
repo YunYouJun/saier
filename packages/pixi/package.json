@@ -1,0 +1,45 @@
+{
+  "name": "@saier/pixi",
+  "type": "module",
+  "version": "0.1.6-beta.1",
+  "description": "PixiJS surface backends and display bridge for saier (the only core <-> Pixi seam).",
+  "author": {
+    "name": "YunYouJun",
+    "email": "me@yunyoujun.cn"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YunYouJun/pixi-painter",
+    "directory": "packages/pixi"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "unbuild",
+    "dev": "unbuild --stub",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "pixi.js": "^8.19.0"
+  },
+  "dependencies": {
+    "@saier/core": "workspace:*"
+  },
+  "devDependencies": {
+    "pixi.js": "^8.19.0",
+    "unbuild": "^3.6.1"
+  }
+}

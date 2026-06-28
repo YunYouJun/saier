@@ -51,11 +51,14 @@ git clone https://github.com/YunYouJun/pixi-painter.git
 cd pixi-painter
 pnpm install
 
-# run the Vue example (default dev target)
+# run the Nuxt site (default final experience)
 pnpm dev
 
 # run the Nuxt site (landing + interactive demos, e.g. /shodo)
 pnpm dev:site
+
+# run the lightweight Vue example sandbox
+pnpm dev:vue
 
 # run this documentation site
 pnpm docs:dev

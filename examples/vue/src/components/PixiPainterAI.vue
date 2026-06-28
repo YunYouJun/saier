@@ -1,43 +1,34 @@
 <script setup lang="ts">
-import type { Painter } from 'pixi-painter'
+import { usePainter } from '@saier/vue/composables/usePainter'
 import axios from 'axios'
 import consola from 'consola'
-
-import { createPainter } from 'pixi-painter'
-import { onMounted, ref } from 'vue'
-
-// const online = useOnline()
+import { ref, watch } from 'vue'
 
 axios.defaults.baseURL = 'http://localhost:8080/api'
 
-const srcCanvas = ref<HTMLCanvasElement>()
 const targetCanvas = ref<HTMLCanvasElement>()
-
 const inputPrompt = ref('椅子， 杰作, 最好质量，')
 
-const painter = ref<Painter>()
-onMounted(() => {
-  if (!srcCanvas.value || !targetCanvas.value)
+const {
+  activeLayerId,
+  canvas: srcCanvas,
+  layerActions,
+  layerThumbnails,
+  layers,
+  painter,
+} = usePainter()
+
+watch(painter, (p, _previous, onCleanup) => {
+  if (!p)
     return
 
-  // const tParent = targetCanvas.value.parentElement
-  // targetCanvas.value.width = tParent?.clientWidth || 0
-  // targetCanvas.value.height = tParent?.clientHeight || 0
+  consola.log(p)
 
-  const painter = createPainter({
-    view: srcCanvas.value,
-  })
-  consola.log(painter)
-
-  painter.emitter.on('brush:up', async () => {
+  const onBrushUp = async () => {
     consola.log('brush:up')
 
-    if (!srcCanvas.value)
-      return
-
-    const sCanvas = srcCanvas.value
-
-    sCanvas.toBlob((blob) => {
+    const extractedCanvas = await p.extractCanvas('canvas') as HTMLCanvasElement
+    extractedCanvas.toBlob((blob) => {
       if (!blob)
         return
 
@@ -48,7 +39,7 @@ onMounted(() => {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
-      }).then(async (_res) => {
+      }).then(async () => {
         const { data: imageBlob } = await axios.get('/queue', {
           params: {
             prompt: encodeURIComponent(inputPrompt.value),
@@ -56,7 +47,6 @@ onMounted(() => {
           responseType: 'blob',
         })
 
-        // read image and draw to target canvas
         const tCanvas = targetCanvas.value
         if (!tCanvas)
           return
@@ -71,6 +61,11 @@ onMounted(() => {
         image.src = imageObjectURL
       })
     }, 'image/png')
+  }
+
+  p.emitter.on('brush:up', onBrushUp)
+  onCleanup(() => {
+    p.emitter.off('brush:up', onBrushUp)
   })
 })
 </script>
@@ -82,6 +77,20 @@ onMounted(() => {
     <template v-if="painter">
       <PainterControls :painter="painter" class="absolute left-1" />
       <PainterOptionsBar :painter="painter" class="absolute left-1 top-1" />
+      <PainterLayerPanel
+        class="absolute right-2 top-2"
+        :layers="layers"
+        :active-layer-id="activeLayerId"
+        :thumbnails="layerThumbnails"
+        @add="layerActions.add"
+        @remove="layerActions.remove"
+        @move="layerActions.move"
+        @select="layerActions.setActive"
+        @update:visible="layerActions.setVisible"
+        @update:opacity="layerActions.setOpacity"
+        @update:blend-mode="layerActions.setBlendMode"
+        @update:label="layerActions.setLabel"
+      />
     </template>
 
     <div class="canvas-container" grid="~ cols-2" gap="2">

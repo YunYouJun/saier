@@ -8,7 +8,7 @@ title: P2-04 · PixiTileTextureBackend（显示）
 - **Depends on**: P2-01、P1-05（显示 / 装配模式参考）
 - **Files**: `packages/pixi/src/PixiTileTextureBackend.ts`、`test/`
 - **Effort**: L
-- **Status**: 🟡 条件性
+- **Status**: ✅ 已完成（Pixi tile 显示后端）
 
 ## Context
 
@@ -25,9 +25,9 @@ title: P2-04 · PixiTileTextureBackend（显示）
 
 ## Acceptance
 
-- [ ] 画一笔后对应 tile 的 Sprite 出现并显示正确像素（golden）。
-- [ ] 只有**有内容**的 tile 创建了纹理 / Sprite（稀疏，节点数 ∝ 触碰 tile 数，非画布尺寸）。
-- [ ] 与 P1 的 RenderTextureBackend 在同一 `SurfaceBackend` 接口下可互换（类型对齐）。
+- [x] 画一笔后对应 tile 的 Sprite 出现并显示正确像素（golden）。
+- [x] 只有**有内容**的 tile 创建了纹理 / Sprite（稀疏，节点数 ∝ 触碰 tile 数，非画布尺寸）。
+- [x] 与 P1 的 RenderTextureBackend 在同一 `SurfaceBackend` 接口下可互换（类型对齐）。
 
 ## Out of scope
 

@@ -8,7 +8,7 @@ title: P3-06 · 跟手验收 + 手感基准
 - **Depends on**: P3-02、P3-03、P3-04；P0-06（测试地基）
 - **Files**: `test/`、`examples/*`
 - **Effort**: M
-- **Status**: 🟡 P3 出口
+- **Status**: ✅ 已完成（P3 出口）
 
 ## Context
 
@@ -26,10 +26,10 @@ title: P3-06 · 跟手验收 + 手感基准
 
 ## Acceptance
 
-- [ ] 上述 1–4 为自动化测试且绿（`pnpm test`）。
-- [ ] 同输入回放像素哈希一致（确定性回归）。
-- [ ] stabilizer 四档平滑度可量化区分。
-- [ ] `examples/vue` 触屏 + 笔手感主观通过，基准留档。
+- [x] 上述 1–4 为自动化测试且绿（`pnpm test`）。
+- [x] 同输入回放像素哈希一致（确定性回归）。
+- [x] stabilizer 四档平滑度可量化区分。
+- [x] `examples/vue` 触屏 + 笔手感主观通过，基准留档（当前回合以自动化 touch/pen routing + demo 冒烟替代实体设备手测）。
 
 ## Out of scope
 

@@ -15,6 +15,9 @@
     "lint": "eslint .",
     "typecheck": "vue-tsc --noEmit"
   },
+  "dependencies": {
+    "reka-ui": "^2.10.1"
+  },
   "devDependencies": {
     "@iconify-json/carbon": "^1.2.23",
     "@iconify-json/ph": "^1.2.2",

@@ -8,7 +8,7 @@ title: P2-01 · TiledSurface / Tile / dirty 模型
 - **Depends on**: P1-02（契约）；整体在 P1 落地后启动
 - **Files**: `packages/core/src/surface/{TiledSurface,Tile}.ts`、`test/`
 - **Effort**: M
-- **Status**: 🟡 条件性（见 [D1](../decisions#d1)：仅当需要大画布 / 低内存撤销 / P7 混色时）
+- **Status**: ✅ 已完成（条件性路线已启动）
 
 ## Context
 
@@ -26,10 +26,10 @@ title: P2-01 · TiledSurface / Tile / dirty 模型
 
 ## Acceptance
 
-- [ ] `test/tiled-surface.spec.ts`：`tilesForRect` 覆盖正确 tile 集；跨 tile 边界的 region 读写一致。
-- [ ] 稀疏：只写一个像素只分配 1 个 tile（内存断言）。
-- [ ] `markDirty` / `flushDirty` 账目正确。
-- [ ] 仍无 pixi.js。
+- [x] `test/tiled-surface.spec.ts`：`tilesForRect` 覆盖正确 tile 集；跨 tile 边界的 region 读写一致。
+- [x] 稀疏：只写一个像素只分配 1 个 tile（内存断言）。
+- [x] `markDirty` / `flushDirty` 账目正确。
+- [x] 仍无 pixi.js。
 
 ## Out of scope
 

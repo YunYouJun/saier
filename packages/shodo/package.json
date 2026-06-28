@@ -1,5 +1,9 @@
 {
   "name": "@saier/shodo",
+  "dependencies": {
+    "@saier/core": "workspace:*",
+    "@saier/pixi": "workspace:*"
+  },
   "devDependencies": {
     "pixi.js": "8.19.0"
   }

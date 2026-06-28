@@ -1,5 +1,6 @@
 import type { BlendMode } from '../document/RasterLayer'
 import type { BrushDab } from './brush'
+import type { SurfaceMemorySnapshot } from './memory'
 
 /** An axis-aligned dirty region in document space. */
 export interface DirtyRect {
@@ -67,6 +68,21 @@ export interface SurfaceBackend {
   endStroke: (layerId: string) => StrokePatch
 
   applyPatch: (patch: StrokePatch, dir: 'undo' | 'redo') => void
+
+  /**
+   * Force any deferred GPU uploads (batched dirty tiles, in-stroke preview)
+   * synchronously. Backends that render eagerly may omit it.
+   */
+  flushUploads?: () => void
+
+  /**
+   * Return an estimated resource snapshot for memory diagnostics.
+   *
+   * This only reports resources the backend owns and can explain. Browser
+   * process memory / GPU residency remain best-effort diagnostics outside this
+   * contract.
+   */
+  getMemorySnapshot?: () => SurfaceMemorySnapshot
 
   /** opaque display handle (e.g. a Pixi Sprite); core does not type it */
   getDisplayHandle: (layerId: string) => unknown

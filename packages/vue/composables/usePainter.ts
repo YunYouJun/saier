@@ -2,6 +2,7 @@ import type {
   BlendMode,
   PainterControllerState,
   PainterLayerState,
+  PainterMemorySnapshot,
 } from '@saier/core'
 import type { Painter, PainterOptions } from 'saier'
 import type { ComputedRef, Ref, ShallowRef } from 'vue'
@@ -21,6 +22,7 @@ export interface UsePainterReturn {
   canvas: Ref<HTMLCanvasElement | undefined>
   painter: ShallowRef<Painter | undefined>
   state: ShallowRef<PainterControllerState | undefined>
+  memory: ShallowRef<PainterMemorySnapshot | undefined>
   layers: ComputedRef<PainterLayerState[]>
   activeLayerId: ComputedRef<string | null>
   layerThumbnails: ShallowRef<Record<string, string>>
@@ -35,12 +37,14 @@ export interface UsePainterReturn {
     setLabel: (id: string, label: string) => void
   }
   refreshLayerThumbnails: () => Promise<void>
+  refreshMemory: () => Promise<void>
 }
 
 export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
   const canvas = ref<HTMLCanvasElement>()
   const painter = shallowRef<Painter>()
   const state = shallowRef<PainterControllerState>()
+  const memory = shallowRef<PainterMemorySnapshot>()
   const layerThumbnails = shallowRef<Record<string, string>>({})
 
   const layers = computed(() => state.value?.layers ?? [])
@@ -50,6 +54,8 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
   let removePainterListeners: (() => void) | undefined
   let resizeObserver: ResizeObserver | undefined
   let thumbnailRun = 0
+  let memoryRun = 0
+  let memoryRefreshQueued = false
 
   function syncState(p: Painter): void {
     state.value = p.controller.getState()
@@ -78,21 +84,49 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
       layerThumbnails.value = next
   }
 
+  async function refreshMemory(): Promise<void> {
+    const p = painter.value
+    if (!p) {
+      memory.value = undefined
+      return
+    }
+
+    const run = ++memoryRun
+    const next = await p.measureMemory()
+    if (run === memoryRun)
+      memory.value = next
+  }
+
+  function scheduleMemoryRefresh(): void {
+    if (memoryRefreshQueued)
+      return
+
+    memoryRefreshQueued = true
+    Promise.resolve().then(() => {
+      memoryRefreshQueued = false
+      void refreshMemory()
+    })
+  }
+
   function bindController(p: Painter, updateLayers: () => void): void {
     const update = () => {
       syncState(p)
+    }
+    const updateHistory = () => {
+      update()
+      scheduleMemoryRefresh()
     }
 
     removeControllerListeners?.()
     p.controller.on('tool:change', update)
     p.controller.on('brush:change', update)
-    p.controller.on('history:change', update)
+    p.controller.on('history:change', updateHistory)
     p.controller.on('layers:change', updateLayers)
 
     removeControllerListeners = () => {
       p.controller.off('tool:change', update)
       p.controller.off('brush:change', update)
-      p.controller.off('history:change', update)
+      p.controller.off('history:change', updateHistory)
       p.controller.off('layers:change', updateLayers)
     }
   }
@@ -100,6 +134,7 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
   function bindPainter(p: Painter): void {
     const updateLayers = () => {
       syncState(p)
+      scheduleMemoryRefresh()
       void refreshLayerThumbnails()
     }
     const handleCanvasClear = () => {
@@ -182,6 +217,7 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     syncState(p)
     painter.value = p
     void refreshLayerThumbnails()
+    void refreshMemory()
   })
 
   onBeforeUnmount(() => {
@@ -192,6 +228,7 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     painter.value?.destroy()
     painter.value = undefined
     state.value = undefined
+    memory.value = undefined
     layerThumbnails.value = {}
   })
 
@@ -199,11 +236,13 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     canvas,
     painter,
     state,
+    memory,
     layers,
     activeLayerId,
     layerThumbnails,
     layerActions,
     refreshLayerThumbnails,
+    refreshMemory,
   }
 }
 

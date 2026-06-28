@@ -1,9 +1,12 @@
 <script lang="ts" setup>
 import type { BrushPresetId, PainterBrushState } from '@saier/core'
 import type { Painter } from '../../saier/src'
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, shallowRef, watch } from 'vue'
 import BrushPresetPicker from './BrushPresetPicker.vue'
+import PainterSlider from './PainterSlider.vue'
 import '@advjs/gui/dist/icons.css'
+
+type BrushPresetLabelMap = Partial<Record<BrushPresetId, string>>
 
 interface PainterOptionsBarLabels {
   pressure: string
@@ -12,6 +15,7 @@ interface PainterOptionsBarLabels {
   spacing: string
   hardness: string
   flow: string
+  presetLabels: BrushPresetLabelMap
 }
 
 const props = defineProps<{
@@ -26,6 +30,7 @@ const DEFAULT_LABELS: PainterOptionsBarLabels = {
   spacing: 'Spacing',
   hardness: 'Hard',
   flow: 'Flow',
+  presetLabels: {},
 }
 
 const text = computed(() => ({
@@ -34,14 +39,14 @@ const text = computed(() => ({
 }))
 
 const initialBrush = props.painter.controller.getState().brush
-const presetId = ref<BrushPresetId>(initialBrush.presetId)
-const presets = ref(initialBrush.presets)
-const size = ref(initialBrush.size)
-const opacity = ref(initialBrush.opacity)
-const spacing = ref(initialBrush.spacing)
-const hardness = ref(initialBrush.hardness)
-const flow = ref(initialBrush.flow)
-const enablePressure = ref(true)
+const presetId = shallowRef<BrushPresetId>(initialBrush.presetId)
+const presets = shallowRef(initialBrush.presets)
+const size = shallowRef(initialBrush.size)
+const opacity = shallowRef(initialBrush.opacity)
+const spacing = shallowRef(initialBrush.spacing)
+const hardness = shallowRef(initialBrush.hardness)
+const flow = shallowRef(initialBrush.flow)
+const enablePressure = shallowRef(true)
 
 function handleBrushChange(brush: PainterBrushState) {
   presetId.value = brush.presetId
@@ -93,6 +98,18 @@ watch(enablePressure, (value) => {
   props.painter.brush.setPressureEnabled(value)
   props.painter.eraser.setPressureEnabled(value)
 })
+
+function formatFlow(value: number): string {
+  return `${Math.round(value)}/s`
+}
+
+function formatPercent(value: number): string {
+  return `${Math.round(value * 100)}%`
+}
+
+function formatSize(value: number): string {
+  return `${Math.round(value)} px`
+}
 </script>
 
 <template>
@@ -100,31 +117,17 @@ watch(enablePressure, (value) => {
     <BrushPresetPicker
       :presets="presets"
       :active-preset-id="presetId"
+      :preset-labels="text.presetLabels"
       @select="presetId = $event"
     />
 
     <div class="painter-options__params">
       <AGUICheckbox v-model:checked="enablePressure" class="painter-options__pressure" :label="text.pressure" />
-      <label class="painter-param">
-        <span>{{ text.size }}</span>
-        <AGUISlider v-model="size" class="painter-param__slider" :min="1" :max="100" :step="1" />
-      </label>
-      <label class="painter-param">
-        <span>{{ text.opacity }}</span>
-        <AGUISlider v-model="opacity" class="painter-param__slider" :min="0" :max="1" :step="0.01" />
-      </label>
-      <label class="painter-param">
-        <span>{{ text.spacing }}</span>
-        <AGUISlider v-model="spacing" class="painter-param__slider" :min="0.05" :max="1" :step="0.01" />
-      </label>
-      <label class="painter-param">
-        <span>{{ text.hardness }}</span>
-        <AGUISlider v-model="hardness" class="painter-param__slider" :min="0" :max="1" :step="0.01" />
-      </label>
-      <label class="painter-param">
-        <span>{{ text.flow }}</span>
-        <AGUISlider v-model="flow" class="painter-param__slider" :min="1" :max="80" :step="1" />
-      </label>
+      <PainterSlider v-model="size" :label="text.size" :min="1" :max="100" :step="1" :format-value="formatSize" />
+      <PainterSlider v-model="opacity" :label="text.opacity" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
+      <PainterSlider v-model="spacing" :label="text.spacing" :min="0.05" :max="1" :step="0.01" :format-value="formatPercent" />
+      <PainterSlider v-model="hardness" :label="text.hardness" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
+      <PainterSlider v-model="flow" :label="text.flow" :min="1" :max="80" :step="1" :format-value="formatFlow" />
     </div>
   </div>
 </template>
@@ -140,30 +143,6 @@ watch(enablePressure, (value) => {
 .painter-options__pressure {
   min-height: 34px;
   align-self: end;
-}
-
-.painter-param {
-  display: grid;
-  min-width: 0;
-  gap: 4px;
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.painter-param span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.painter-param__slider {
-  width: 100%;
-  min-width: 0;
-}
-
-.painter-param__slider > div,
-.painter-param__slider input[type='range'] {
-  width: 100%;
-  min-width: 0;
 }
 
 input[type='checkbox'] {

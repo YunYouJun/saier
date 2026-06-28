@@ -1,4 +1,4 @@
-import type { BlendMode } from '@saier/core'
+import type { BlendMode, BuiltinBrushPresetId, MemoryRiskLevel } from '@saier/core'
 import { computed, shallowRef } from 'vue'
 
 export type SiteLocale = 'en' | 'zh'
@@ -72,6 +72,18 @@ interface SiteMessages {
     spacing: string
     hardness: string
     flow: string
+    presetLabels: Record<BuiltinBrushPresetId, string>
+  }
+  memory: {
+    browser: string
+    diagnostics: string
+    estimated: string
+    status: string
+    surface: string
+    total: string
+    undo: string
+    unavailable: string
+    risk: Record<MemoryRiskLevel, string>
   }
   layers: {
     title: string
@@ -158,6 +170,28 @@ const messages: Record<SiteLocale, SiteMessages> = {
       spacing: 'Spacing',
       hardness: 'Hard',
       flow: 'Flow',
+      presetLabels: {
+        pen: 'Pen',
+        pencil: 'Pencil',
+        marker: 'Marker',
+        airbrush: 'Airbrush',
+        calligraphy: 'Calligraphy',
+      },
+    },
+    memory: {
+      browser: 'Browser',
+      diagnostics: 'Diagnostics',
+      estimated: 'estimated',
+      status: 'Memory',
+      surface: 'Surface',
+      total: 'Estimated',
+      undo: 'Undo',
+      unavailable: 'Unavailable',
+      risk: {
+        normal: 'Normal',
+        watch: 'Watch',
+        high: 'High',
+      },
     },
     layers: {
       title: 'Layers',
@@ -248,6 +282,28 @@ const messages: Record<SiteLocale, SiteMessages> = {
       spacing: '间距',
       hardness: '硬度',
       flow: '流量',
+      presetLabels: {
+        pen: '钢笔',
+        pencil: '铅笔',
+        marker: '马克笔',
+        airbrush: '喷枪',
+        calligraphy: '书法',
+      },
+    },
+    memory: {
+      browser: '浏览器',
+      diagnostics: '诊断',
+      estimated: '估算',
+      status: '内存',
+      surface: '画布资源',
+      total: '估算',
+      undo: '撤销',
+      unavailable: '不可用',
+      risk: {
+        normal: '正常',
+        watch: '关注',
+        high: '高',
+      },
     },
     layers: {
       title: '图层',

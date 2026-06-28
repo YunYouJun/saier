@@ -244,6 +244,31 @@ describe('saier raster pipeline', () => {
       .toMatch(/^data:image\/png;base64,/)
   })
 
+  it('reports painter memory snapshots for RenderTexture and tiled backends', async () => {
+    const renderTexturePainter = await createFixture()
+    drawBrushStroke(renderTexturePainter)
+
+    const renderTextureMemory = renderTexturePainter.getMemorySnapshot()
+    expect(renderTextureMemory.surface.source).toBe('rendertexture')
+    expect(renderTextureMemory.surface.totalEstimatedBytes).toBe(64 * 64 * 4 * 2)
+    expect(renderTextureMemory.undo.undoCount).toBe(1)
+    expect(renderTextureMemory.totalEstimatedBytes).toBe(
+      renderTextureMemory.surface.totalEstimatedBytes + renderTextureMemory.undo.totalEstimatedBytes,
+    )
+    expect(renderTextureMemory.riskLevel).toBe('normal')
+
+    const tiledPainter = await createFixture('tiled')
+    drawBrushStroke(tiledPainter)
+
+    const tiledMemory = tiledPainter.getMemorySnapshot()
+    expect(tiledMemory.surface.source).toBe('tiled')
+    expect(tiledMemory.surface.totalEstimatedBytes).toBeGreaterThan(0)
+    expect(tiledMemory.undo.undoCount).toBe(1)
+    expect(tiledMemory.totalEstimatedBytes).toBe(
+      tiledMemory.surface.totalEstimatedBytes + tiledMemory.undo.totalEstimatedBytes,
+    )
+  })
+
   it('keeps tiled backend memory sparse on a 4096 canvas', async () => {
     const canvas = document.createElement('canvas')
     const painter = createPainter({
@@ -272,5 +297,13 @@ describe('saier raster pipeline', () => {
 
     const surface = painter.surface.getSurface(layerId)
     expect(surface.allocatedTileCount).toBeLessThanOrEqual(4)
+
+    const snapshot = painter.getMemorySnapshot()
+    expect(snapshot.surface.metadata).toMatchObject({
+      allocatedTileCount: surface.allocatedTileCount,
+    })
+    expect(snapshot.surface.totalEstimatedBytes).toBeLessThanOrEqual(
+      surface.allocatedTileCount * 256 * 256 * 4 * 2,
+    )
   })
 })

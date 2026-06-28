@@ -1,4 +1,5 @@
 import type { DirtyRect } from '../types'
+import type { SurfaceMemorySnapshot } from '../types/memory'
 import { clampToSize, empty, isEmpty, union } from '../math'
 import { Tile } from './Tile'
 
@@ -218,6 +219,34 @@ export class TiledSurface {
     this.tiles.clear()
     this.dirtyTiles.clear()
     this.dirtyRect = empty()
+  }
+
+  getMemorySnapshot(id = 'tiled-surface'): SurfaceMemorySnapshot {
+    const allocatedTileCount = this.allocatedTileCount
+    const bytes = allocatedTileCount * this.tileByteLength
+
+    return {
+      source: 'tiled-surface',
+      width: this.width,
+      height: this.height,
+      totalEstimatedBytes: bytes,
+      entries: [
+        {
+          id: `${id}:allocated-tiles`,
+          label: 'Allocated tile pixel buffers',
+          bytes,
+          kind: 'cpu',
+          count: allocatedTileCount,
+          metadata: {
+            tileSize: this.tileSize,
+          },
+        },
+      ],
+      metadata: {
+        allocatedTileCount,
+        tileSize: this.tileSize,
+      },
+    }
   }
 
   tileRect(tileX: number, tileY: number): DirtyRect {

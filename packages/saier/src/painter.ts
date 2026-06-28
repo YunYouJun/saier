@@ -1,4 +1,14 @@
-import type { BrushPresetRegistry, RasterLayer, StrokePatch, SurfaceBackend } from '@saier/core'
+import type {
+  BrowserMemorySnapshot,
+  BrushPresetRegistry,
+  MemoryEstimateEntry,
+  MemoryRiskLevel,
+  PainterMemorySnapshot,
+  RasterLayer,
+  StrokePatch,
+  SurfaceBackend,
+  SurfaceMemorySnapshot,
+} from '@saier/core'
 import type { PainterCanvas } from './canvas'
 import {
   createDefaultBrushPresetRegistry,
@@ -23,6 +33,10 @@ import { EditableLayer } from './layers'
 import { statement } from './statement'
 import { painterColorToRGBA } from './utils/color'
 import 'pixi.js/math-extras'
+
+const MEMORY_WATCH_BYTES = 256 * 1024 * 1024
+const MEMORY_HIGH_BYTES = 768 * 1024 * 1024
+const DEVICE_MEMORY_HIGH_RATIO = 0.25
 
 export const PAINTER_TOOLS = [
   'brush',
@@ -342,8 +356,15 @@ export class Painter {
   }
 
   flushSurfaceUploads() {
-    if (this.surface instanceof PixiTileTextureBackend)
-      this.surface.flushUploads()
+    this.surface.flushUploads?.()
+  }
+
+  getMemorySnapshot(): PainterMemorySnapshot {
+    return this.createMemorySnapshot()
+  }
+
+  async measureMemory(): Promise<PainterMemorySnapshot> {
+    return this.createMemorySnapshot(await measureBrowserMemory())
   }
 
   recordStrokePatch(patch: StrokePatch) {
@@ -620,10 +641,127 @@ export class Painter {
     if (handle instanceof Sprite || handle instanceof Container)
       handle.position.set(-this.surface.width / 2, -this.surface.height / 2)
   }
+
+  private createMemorySnapshot(browser?: BrowserMemorySnapshot): PainterMemorySnapshot {
+    this.flushSurfaceUploads()
+
+    const surface = this.surface.getMemorySnapshot?.() ?? createFallbackSurfaceMemorySnapshot(this.surface)
+    const undo = this.undoManager.getMemorySnapshot()
+    const totalEstimatedBytes = surface.totalEstimatedBytes + undo.totalEstimatedBytes
+    const deviceMemoryBytes = getDeviceMemoryBytes()
+
+    return {
+      totalEstimatedBytes,
+      riskLevel: getMemoryRiskLevel(totalEstimatedBytes, deviceMemoryBytes),
+      surface,
+      undo,
+      browser,
+      deviceMemoryBytes,
+    }
+  }
 }
 
 export function createPainter(options: PainterOptions): Painter {
   statement()
 
   return new Painter(options)
+}
+
+function createFallbackSurfaceMemorySnapshot(surface: SurfaceBackend): SurfaceMemorySnapshot {
+  return {
+    source: 'unknown',
+    width: surface.width,
+    height: surface.height,
+    totalEstimatedBytes: 0,
+    entries: [],
+  }
+}
+
+function getMemoryRiskLevel(totalEstimatedBytes: number, deviceMemoryBytes?: number): MemoryRiskLevel {
+  if (deviceMemoryBytes && totalEstimatedBytes >= deviceMemoryBytes * DEVICE_MEMORY_HIGH_RATIO)
+    return 'high'
+  if (totalEstimatedBytes >= MEMORY_HIGH_BYTES)
+    return 'high'
+  if (totalEstimatedBytes >= MEMORY_WATCH_BYTES)
+    return 'watch'
+  return 'normal'
+}
+
+function getDeviceMemoryBytes(): number | undefined {
+  const memory = (globalThis.navigator as NavigatorWithDeviceMemory | undefined)?.deviceMemory
+  return typeof memory === 'number' && Number.isFinite(memory) && memory > 0
+    ? memory * 1024 * 1024 * 1024
+    : undefined
+}
+
+async function measureBrowserMemory(): Promise<BrowserMemorySnapshot | undefined> {
+  const performance = globalThis.performance as MemoryPerformance | undefined
+  if (!performance)
+    return undefined
+
+  if (
+    typeof performance.measureUserAgentSpecificMemory === 'function'
+    && globalThis.crossOriginIsolated
+  ) {
+    try {
+      const result = await performance.measureUserAgentSpecificMemory()
+      return {
+        source: 'measureUserAgentSpecificMemory',
+        bytes: result.bytes,
+        entries: [
+          {
+            id: 'browser:user-agent-specific-memory',
+            label: 'Browser page memory',
+            bytes: result.bytes,
+            kind: 'browser',
+          },
+        ],
+        metadata: {
+          breakdownCount: result.breakdown?.length ?? 0,
+        },
+      }
+    }
+    catch {
+      // Fall back to Chromium's JS heap counters when the stronger API rejects.
+    }
+  }
+
+  const memory = performance.memory
+  if (!memory)
+    return undefined
+
+  const entries: MemoryEstimateEntry[] = [
+    {
+      id: 'browser:used-js-heap',
+      label: 'Browser JS heap used',
+      bytes: memory.usedJSHeapSize,
+      kind: 'browser',
+    },
+  ]
+
+  return {
+    source: 'performance.memory',
+    bytes: memory.usedJSHeapSize,
+    entries,
+    metadata: {
+      jsHeapSizeLimit: memory.jsHeapSizeLimit,
+      totalJSHeapSize: memory.totalJSHeapSize,
+    },
+  }
+}
+
+interface NavigatorWithDeviceMemory extends Navigator {
+  deviceMemory?: number
+}
+
+interface MemoryPerformance extends Performance {
+  memory?: {
+    usedJSHeapSize: number
+    totalJSHeapSize: number
+    jsHeapSizeLimit: number
+  }
+  measureUserAgentSpecificMemory?: () => Promise<{
+    bytes: number
+    breakdown?: unknown[]
+  }>
 }

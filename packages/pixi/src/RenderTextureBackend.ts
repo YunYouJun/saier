@@ -5,6 +5,7 @@ import type {
   StrokePatch,
   SurfaceBackend,
   SurfaceLayerState,
+  SurfaceMemorySnapshot,
 } from '@saier/core'
 import type { Renderer } from 'pixi.js'
 import {
@@ -89,7 +90,19 @@ export class RenderTextureBackend implements SurfaceBackend {
   private activeLayerId: string | undefined
   private strokeMode: CompositeMode | undefined
   private dirty: DirtyRect = empty()
-  private bufferedCpuDabs: BrushDab[] = []
+  /**
+   * Persistent per-stroke CPU surface for brushes that rasterize on the CPU
+   * (soft / textured / max-alpha tips). Dabs accumulate here at full strength so
+   * max-alpha stays correct, and the dirty region is uploaded into the scratch
+   * `strokeRT` during the stroke so the live preview matches GPU brushes
+   * (industry "wet layer" / Krita indirect-painting model).
+   */
+  private cpuSurface: TiledSurface | undefined
+  /** Region painted into `cpuSurface` since the last preview flush. */
+  private pendingPreview: DirtyRect = empty()
+  private previewRafId: number | undefined
+  /** Disable rAF preview batching (deterministic synchronous flush in tests). */
+  autoFlushPreview = true
 
   constructor(options: RenderTextureBackendOptions) {
     this.renderer = options.renderer
@@ -134,13 +147,17 @@ export class RenderTextureBackend implements SurfaceBackend {
   }
 
   reorderLayers(ids: string[]): void {
-    let index = 0
+    // Stack tracked raster layers on top of the container in document order,
+    // ABOVE any foreign children (e.g. legacy image `EditableLayer`s that share
+    // this container but aren't part of the raster stack). Using absolute
+    // indices here would push those foreign children above newly added layers,
+    // hiding freshly committed strokes behind them (a new layer would appear
+    // un-drawable — the preview shows mid-stroke, then the commit vanishes).
     for (const id of ids) {
       const layer = this.layers.get(id)
       if (!layer || !layer.sprite.parent)
         continue
-      this.stage.setChildIndex(layer.sprite, Math.min(index, this.stage.children.length - 1))
-      index += 1
+      this.stage.setChildIndex(layer.sprite, this.stage.children.length - 1)
     }
 
     if (this.strokeSprite.parent)
@@ -162,7 +179,9 @@ export class RenderTextureBackend implements SurfaceBackend {
     const layer = this.getLayer(layerId)
     this.clearTexture(this.strokeRT)
     this.dirty = empty()
-    this.bufferedCpuDabs = []
+    this.cancelPreviewFlush()
+    this.cpuSurface = undefined
+    this.pendingPreview = empty()
     this.activeLayerId = layerId
     this.strokeMode = undefined
     this.syncStrokePreviewTransform(layer.sprite)
@@ -183,8 +202,11 @@ export class RenderTextureBackend implements SurfaceBackend {
       return dirty
 
     if (mode === 'normal' && shouldRasterizeDabOnCpu(dab)) {
-      this.bufferedCpuDabs.push({ ...dab, color: { ...dab.color } })
+      const surface = this.ensureCpuSurface()
+      rasterizeDab(surface, dab, 'normal')
       this.dirty = union(this.dirty, dirty)
+      this.pendingPreview = union(this.pendingPreview, dirty)
+      this.schedulePreviewFlush()
       return dirty
     }
 
@@ -221,7 +243,7 @@ export class RenderTextureBackend implements SurfaceBackend {
       }
     }
 
-    this.flushBufferedCpuDabs(rect)
+    this.flushPreviewNow()
     const before = this.extractLayerPixels(layer, rect)
     this.commitSprite.blendMode = this.strokeMode === 'erase' ? 'erase' : 'normal'
 
@@ -264,6 +286,46 @@ export class RenderTextureBackend implements SurfaceBackend {
     return this.getLayer(layerId).sprite
   }
 
+  getMemorySnapshot(): SurfaceMemorySnapshot {
+    const renderTextureBytes = this.width * this.height * 4
+    const layerCount = this.layers.size
+    const layerBytes = layerCount * renderTextureBytes
+    const strokeBytes = renderTextureBytes
+
+    return {
+      source: 'rendertexture',
+      width: this.width,
+      height: this.height,
+      totalEstimatedBytes: layerBytes + strokeBytes,
+      entries: [
+        {
+          id: 'surface:rendertexture-layers',
+          label: 'Layer RenderTextures',
+          bytes: layerBytes,
+          kind: 'gpu',
+          count: layerCount,
+          metadata: {
+            bytesPerTexture: renderTextureBytes,
+          },
+        },
+        {
+          id: 'surface:rendertexture-stroke',
+          label: 'Stroke scratch RenderTexture',
+          bytes: strokeBytes,
+          kind: 'gpu',
+          count: 1,
+          metadata: {
+            bytesPerTexture: renderTextureBytes,
+          },
+        },
+      ],
+      metadata: {
+        layerCount,
+        bytesPerTexture: renderTextureBytes,
+      },
+    }
+  }
+
   destroy(): void {
     this.endPreview()
     for (const layer of this.layers.values()) {
@@ -292,8 +354,15 @@ export class RenderTextureBackend implements SurfaceBackend {
   }
 
   private clearTexture(target: RenderTexture): void {
-    this.renderer.clear({
+    // `renderer.clear({ target })` does not reliably clear an off-screen
+    // RenderTexture in Pixi v8, leaving stale pixels in the shared scratch RT
+    // (which `endStroke` then re-composites onto the layer — darkening existing
+    // semi-transparent strokes). Rendering an empty container with `clear: true`
+    // binds the target and clears it to transparent for real.
+    this.renderer.render({
+      container: this.clearContainer,
       target,
+      clear: true,
       clearColor: [0, 0, 0, 0],
     })
   }
@@ -353,13 +422,15 @@ export class RenderTextureBackend implements SurfaceBackend {
   }
 
   private endPreview(): void {
+    this.cancelPreviewFlush()
     if (this.strokeSprite.parent)
       this.stage.removeChild(this.strokeSprite)
     this.clearTexture(this.strokeRT)
     this.activeLayerId = undefined
     this.strokeMode = undefined
     this.dirty = empty()
-    this.bufferedCpuDabs = []
+    this.cpuSurface = undefined
+    this.pendingPreview = empty()
   }
 
   private syncStrokePreviewTransform(layerSprite: Sprite): void {
@@ -371,21 +442,56 @@ export class RenderTextureBackend implements SurfaceBackend {
     this.strokeSprite.rotation = layerSprite.rotation
   }
 
-  private flushBufferedCpuDabs(rect: DirtyRect): void {
-    if (this.bufferedCpuDabs.length === 0)
-      return
+  /** Force any pending CPU preview into the scratch RT synchronously. */
+  flushUploads(): void {
+    this.flushPreviewNow()
+  }
 
-    const surface = new TiledSurface({
+  private ensureCpuSurface(): TiledSurface {
+    this.cpuSurface ??= new TiledSurface({
       width: this.width,
       height: this.height,
       tileSize: 256,
     })
+    return this.cpuSurface
+  }
 
-    for (const dab of this.bufferedCpuDabs)
-      rasterizeDab(surface, dab, 'normal')
+  /**
+   * Upload the region painted into `cpuSurface` since the last flush into the
+   * scratch RT. Erase-then-render gives replace semantics, so re-uploading an
+   * overlapping region never double-darkens it (the surface is authoritative).
+   */
+  private flushPreviewNow(): void {
+    this.cancelPreviewFlush()
+    if (!this.cpuSurface || isEmpty(this.pendingPreview))
+      return
 
-    this.renderPixels(this.strokeRT, rect, new Uint8Array(surface.readRegion(rect)))
-    this.bufferedCpuDabs = []
+    const rect = clampToSize(this.pendingPreview, this.width, this.height)
+    this.pendingPreview = empty()
+    if (isEmpty(rect))
+      return
+
+    this.eraseRect(this.strokeRT, rect)
+    this.renderPixels(this.strokeRT, rect, new Uint8Array(this.cpuSurface.readRegion(rect)))
+  }
+
+  private schedulePreviewFlush(): void {
+    if (!this.autoFlushPreview || typeof requestAnimationFrame === 'undefined') {
+      this.flushPreviewNow()
+      return
+    }
+    if (this.previewRafId !== undefined)
+      return
+    this.previewRafId = requestAnimationFrame(() => {
+      this.previewRafId = undefined
+      this.flushPreviewNow()
+    })
+  }
+
+  private cancelPreviewFlush(): void {
+    if (this.previewRafId !== undefined && typeof cancelAnimationFrame !== 'undefined')
+      cancelAnimationFrame(this.previewRafId)
+    this.previewRafId = undefined
   }
 
   private getLayer(id: string): LayerRecord {

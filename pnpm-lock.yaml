@@ -278,6 +278,9 @@ importers:
       '@saier/core':
         specifier: workspace:*
         version: link:../core
+      reka-ui:
+        specifier: ^2.10.1
+        version: 2.10.1(vue@3.5.38(typescript@6.0.3))
       saier:
         specifier: workspace:*
         version: link:../saier

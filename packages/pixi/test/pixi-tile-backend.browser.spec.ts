@@ -113,6 +113,31 @@ describe('pixiTileTextureBackend', () => {
     expect(backend.__uploadsThisFrame).toBe(0)
   })
 
+  it('reports tile memory from allocated buffers and uploaded textures', async () => {
+    const { backend } = await createFixture()
+    const bytesPerTile = 16 * 16 * 4
+
+    backend.createLayer('ink')
+    backend.beginStroke('ink')
+    backend.paintDab('ink', dab(8, 8), 'normal')
+    backend.endStroke('ink')
+
+    let snapshot = backend.getMemorySnapshot()
+    expect(snapshot.totalEstimatedBytes).toBe(bytesPerTile)
+    expect(snapshot.metadata).toMatchObject({
+      allocatedTileCount: 1,
+      displayTileCount: 0,
+    })
+
+    backend.flushUploads()
+    snapshot = backend.getMemorySnapshot()
+    expect(snapshot.totalEstimatedBytes).toBe(bytesPerTile * 2)
+    expect(snapshot.entries).toEqual([
+      expect.objectContaining({ id: 'surface:tiled-cpu-buffers', bytes: bytesPerTile, count: 1 }),
+      expect.objectContaining({ id: 'surface:tiled-gpu-textures', bytes: bytesPerTile, count: 1 }),
+    ])
+  })
+
   it('erases transparent pixels and round-trips tile patches', async () => {
     const { app, backend } = await createFixture()
 

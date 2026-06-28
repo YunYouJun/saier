@@ -1,4 +1,4 @@
-import type { BrushDab, CompositeMode, DirtyRect, StrokePatch, SurfaceBackend } from '../src'
+import type { BrushDab, CompositeMode, DirtyRect, StrokePatch, SurfaceBackend, TilePatch } from '../src'
 import { describe, expect, it, vi } from 'vitest'
 import { Document, UndoManager } from '../src'
 
@@ -145,6 +145,39 @@ describe('undoManager', () => {
     undo.record({ layerId: 'a', rect: RECT, before: new Uint8Array(), after: new Uint8Array() })
     expect(spy).toHaveBeenCalledWith({ canUndo: true, canRedo: false })
     expect(() => undo.undo()).toThrow(/no backend/)
+  })
+
+  it('reports retained bitmap and tile patch memory', () => {
+    const undo = new UndoManager({ capacity: 5 })
+    const tilePatch: TilePatch = {
+      layerId: 'a',
+      tileX: 0,
+      tileY: 0,
+      before: new Uint8Array(16),
+      after: new Uint8Array(16),
+    }
+
+    undo.record({
+      layerId: 'a',
+      rect: RECT,
+      before: new Uint8Array(4),
+      after: new Uint8Array(4),
+    })
+    undo.record({
+      layerId: 'a',
+      rect: { x: 0, y: 0, width: 4, height: 4 },
+      before: [tilePatch],
+      after: [tilePatch],
+    })
+
+    const snapshot = undo.getMemorySnapshot()
+
+    expect(snapshot.undoCount).toBe(2)
+    expect(snapshot.redoCount).toBe(0)
+    expect(snapshot.capacity).toBe(5)
+    expect(snapshot.entries.find(entry => entry.id === 'undo:undo-stack')?.bytes)
+      .toBe(40)
+    expect(snapshot.totalEstimatedBytes).toBe(40)
   })
 })
 

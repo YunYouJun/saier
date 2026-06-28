@@ -5,6 +5,7 @@ import type {
   StrokePatch,
   SurfaceBackend,
   SurfaceLayerState,
+  SurfaceMemorySnapshot,
   TileCoord,
   TiledSurface,
 } from '@saier/core'
@@ -100,13 +101,14 @@ export class PixiTileTextureBackend implements SurfaceBackend {
   }
 
   reorderLayers(ids: string[]): void {
-    let index = 0
+    // Stack tracked raster layers on top in document order, above any foreign
+    // children (e.g. legacy image `EditableLayer`s). Absolute indices would push
+    // those foreign children above newly added layers and hide their strokes.
     for (const id of ids) {
       const layer = this.layers.get(id)
       if (!layer || !layer.container.parent)
         continue
-      this.stage.setChildIndex(layer.container, Math.min(index, this.stage.children.length - 1))
-      index += 1
+      this.stage.setChildIndex(layer.container, this.stage.children.length - 1)
     }
   }
 
@@ -174,6 +176,57 @@ export class PixiTileTextureBackend implements SurfaceBackend {
 
   getSurface(layerId: string): TiledSurface {
     return this.getLayer(layerId).surface
+  }
+
+  getMemorySnapshot(): SurfaceMemorySnapshot {
+    const bytesPerTile = this.tileSize * this.tileSize * 4
+    let allocatedTileCount = 0
+    let displayTileCount = 0
+
+    for (const layer of this.layers.values()) {
+      allocatedTileCount += layer.surface.allocatedTileCount
+      displayTileCount += layer.displays.size
+    }
+
+    const cpuBytes = allocatedTileCount * bytesPerTile
+    const gpuBytes = displayTileCount * bytesPerTile
+
+    return {
+      source: 'tiled',
+      width: this.width,
+      height: this.height,
+      totalEstimatedBytes: cpuBytes + gpuBytes,
+      entries: [
+        {
+          id: 'surface:tiled-cpu-buffers',
+          label: 'Allocated tile pixel buffers',
+          bytes: cpuBytes,
+          kind: 'cpu',
+          count: allocatedTileCount,
+          metadata: {
+            bytesPerTile,
+            tileSize: this.tileSize,
+          },
+        },
+        {
+          id: 'surface:tiled-gpu-textures',
+          label: 'Uploaded tile textures',
+          bytes: gpuBytes,
+          kind: 'gpu',
+          count: displayTileCount,
+          metadata: {
+            bytesPerTile,
+            tileSize: this.tileSize,
+          },
+        },
+      ],
+      metadata: {
+        allocatedTileCount,
+        displayTileCount,
+        layerCount: this.layers.size,
+        tileSize: this.tileSize,
+      },
+    }
   }
 
   flushUploads(): void {

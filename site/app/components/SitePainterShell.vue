@@ -68,6 +68,9 @@ const emit = defineEmits<{
       <div class="site-painter__layers">
         <slot name="layers" />
       </div>
+      <div class="site-painter__diagnostics">
+        <slot name="diagnostics" />
+      </div>
 
       <div v-if="loading" class="site-painter__loading">
         {{ loadingLabel }}
@@ -237,6 +240,7 @@ const emit = defineEmits<{
 .site-painter__options,
 .site-painter__controls,
 .site-painter__layers,
+.site-painter__diagnostics,
 .site-painter__preview,
 .site-painter__loading {
   position: absolute;
@@ -260,10 +264,16 @@ const emit = defineEmits<{
   right: 12px;
 }
 
+.site-painter__diagnostics {
+  left: 12px;
+  bottom: 12px;
+}
+
 .site-painter__loading:empty,
 .site-painter__options:empty,
 .site-painter__controls:empty,
-.site-painter__layers:empty {
+.site-painter__layers:empty,
+.site-painter__diagnostics:empty {
   display: none;
 }
 

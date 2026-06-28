@@ -131,6 +131,25 @@ describe('renderTextureBackend', () => {
     expect(patch.rect.height).toBeGreaterThan(0)
   })
 
+  it('reports RenderTexture memory by layer count, not dab count', async () => {
+    const { backend } = await createFixture()
+    const textureBytes = 64 * 64 * 4
+
+    backend.createLayer('ink')
+    const initial = backend.getMemorySnapshot()
+    expect(initial.totalEstimatedBytes).toBe(textureBytes * 2)
+
+    backend.beginStroke('ink')
+    for (let i = 0; i < 5000; i++)
+      backend.paintDab('ink', dab(8 + (i % 48), 8, 1), 'normal')
+    backend.endStroke('ink')
+
+    expect(backend.getMemorySnapshot().totalEstimatedBytes).toBe(initial.totalEstimatedBytes)
+
+    backend.createLayer('color')
+    expect(backend.getMemorySnapshot().totalEstimatedBytes).toBe(textureBytes * 3)
+  })
+
   it('keeps scene graph size stable across 5000 erase dabs', async () => {
     const { backend, stage } = await createFixture()
 

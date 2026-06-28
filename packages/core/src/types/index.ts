@@ -9,6 +9,16 @@ export type {
 export type { BrushInputPoint } from './input'
 
 export type {
+  BrowserMemorySnapshot,
+  MemoryEstimateEntry,
+  MemoryEstimateKind,
+  MemoryRiskLevel,
+  PainterMemorySnapshot,
+  SurfaceMemorySnapshot,
+  UndoMemorySnapshot,
+} from './memory'
+
+export type {
   CompositeMode,
   DirtyRect,
   StrokePatch,

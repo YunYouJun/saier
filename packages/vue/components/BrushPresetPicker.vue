@@ -1,30 +1,38 @@
 <script lang="ts" setup>
 import type { BrushPresetId, BrushPresetSummary } from '@saier/core'
 
-defineProps<{
+const props = withDefaults(defineProps<{
+  presetLabels?: Partial<Record<BrushPresetId, string>>
   presets: BrushPresetSummary[]
   activePresetId: BrushPresetId
-}>()
+}>(), {
+  presetLabels: () => ({}),
+})
 
 const emit = defineEmits<{
   select: [id: BrushPresetId]
 }>()
+
+function presetLabel(preset: BrushPresetSummary): string {
+  return props.presetLabels[preset.id] ?? preset.name
+}
 </script>
 
 <template>
   <div class="brush-preset-picker">
     <button
-      v-for="preset in presets"
+      v-for="preset in props.presets"
       :key="preset.id"
       type="button"
       class="brush-preset-button"
-      :class="{ 'is-active': preset.id === activePresetId }"
-      :aria-pressed="preset.id === activePresetId"
-      :title="preset.name"
+      :class="{ 'is-active': preset.id === props.activePresetId }"
+      :aria-label="presetLabel(preset)"
+      :aria-pressed="preset.id === props.activePresetId"
+      :title="presetLabel(preset)"
       @click="emit('select', preset.id)"
     >
       <span class="brush-preset-swatch" :data-tip="preset.tipId" />
-      <span class="brush-preset-name">{{ preset.name }}</span>
+      <span class="brush-preset-name">{{ presetLabel(preset) }}</span>
     </button>
   </div>
 </template>

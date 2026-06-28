@@ -20,12 +20,14 @@ const {
   layerActions,
   layerThumbnails,
   layers,
+  memory,
   painter,
   state,
 } = usePainter({
   debug: import.meta.env.DEV,
 })
 
+const showDiagnostics = import.meta.env.DEV
 const pageTitle = computed(() => `${text.value.appName} - ${text.value.tagline}`)
 const activeLayer = computed(() => layers.value.find(layer => layer.id === activeLayerId.value))
 const activeLayerIndex = computed(() => layers.value.findIndex(layer => layer.id === activeLayerId.value))
@@ -43,13 +45,27 @@ const toolLabels = computed<Record<SitePainterTool, string>>(() => ({
 const canMoveLayerUp = computed(() => activeLayerIndex.value >= 0 && activeLayerIndex.value < layers.value.length - 1)
 const canMoveLayerDown = computed(() => activeLayerIndex.value > 0)
 const canRemoveLayer = computed(() => layers.value.length > 1 && Boolean(activeLayer.value))
+const memoryStatusLabel = computed(() => {
+  const snapshot = memory.value
+  if (!snapshot || snapshot.riskLevel === 'normal')
+    return ''
+
+  return `${text.value.memory.status}: ~${formatBytes(snapshot.totalEstimatedBytes)}`
+})
 const statusLabel = computed(() => {
   if (!painter.value)
     return text.value.loading
 
   const toolLabel = toolLabels.value[activeTool.value]
   const layerLabel = activeLayer.value?.label ?? text.value.status.noLayer
-  return `${text.value.status.ready} · ${text.value.status.tool}: ${toolLabel} · ${text.value.status.layer}: ${layerLabel}`
+  const parts = [
+    text.value.status.ready,
+    `${text.value.status.tool}: ${toolLabel}`,
+    `${text.value.status.layer}: ${layerLabel}`,
+  ]
+  if (memoryStatusLabel.value)
+    parts.push(memoryStatusLabel.value)
+  return parts.join(' · ')
 })
 
 useHead(() => ({
@@ -190,6 +206,22 @@ function isSitePainterTool(tool: unknown): tool is SitePainterTool {
     || tool === 'image'
     || tool === 'selection'
 }
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024)
+    return `${bytes} B`
+
+  const units = ['KiB', 'MiB', 'GiB']
+  let value = bytes / 1024
+  let unit = units[0]!
+
+  for (let index = 1; index < units.length && value >= 1024; index++) {
+    value /= 1024
+    unit = units[index]!
+  }
+
+  return `${value >= 10 ? Math.round(value) : value.toFixed(1)} ${unit}`
+}
 </script>
 
 <template>
@@ -274,6 +306,14 @@ function isSitePainterTool(tool: unknown): tool is SitePainterTool {
         @update:opacity="layerActions.setOpacity"
         @update:blend-mode="layerActions.setBlendMode"
         @update:label="layerActions.setLabel"
+      />
+    </template>
+
+    <template #diagnostics>
+      <SitePainterDiagnostics
+        v-if="showDiagnostics && memory"
+        :memory="memory"
+        :labels="text.memory"
       />
     </template>
   </SitePainterShell>

@@ -94,4 +94,24 @@ describe('tiledSurface', () => {
     expect(visitor.mock.calls.every(([tile]) => tile === undefined)).toBe(true)
     expect(surface.allocatedTileCount).toBe(0)
   })
+
+  it('reports memory only for allocated tiles', () => {
+    const surface = new TiledSurface({ width: 16, height: 16, tileSize: 4 })
+
+    surface.forEachTileInRect({ x: 0, y: 0, width: 16, height: 16 }, () => {})
+    expect(surface.getMemorySnapshot().totalEstimatedBytes).toBe(0)
+
+    surface.writeRegion({ x: 3, y: 1, width: 3, height: 1 }, regionBytes({ x: 3, y: 1, width: 3, height: 1 }))
+
+    const snapshot = surface.getMemorySnapshot('layer-a')
+    expect(snapshot.totalEstimatedBytes).toBe(2 * 4 * 4 * 4)
+    expect(snapshot.entries).toEqual([
+      expect.objectContaining({
+        id: 'layer-a:allocated-tiles',
+        bytes: 128,
+        count: 2,
+        kind: 'cpu',
+      }),
+    ])
+  })
 })

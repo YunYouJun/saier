@@ -9,7 +9,7 @@ import type {
   SurfaceBackend,
   SurfaceMemorySnapshot,
 } from '@saier/core'
-import type { ViewportPoint } from '@saier/pixi'
+import type { DisplayMaskCapableBackend, ViewportPoint } from '@saier/pixi'
 import type { PainterCanvas } from './canvas'
 import type { PainterInputOptions, PainterPointerSource } from './input'
 import {
@@ -425,8 +425,8 @@ export class Painter {
   }
 
   createSurfaceBackend(width: number, height: number, stage = this.canvas.layersContainer): SurfaceBackend {
-    if (this.options.backend === 'tiled') {
-      return new PixiTileTextureBackend({
+    if (this.options.backend === 'rendertexture') {
+      return new RenderTextureBackend({
         renderer: this.app.renderer,
         stage,
         width,
@@ -434,7 +434,7 @@ export class Painter {
       })
     }
 
-    return new RenderTextureBackend({
+    return new PixiTileTextureBackend({
       renderer: this.app.renderer,
       stage,
       width,
@@ -550,17 +550,17 @@ export class Painter {
       return
 
     // a stroke on any layer may change a clip/mask source → refresh derived displays
-    this.refreshDerivedDisplays()
+    this.refreshDerivedDisplays(patch.rect)
     const undoManager = this.undoManager
     undoManager.record(patch)
     this.history.record({
       undo: () => {
         undoManager.undo()
-        this.refreshDerivedDisplays()
+        this.refreshDerivedDisplays(patch.rect)
       },
       redo: () => {
         undoManager.redo()
-        this.refreshDerivedDisplays()
+        this.refreshDerivedDisplays(patch.rect)
       },
     })
   }
@@ -990,42 +990,42 @@ export class Painter {
   }
 
   /**
-   * Wire up clip / mask display masking (RenderTexture backend only — it
-   * composites a derived texture, see `setLayerDisplayMask`). A layer with an
-   * enabled mask is masked by its (hidden, paintable) mask surface; otherwise a
-   * clip layer is masked by the layer directly below.
+   * Wire up clip / mask display masking for backends that expose the optional
+   * derived-display capability. A layer with an enabled mask is masked by its
+   * hidden, paintable mask surface; otherwise a clip layer is masked by the
+   * layer directly below.
    */
   private syncDisplayMasks(layers: RasterLayer[], session = this.requireActiveSession()): void {
-    if (!(session.surface instanceof RenderTextureBackend))
+    if (!isDisplayMaskCapableBackend(session.surface))
       return
-    const rt = session.surface
+    const displayMasks = session.surface
 
     for (let i = 0; i < layers.length; i++) {
       const layer = layers[i]!
       const belowId = i > 0 ? layers[i - 1]!.id : undefined
 
-      if (layer.mask && !rt.hasLayer(layer.mask.id)) {
-        rt.createHiddenLayer(layer.mask.id)
-        rt.fillLayerOpaque(layer.mask.id) // fresh mask reveals everything
+      if (layer.mask && !displayMasks.hasLayer(layer.mask.id)) {
+        displayMasks.createHiddenLayer(layer.mask.id)
+        displayMasks.fillLayerOpaque(layer.mask.id) // fresh mask reveals everything
         session.maskSurfaceIds.add(layer.mask.id)
       }
 
       // Layer mask → luminance (grayscale: white reveals, black/erased hides).
       // Clip layer → alpha (shows only where the layer below is opaque).
       if (layer.mask?.enabled)
-        rt.setLayerDisplayMask(layer.id, layer.mask.id, 'luminance')
+        displayMasks.setLayerDisplayMask(layer.id, layer.mask.id, 'luminance')
       else if (layer.clip && belowId)
-        rt.setLayerDisplayMask(layer.id, belowId, 'alpha')
+        displayMasks.setLayerDisplayMask(layer.id, belowId, 'alpha')
       else
-        rt.setLayerDisplayMask(layer.id, undefined)
+        displayMasks.setLayerDisplayMask(layer.id, undefined)
     }
 
     // release mask surfaces whose layer dropped its mask
     const referenced = new Set(layers.filter(l => l.mask).map(l => l.mask!.id))
     for (const maskId of [...session.maskSurfaceIds]) {
       if (!referenced.has(maskId)) {
-        if (rt.hasLayer(maskId))
-          rt.removeLayer(maskId)
+        if (displayMasks.hasLayer(maskId))
+          displayMasks.removeLayer(maskId)
         session.maskSurfaceIds.delete(maskId)
       }
     }
@@ -1046,10 +1046,10 @@ export class Painter {
   }
 
   /** Recompute derived clip / mask display textures after pixels change. */
-  private refreshDerivedDisplays(): void {
+  private refreshDerivedDisplays(dirtyRect?: StrokePatch['rect']): void {
     const session = this.requireActiveSession()
-    if (session.surface instanceof RenderTextureBackend)
-      session.surface.refreshDerivedDisplays()
+    if (isDisplayMaskCapableBackend(session.surface))
+      session.surface.refreshDerivedDisplays(dirtyRect)
   }
 
   /**
@@ -1129,6 +1129,17 @@ function createFallbackSurfaceMemorySnapshot(surface: SurfaceBackend): SurfaceMe
     totalEstimatedBytes: 0,
     entries: [],
   }
+}
+
+type DisplayMaskSurfaceBackend = SurfaceBackend & DisplayMaskCapableBackend
+
+function isDisplayMaskCapableBackend(surface: SurfaceBackend): surface is DisplayMaskSurfaceBackend {
+  const maybe = surface as Partial<DisplayMaskCapableBackend>
+  return typeof maybe.hasLayer === 'function'
+    && typeof maybe.createHiddenLayer === 'function'
+    && typeof maybe.fillLayerOpaque === 'function'
+    && typeof maybe.setLayerDisplayMask === 'function'
+    && typeof maybe.refreshDerivedDisplays === 'function'
 }
 
 function getMemoryRiskLevel(totalEstimatedBytes: number, deviceMemoryBytes?: number): MemoryRiskLevel {

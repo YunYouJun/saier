@@ -20,6 +20,11 @@ export {
   DEFAULT_DAB_TEXTURE_SIZE,
 } from './dab-cache'
 
+export type {
+  DisplayMaskCapableBackend,
+  DisplayMaskMode,
+} from './DisplayMaskBackend'
+
 export {
   PixiTileTextureBackend,
 } from './PixiTileTextureBackend'

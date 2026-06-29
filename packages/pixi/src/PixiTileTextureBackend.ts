@@ -8,14 +8,17 @@ import type {
   SurfaceMemorySnapshot,
   TileCoord,
   TiledSurface,
+  TiledSurfaceDirtySnapshot,
 } from '@saier/core'
 import type { Renderer } from 'pixi.js'
+import type { DisplayMaskCapableBackend, DisplayMaskMode } from './DisplayMaskBackend'
 import {
   TiledSurface as CoreTiledSurface,
   empty,
   isEmpty,
   tileKey,
   TilePatchRecorder,
+  union,
 } from '@saier/core'
 import { BufferImageSource, Container, Sprite, Texture } from 'pixi.js'
 
@@ -40,12 +43,18 @@ interface TileLayerRecord {
   id: string
   container: Container
   surface: TiledSurface
+  displaySurface?: TiledSurface
   recorder: TilePatchRecorder
   displays: Map<string, TileDisplay>
   lockAlpha: boolean
+  hidden: boolean
+  /** when set, the container displays `displaySurface` instead of source tiles */
+  displayMaskLayerId?: string
+  /** how the mask layer masks this one (default `alpha` = clip; `luminance` = layer mask) */
+  displayMaskMode?: DisplayMaskMode
 }
 
-export class PixiTileTextureBackend implements SurfaceBackend {
+export class PixiTileTextureBackend implements SurfaceBackend, DisplayMaskCapableBackend {
   readonly width: number
   readonly height: number
   readonly tileSize: number
@@ -89,6 +98,7 @@ export class PixiTileTextureBackend implements SurfaceBackend {
       recorder,
       displays: new Map(),
       lockAlpha: false,
+      hidden: false,
     })
   }
 
@@ -102,6 +112,74 @@ export class PixiTileTextureBackend implements SurfaceBackend {
       layer.container.blendMode = state.blendMode
     if (state.lockAlpha !== undefined)
       layer.lockAlpha = state.lockAlpha
+  }
+
+  /** Whether a layer exists in this backend. */
+  hasLayer(id: string): boolean {
+    return this.layers.has(id)
+  }
+
+  /** Create a hidden surface (e.g. a layer mask): paintable, not shown directly. */
+  createHiddenLayer(id: string): void {
+    this.createLayer(id)
+    const layer = this.getLayer(id)
+    layer.hidden = true
+    if (layer.container.parent)
+      layer.container.parent.removeChild(layer.container)
+  }
+
+  /** Fill a layer fully opaque white (a fresh "reveal-all" mask). */
+  fillLayerOpaque(id: string): void {
+    const layer = this.getLayer(id)
+    const full = this.fullDocumentRect()
+
+    for (const coord of layer.surface.tilesForRect(full)) {
+      const data = new Uint8ClampedArray(this.tileByteLength)
+      const tileRect = layer.surface.tileRect(coord.tileX, coord.tileY)
+      const origin = layer.surface.tileToDoc(coord.tileX, coord.tileY)
+
+      for (let y = tileRect.y; y < tileRect.y + tileRect.height; y++) {
+        for (let x = tileRect.x; x < tileRect.x + tileRect.width; x++) {
+          const offset = ((y - origin.y) * this.tileSize + (x - origin.x)) * 4
+          data[offset] = 255
+          data[offset + 1] = 255
+          data[offset + 2] = 255
+          data[offset + 3] = 255
+        }
+      }
+
+      layer.surface.writeTileData(coord.tileX, coord.tileY, data)
+    }
+  }
+
+  /**
+   * Display `layerId` masked by `maskLayerId`. Tile pixels remain the source of
+   * truth; this computes a CPU-derived display surface and uploads those tiles.
+   */
+  setLayerDisplayMask(layerId: string, maskLayerId: string | undefined, mode: DisplayMaskMode = 'alpha'): void {
+    const layer = this.getLayer(layerId)
+    layer.displayMaskLayerId = maskLayerId
+    layer.displayMaskMode = maskLayerId ? mode : undefined
+
+    if (!maskLayerId) {
+      layer.displaySurface?.clear()
+      layer.displaySurface = undefined
+      this.uploadLayerTiles(layer, this.fullDocumentRect())
+      return
+    }
+
+    this.computeMaskedDisplay(layer, this.fullDocumentRect())
+    this.uploadDirtyDisplaySurface(layer)
+  }
+
+  /** Recompute every masked layer's derived display (call after pixels change). */
+  refreshDerivedDisplays(dirtyRect = this.fullDocumentRect()): void {
+    for (const layer of this.layers.values()) {
+      if (!layer.displayMaskLayerId)
+        continue
+      this.computeMaskedDisplay(layer, dirtyRect)
+      this.uploadDirtyDisplaySurface(layer)
+    }
   }
 
   reorderLayers(ids: string[]): void {
@@ -118,12 +196,20 @@ export class PixiTileTextureBackend implements SurfaceBackend {
 
   removeLayer(id: string): void {
     const layer = this.getLayer(id)
-    this.stage.removeChild(layer.container)
+    if (layer.container.parent)
+      layer.container.parent.removeChild(layer.container)
     for (const display of layer.displays.values())
       destroyDisplay(display)
     layer.displays.clear()
+    layer.displaySurface?.clear()
     layer.container.destroy({ children: true })
     this.layers.delete(id)
+
+    // Any layer masked by this one must fall back to showing its content.
+    for (const other of this.layers.values()) {
+      if (other.displayMaskLayerId === id)
+        this.setLayerDisplayMask(other.id, undefined)
+    }
 
     if (this.activeLayerId === id)
       this.endActiveStroke()
@@ -185,14 +271,16 @@ export class PixiTileTextureBackend implements SurfaceBackend {
   getMemorySnapshot(): SurfaceMemorySnapshot {
     const bytesPerTile = this.tileSize * this.tileSize * 4
     let allocatedTileCount = 0
+    let derivedTileCount = 0
     let displayTileCount = 0
 
     for (const layer of this.layers.values()) {
       allocatedTileCount += layer.surface.allocatedTileCount
+      derivedTileCount += layer.displaySurface?.allocatedTileCount ?? 0
       displayTileCount += layer.displays.size
     }
 
-    const cpuBytes = allocatedTileCount * bytesPerTile
+    const cpuBytes = (allocatedTileCount + derivedTileCount) * bytesPerTile
     const gpuBytes = displayTileCount * bytesPerTile
 
     return {
@@ -206,9 +294,11 @@ export class PixiTileTextureBackend implements SurfaceBackend {
           label: 'Allocated tile pixel buffers',
           bytes: cpuBytes,
           kind: 'cpu',
-          count: allocatedTileCount,
+          count: allocatedTileCount + derivedTileCount,
           metadata: {
+            allocatedTileCount,
             bytesPerTile,
+            derivedTileCount,
             tileSize: this.tileSize,
           },
         },
@@ -226,6 +316,7 @@ export class PixiTileTextureBackend implements SurfaceBackend {
       ],
       metadata: {
         allocatedTileCount,
+        derivedTileCount,
         displayTileCount,
         layerCount: this.layers.size,
         tileSize: this.tileSize,
@@ -236,8 +327,35 @@ export class PixiTileTextureBackend implements SurfaceBackend {
   flushUploads(): void {
     this.__uploadsThisFrame = 0
 
+    const dirtyByLayer = new Map<string, TiledSurfaceDirtySnapshot>()
     for (const layer of this.layers.values()) {
       const dirty = layer.surface.flushDirty()
+      dirtyByLayer.set(layer.id, dirty)
+    }
+
+    for (const layer of this.layers.values()) {
+      if (!layer.displayMaskLayerId)
+        continue
+
+      const contentDirty = dirtyByLayer.get(layer.id)?.rect ?? empty()
+      const maskDirty = dirtyByLayer.get(layer.displayMaskLayerId)?.rect ?? empty()
+      const dirtyRect = union(contentDirty, maskDirty)
+      if (!isEmpty(dirtyRect))
+        this.computeMaskedDisplay(layer, dirtyRect)
+    }
+
+    for (const layer of this.layers.values()) {
+      if (layer.displayMaskLayerId) {
+        this.uploadDirtyDisplaySurface(layer)
+        continue
+      }
+
+      if (layer.hidden)
+        continue
+
+      const dirty = dirtyByLayer.get(layer.id)
+      if (!dirty)
+        continue
       for (const coord of dirty.tiles)
         this.uploadTile(layer, coord)
     }
@@ -253,10 +371,12 @@ export class PixiTileTextureBackend implements SurfaceBackend {
 
     this.endActiveStroke()
     for (const layer of this.layers.values()) {
-      this.stage.removeChild(layer.container)
+      if (layer.container.parent)
+        layer.container.parent.removeChild(layer.container)
       for (const display of layer.displays.values())
         destroyDisplay(display)
       layer.displays.clear()
+      layer.displaySurface?.clear()
       layer.container.destroy({ children: true })
     }
     this.layers.clear()
@@ -264,7 +384,8 @@ export class PixiTileTextureBackend implements SurfaceBackend {
 
   private uploadTile(layer: TileLayerRecord, coord: TileCoord): void {
     const key = tileKey(coord.tileX, coord.tileY)
-    const tile = layer.surface.getTile(coord.tileX, coord.tileY)
+    const displaySurface = this.getDisplaySurface(layer)
+    const tile = displaySurface?.getTile(coord.tileX, coord.tileY)
     if (!tile?.data || !tile.hasVisiblePixels()) {
       this.removeTileDisplay(layer, key)
       return
@@ -315,6 +436,67 @@ export class PixiTileTextureBackend implements SurfaceBackend {
     layer.displays.delete(key)
   }
 
+  private computeMaskedDisplay(layer: TileLayerRecord, dirtyRect: DirtyRect): void {
+    const maskLayer = layer.displayMaskLayerId ? this.layers.get(layer.displayMaskLayerId) : undefined
+    if (!maskLayer) {
+      this.setLayerDisplayMask(layer.id, undefined)
+      return
+    }
+
+    const displaySurface = this.ensureDisplaySurface(layer)
+    for (const coord of displaySurface.tilesForRect(dirtyRect)) {
+      const content = layer.surface.getTile(coord.tileX, coord.tileY)?.data
+      const mask = maskLayer.surface.getTile(coord.tileX, coord.tileY)?.data
+
+      if (!content || !mask) {
+        displaySurface.writeTileData(coord.tileX, coord.tileY, new Uint8ClampedArray(this.tileByteLength))
+        continue
+      }
+
+      displaySurface.writeTileData(
+        coord.tileX,
+        coord.tileY,
+        compositeMaskedTile(content, mask, layer.displayMaskMode ?? 'alpha'),
+      )
+    }
+  }
+
+  private ensureDisplaySurface(layer: TileLayerRecord): TiledSurface {
+    layer.displaySurface ??= new CoreTiledSurface({
+      width: this.width,
+      height: this.height,
+      tileSize: this.tileSize,
+    })
+    return layer.displaySurface
+  }
+
+  private getDisplaySurface(layer: TileLayerRecord): TiledSurface | undefined {
+    return layer.displayMaskLayerId ? layer.displaySurface : layer.surface
+  }
+
+  private uploadLayerTiles(layer: TileLayerRecord, rect: DirtyRect): void {
+    for (const coord of layer.surface.tilesForRect(rect))
+      this.uploadTile(layer, coord)
+  }
+
+  private uploadDirtyDisplaySurface(layer: TileLayerRecord): void {
+    const displaySurface = layer.displaySurface
+    if (!displaySurface)
+      return
+
+    const dirty = displaySurface.flushDirty()
+    for (const coord of dirty.tiles)
+      this.uploadTile(layer, coord)
+  }
+
+  private fullDocumentRect(): DirtyRect {
+    return { x: 0, y: 0, width: this.width, height: this.height }
+  }
+
+  private get tileByteLength(): number {
+    return this.tileSize * this.tileSize * 4
+  }
+
   private scheduleFlush(): void {
     if (!this.autoFlush || this.rafId !== undefined || typeof requestAnimationFrame === 'undefined')
       return
@@ -337,4 +519,36 @@ export class PixiTileTextureBackend implements SurfaceBackend {
 function destroyDisplay(display: TileDisplay): void {
   display.sprite.destroy()
   display.texture.destroy(true)
+}
+
+function compositeMaskedTile(
+  content: Uint8ClampedArray,
+  mask: Uint8ClampedArray,
+  mode: DisplayMaskMode,
+): Uint8ClampedArray {
+  const out = new Uint8ClampedArray(content.length)
+
+  for (let offset = 0; offset < content.length; offset += 4) {
+    const contentAlpha = content[offset + 3] ?? 0
+    if (contentAlpha <= 0)
+      continue
+
+    const reveal = mode === 'luminance'
+      ? ((mask[offset] ?? 0) * 0.299 + (mask[offset + 1] ?? 0) * 0.587 + (mask[offset + 2] ?? 0) * 0.114) / 255
+      : (mask[offset + 3] ?? 0) / 255
+
+    if (reveal <= 0)
+      continue
+
+    out[offset] = toByte((content[offset] ?? 0) * reveal)
+    out[offset + 1] = toByte((content[offset + 1] ?? 0) * reveal)
+    out[offset + 2] = toByte((content[offset + 2] ?? 0) * reveal)
+    out[offset + 3] = toByte(contentAlpha * reveal)
+  }
+
+  return out
+}
+
+function toByte(value: number): number {
+  return Math.max(0, Math.min(255, Math.round(value)))
 }

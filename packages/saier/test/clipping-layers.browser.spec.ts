@@ -1,5 +1,6 @@
 import type { Container, FederatedPointerEvent, Sprite } from 'pixi.js'
 import type { Painter } from '../src'
+import { PixiTileTextureBackend } from '@saier/pixi'
 import { Point, Rectangle } from 'pixi.js'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createPainter, PainterBrush } from '../src'
@@ -13,9 +14,11 @@ afterEach(() => {
   PainterBrush.size = 10
 })
 
-async function fixture(): Promise<Painter> {
+type TestBackend = 'rendertexture' | 'tiled'
+
+async function fixture(backend?: TestBackend): Promise<Painter> {
   const canvas = document.createElement('canvas')
-  const painter = createPainter({ view: canvas, size: { width: 64, height: 64 }, boardSize: { width: 64, height: 64 }, pixiOptions: { backgroundAlpha: 0 } })
+  const painter = createPainter({ backend, view: canvas, size: { width: 64, height: 64 }, boardSize: { width: 64, height: 64 }, pixiOptions: { backgroundAlpha: 0 } })
   await painter.init()
   painters.push(painter)
   return painter
@@ -47,8 +50,15 @@ function displayPixel(p: Painter, layerId: string, x: number, y: number): Uint8A
 }
 
 describe('clipping layers (P6-03)', () => {
-  it('shows the clip layer only where the layer below is opaque', async () => {
+  it('uses the tiled backend by default', async () => {
     const p = await fixture()
+    expect(p.surface).toBeInstanceOf(PixiTileTextureBackend)
+  })
+})
+
+describe.each(['rendertexture', 'tiled'] as const)('clipping layers (P6-03, %s backend)', (backend) => {
+  it('shows the clip layer only where the layer below is opaque', async () => {
+    const p = await fixture(backend)
     const base = p.document.activeLayerId!
 
     // Base: vertical GREEN band on the left (x≈18), opaque.
@@ -73,7 +83,7 @@ describe('clipping layers (P6-03)', () => {
   })
 
   it('degrades to a normal layer when clip is toggled off', async () => {
-    const p = await fixture()
+    const p = await fixture(backend)
     // Base green only on the left (x≈18); base is transparent at x=32.
     stroke(p, 0x00FF00, [[18, 8], [18, 32], [18, 56]], 0)
     const clip = p.controller.layer.add({ id: 'clip', label: 'Clip' })

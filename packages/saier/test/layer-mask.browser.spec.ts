@@ -1,4 +1,4 @@
-import type { RenderTextureBackend } from '@saier/pixi'
+import type { DisplayMaskCapableBackend } from '@saier/pixi'
 import type { Container, FederatedPointerEvent, Sprite } from 'pixi.js'
 import type { Painter } from '../src'
 import { Point, Rectangle } from 'pixi.js'
@@ -15,9 +15,11 @@ afterEach(() => {
   PainterEraser.size = 10
 })
 
-async function fixture(): Promise<Painter> {
+type TestBackend = 'rendertexture' | 'tiled'
+
+async function fixture(backend: TestBackend): Promise<Painter> {
   const canvas = document.createElement('canvas')
-  const painter = createPainter({ view: canvas, size: { width: 64, height: 64 }, boardSize: { width: 64, height: 64 }, pixiOptions: { backgroundAlpha: 0 } })
+  const painter = createPainter({ backend, view: canvas, size: { width: 64, height: 64 }, boardSize: { width: 64, height: 64 }, pixiOptions: { backgroundAlpha: 0 } })
   await painter.init()
   painters.push(painter)
   return painter
@@ -119,9 +121,9 @@ function screenPixel(p: Painter, x: number, y: number): Uint8Array {
   return new Uint8Array([pixels[o]!, pixels[o + 1]!, pixels[o + 2]!, pixels[o + 3]!])
 }
 
-describe('layer mask (P6-04, luminance)', () => {
+describe.each(['rendertexture', 'tiled'] as const)('layer mask (P6-04, luminance, %s backend)', (backend) => {
   it('hides content where mask alpha is erased, shows it where opaque; non-destructive', async () => {
-    const p = await fixture()
+    const p = await fixture(backend)
     const id = p.document.activeLayerId!
 
     fillColor(p, 0xFF0000)
@@ -160,7 +162,7 @@ describe('layer mask (P6-04, luminance)', () => {
   })
 
   it('paint BLACK on the mask hides content (luminance, not alpha)', async () => {
-    const p = await fixture()
+    const p = await fixture(backend)
     const id = p.document.activeLayerId!
 
     fillColor(p, 0xFF0000)
@@ -181,7 +183,7 @@ describe('layer mask (P6-04, luminance)', () => {
   })
 
   it('paint 50% GRAY on the mask half-reveals content', async () => {
-    const p = await fixture()
+    const p = await fixture(backend)
     const id = p.document.activeLayerId!
 
     fillColor(p, 0xFF0000)
@@ -202,7 +204,7 @@ describe('layer mask (P6-04, luminance)', () => {
   })
 
   it('mask orientation: erasing the BOTTOM half hides the bottom, not the top', async () => {
-    const p = await fixture()
+    const p = await fixture(backend)
     const id = p.document.activeLayerId!
 
     fillColor(p, 0xFF0000)
@@ -223,7 +225,7 @@ describe('layer mask (P6-04, luminance)', () => {
   })
 
   it('routes strokes to the chosen target: paint white reveals, content stays separate', async () => {
-    const p = await fixture()
+    const p = await fixture(backend)
     const id = p.document.activeLayerId!
 
     fillColor(p, 0x00FF00)
@@ -248,7 +250,7 @@ describe('layer mask (P6-04, luminance)', () => {
   })
 
   it('mask strokes undo / redo independently of content', async () => {
-    const p = await fixture()
+    const p = await fixture(backend)
     const id = p.document.activeLayerId!
 
     fillColor(p, 0xFF0000)
@@ -273,7 +275,7 @@ describe('layer mask (P6-04, luminance)', () => {
   })
 
   it('export (handle extract) matches the on-screen composite', async () => {
-    const p = await fixture()
+    const p = await fixture(backend)
     const id = p.document.activeLayerId!
 
     fillColor(p, 0xFF0000)
@@ -291,7 +293,7 @@ describe('layer mask (P6-04, luminance)', () => {
   })
 
   it('detaching the mask restores content and frees the mask surface', async () => {
-    const p = await fixture()
+    const p = await fixture(backend)
     const id = p.document.activeLayerId!
     const maskId = `${id}:mask`
 
@@ -302,7 +304,7 @@ describe('layer mask (P6-04, luminance)', () => {
     p.setPaintTarget('content')
     expect(displayPixel(p, id, 12, 32)[3], 'hidden while masked').toBeLessThan(60)
 
-    const surface = p.surface as RenderTextureBackend
+    const surface = p.surface as DisplayMaskCapableBackend
     expect(surface.hasLayer(maskId), 'mask surface exists while attached').toBe(true)
 
     p.controller.layer.removeMask(id)
@@ -316,7 +318,7 @@ describe('layer mask (P6-04, luminance)', () => {
   })
 
   it('switching a layer between luminance-mask and alpha-clip reuses the derived RT cleanly', async () => {
-    const p = await fixture()
+    const p = await fixture(backend)
 
     // Base layer (the document's initial active layer): fully opaque red across
     // the whole canvas — the clip alpha source.

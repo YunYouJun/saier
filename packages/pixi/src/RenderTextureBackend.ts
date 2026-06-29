@@ -8,6 +8,7 @@ import type {
   SurfaceMemorySnapshot,
 } from '@saier/core'
 import type { Renderer } from 'pixi.js'
+import type { DisplayMaskCapableBackend, DisplayMaskMode } from './DisplayMaskBackend'
 import {
   clampToSize,
   compositeLockAlphaRegion,
@@ -45,16 +46,6 @@ export interface RenderTextureBackendOptions {
   width?: number
   height?: number
 }
-
-/**
- * How a layer's derived display is masked.
- * - `alpha`: clip by the mask layer's **alpha** — used by clipping layers
- *   (P6-03): the layer shows only where the layer below is opaque.
- * - `luminance`: hide/reveal by the mask layer's **grayscale luminance** — used
- *   by layer masks (P6-04, Photoshop/Procreate semantics): white reveals, black
- *   conceals, gray = partial. Erasing the mask (alpha→0) also hides.
- */
-export type DisplayMaskMode = 'alpha' | 'luminance'
 
 // Single-pass luminance compositor (layer masks). A full-screen clip-space quad
 // samples the content + mask RenderTextures at the same UV and outputs
@@ -125,7 +116,7 @@ function assertBitmapPatch(
  * Strokes accumulate into a shared scratch RT first. `endStroke` snapshots only
  * the dirty bbox before/after compositing into the layer RT, matching D4.
  */
-export class RenderTextureBackend implements SurfaceBackend {
+export class RenderTextureBackend implements SurfaceBackend, DisplayMaskCapableBackend {
   readonly width: number
   readonly height: number
 
@@ -271,7 +262,7 @@ export class RenderTextureBackend implements SurfaceBackend {
   }
 
   /** Recompute every masked layer's derived display (call after pixels change). */
-  refreshDerivedDisplays(): void {
+  refreshDerivedDisplays(_dirtyRect?: DirtyRect): void {
     for (const layer of this.layers.values()) {
       if (layer.displayMaskLayerId)
         this.computeMaskedDisplay(layer)

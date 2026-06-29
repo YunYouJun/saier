@@ -16,6 +16,7 @@ afterEach(() => {
 async function fixture(): Promise<Painter> {
   const canvas = document.createElement('canvas')
   const painter = createPainter({
+    backend: 'rendertexture',
     view: canvas,
     size: { width: 64, height: 64 },
     boardSize: { width: 64, height: 64 },

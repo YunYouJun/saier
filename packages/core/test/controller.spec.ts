@@ -1,4 +1,4 @@
-import type { StrokePatch } from '../src'
+import type { BrushPreset, StrokePatch } from '../src'
 import { describe, expect, it, vi } from 'vitest'
 import { Document, PainterController, UndoManager } from '../src'
 
@@ -7,6 +7,17 @@ const PATCH: StrokePatch = {
   rect: { x: 0, y: 0, width: 1, height: 1 },
   before: new Uint8Array([0]),
   after: new Uint8Array([1]),
+}
+
+const PEN_PRESET: BrushPreset = {
+  id: 'pen',
+  name: 'Pen',
+  engine: 'simple',
+  tipId: 'round-hard',
+  size: 10,
+  opacity: 1,
+  spacing: 0.22,
+  hardness: 0,
 }
 
 describe('painterController', () => {
@@ -52,6 +63,102 @@ describe('painterController', () => {
     expect(spy).toHaveBeenCalled()
   })
 
+  it('normalizes P7 brush parameters from presets', () => {
+    const document = new Document({ width: 100, height: 100 })
+    const controller = new PainterController({
+      document,
+      brushPresets: [
+        PEN_PRESET,
+        {
+          id: 'wet-mix',
+          name: 'Wet Mix',
+          engine: 'smudge',
+          tipId: 'round-soft',
+          size: 18,
+          opacity: 1,
+          spacing: 0.25,
+          hardness: 0.35,
+          smudge: 1.4,
+          colorAmount: -0.5,
+          dilution: 0.45,
+          persistence: 2,
+          wetEdge: 0.6,
+          density: -0.2,
+          paperTextureId: 'cold-press',
+        },
+      ],
+    })
+
+    controller.brush.setPreset('wet-mix')
+
+    expect(controller.getState().brush).toMatchObject({
+      presetId: 'wet-mix',
+      smudge: 1,
+      colorAmount: 0,
+      dilution: 0.45,
+      persistence: 1,
+      wetEdge: 0.6,
+      density: 0,
+      paperTextureId: 'cold-press',
+    })
+  })
+
+  it('updates P7 brush parameters and emits brush:change snapshots', () => {
+    const document = new Document({ width: 100, height: 100 })
+    const controller = new PainterController({
+      document,
+      brush: {
+        smudge: -1,
+        colorAmount: 2,
+        dilution: 0.25,
+        persistence: 0.5,
+        wetEdge: 2,
+        density: -0.5,
+        paperTextureId: 'warm-press',
+      },
+    })
+    const spy = vi.fn()
+    controller.on('brush:change', spy)
+
+    expect(controller.getState().brush).toMatchObject({
+      smudge: 0,
+      colorAmount: 1,
+      dilution: 0.25,
+      persistence: 0.5,
+      wetEdge: 1,
+      density: 0,
+      paperTextureId: 'warm-press',
+    })
+
+    controller.brush.setSmudge(0.2)
+    controller.brush.setColorAmount(0.8)
+    controller.brush.setDilution(1.5)
+    controller.brush.setPersistence(-0.5)
+    controller.brush.setWetEdge(0.6)
+    controller.brush.setDensity(2)
+    controller.brush.setPaperTextureId('cold-press')
+
+    expect(controller.getState().brush).toMatchObject({
+      smudge: 0.2,
+      colorAmount: 0.8,
+      dilution: 1,
+      persistence: 0,
+      wetEdge: 0.6,
+      density: 1,
+      paperTextureId: 'cold-press',
+    })
+    expect(spy).toHaveBeenCalledTimes(7)
+    expect(spy).toHaveBeenLastCalledWith(expect.objectContaining({
+      smudge: 0.2,
+      colorAmount: 0.8,
+      dilution: 1,
+      persistence: 0,
+      wetEdge: 0.6,
+      density: 1,
+      paperTextureId: 'cold-press',
+    }))
+  })
+
   it('returns defensive snapshots for brush and layer state', () => {
     const document = new Document({ width: 100, height: 100 })
     document.addLayer({ id: 'ink', label: 'Ink' })
@@ -59,10 +166,14 @@ describe('painterController', () => {
 
     const state = controller.getState()
     state.brush.color.r = 1
+    state.brush.smudge = 1
+    state.brush.paperTextureId = 'mutated-paper'
     state.brush.presets[0].name = 'Mutated'
     state.layers[0].label = 'Mutated'
 
     expect(controller.getState().brush.color.r).toBe(0)
+    expect(controller.getState().brush.smudge).toBe(0)
+    expect(controller.getState().brush.paperTextureId).toBeUndefined()
     expect(controller.getState().brush.presets[0].name).toBe('Pen')
     expect(controller.getState().layers[0].label).toBe('Ink')
   })

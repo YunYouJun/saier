@@ -16,7 +16,7 @@ export type BuiltinBrushPresetId
 
 export type BrushPresetId = BuiltinBrushPresetId | (string & {})
 
-export type BrushPresetEngine = 'simple' | 'airbrush' | 'calligraphy'
+export type BrushPresetEngine = 'simple' | 'airbrush' | 'calligraphy' | 'smudge'
 
 export interface BrushPreset {
   id: BrushPresetId
@@ -29,6 +29,20 @@ export interface BrushPreset {
   opacity: number
   spacing: number
   hardness: number
+  /** Canvas pickup amount for future smudge / color-mixing engines, `0..1`. */
+  smudge?: number
+  /** Brush's own color contribution when mixing sampled color, `0..1`. */
+  colorAmount?: number
+  /** Pigment dilution / wetness, `0..1`; `0` preserves current stamp behavior. */
+  dilution?: number
+  /** Smudge bucket memory / drag length, `0..1`. */
+  persistence?: number
+  /** Wet-edge strength, `0..1`; `0` disables wet-edge behavior. */
+  wetEdge?: number
+  /** Per-dab pigment deposit strength, `0..1`; omitted means full density. */
+  density?: number
+  /** Paper texture id used by later paper-grain coverage modulation. */
+  paperTextureId?: string
   /** Dabs per second; used by airbrush. */
   flow?: number
   minSizeRatio?: number
@@ -209,6 +223,8 @@ export function createBrushEngineFromPreset(
       return new AirbrushEngine(resolveAirbrushOptions(preset, options))
     case 'calligraphy':
       return new CalligraphyEngine(resolveCalligraphyOptions(preset, options))
+    case 'smudge':
+      throw new Error('smudge engine not implemented (P7-04)')
     case 'simple':
     default:
       return new SimpleBrushEngine(resolveSimpleOptions(preset, options))
@@ -280,13 +296,23 @@ function resolveCalligraphyOptions(
   }
 }
 
-function clonePreset(preset: BrushPreset): BrushPreset {
+/** Return a defensive copy of a brush preset and its nested option objects. */
+export function clonePreset(preset: BrushPreset): BrushPreset {
   return {
     ...preset,
+    sizeCurve: clonePressureCurveConfig(preset.sizeCurve),
+    opacityCurve: clonePressureCurveConfig(preset.opacityCurve),
+    pressureCurve: clonePressureCurveConfig(preset.pressureCurve),
     simple: preset.simple ? { ...preset.simple } : undefined,
     airbrush: preset.airbrush ? { ...preset.airbrush } : undefined,
     calligraphy: preset.calligraphy ? { ...preset.calligraphy } : undefined,
   }
+}
+
+function clonePressureCurveConfig(config: PressureCurveConfig | undefined): PressureCurveConfig | undefined {
+  if (Array.isArray(config))
+    return config.map(point => ({ ...point }))
+  return config
 }
 
 function clamp01(value: number): number {

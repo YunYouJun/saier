@@ -32,6 +32,12 @@ export interface BrushDab {
   rotation?: number
   /** stamp-tip texture id, for textured brushes */
   tipId?: string
+  /** Per-dab pigment deposit strength `0..1`; omitted means full density. */
+  density?: number
+  /** Per-dab dilution / wetness `0..1`; omitted means no dilution. */
+  dilution?: number
+  /** Paper texture id used to modulate dab coverage in later P7 work. */
+  paperTextureId?: string
   /**
    * Per-stroke dab accumulation mode.
    *

@@ -6,6 +6,7 @@ import type { LayerTransform } from '../math'
 import type { RGBA } from '../types'
 import mitt from 'mitt'
 import {
+  clonePreset,
   createDefaultBrushPresetRegistry,
   DEFAULT_BRUSH_PRESET_ID,
   toBrushPresetSummary,
@@ -23,6 +24,20 @@ export interface PainterBrushState {
   spacing: number
   hardness: number
   flow: number
+  /** Canvas pickup amount for future smudge / color-mixing engines, `0..1`. */
+  smudge: number
+  /** Brush's own color contribution when mixing sampled color, `0..1`. */
+  colorAmount: number
+  /** Pigment dilution / wetness, `0..1`. */
+  dilution: number
+  /** Smudge bucket memory / drag length, `0..1`. */
+  persistence: number
+  /** Wet-edge strength, `0..1`; `0` disables wet-edge behavior. */
+  wetEdge: number
+  /** Per-dab pigment deposit strength, `0..1`. */
+  density: number
+  /** Paper texture id used by later paper-grain coverage modulation. */
+  paperTextureId?: string
   presets: BrushPresetSummary[]
 }
 
@@ -95,6 +110,13 @@ export class PainterController {
     setSpacing: (spacing: number) => this.setBrushSpacing(spacing),
     setHardness: (hardness: number) => this.setBrushHardness(hardness),
     setFlow: (flow: number) => this.setBrushFlow(flow),
+    setSmudge: (smudge: number) => this.setBrushSmudge(smudge),
+    setColorAmount: (colorAmount: number) => this.setBrushColorAmount(colorAmount),
+    setDilution: (dilution: number) => this.setBrushDilution(dilution),
+    setPersistence: (persistence: number) => this.setBrushPersistence(persistence),
+    setWetEdge: (wetEdge: number) => this.setBrushWetEdge(wetEdge),
+    setDensity: (density: number) => this.setBrushDensity(density),
+    setPaperTextureId: (paperTextureId: string | undefined) => this.setBrushPaperTextureId(paperTextureId),
   }
 
   readonly layer = {
@@ -269,6 +291,13 @@ export class PainterController {
       spacing: normalizeSpacing(preset.spacing),
       hardness: clamp01(preset.hardness),
       flow: normalizeFlow(preset.flow),
+      smudge: normalizeSmudge(preset.smudge),
+      colorAmount: normalizeColorAmount(preset.colorAmount),
+      dilution: normalizeDilution(preset.dilution),
+      persistence: normalizePersistence(preset.persistence),
+      wetEdge: normalizeWetEdge(preset.wetEdge),
+      density: normalizeDensity(preset.density),
+      paperTextureId: normalizePaperTextureId(preset.paperTextureId),
     }
 
     if (sameBrushState(this.brushState, next))
@@ -325,6 +354,62 @@ export class PainterController {
     this.emitBrushChange()
   }
 
+  private setBrushSmudge(smudge: number): void {
+    const next = normalizeSmudge(smudge)
+    if (this.brushState.smudge === next)
+      return
+    this.brushState = { ...this.brushState, smudge: next }
+    this.emitBrushChange()
+  }
+
+  private setBrushColorAmount(colorAmount: number): void {
+    const next = normalizeColorAmount(colorAmount)
+    if (this.brushState.colorAmount === next)
+      return
+    this.brushState = { ...this.brushState, colorAmount: next }
+    this.emitBrushChange()
+  }
+
+  private setBrushDilution(dilution: number): void {
+    const next = normalizeDilution(dilution)
+    if (this.brushState.dilution === next)
+      return
+    this.brushState = { ...this.brushState, dilution: next }
+    this.emitBrushChange()
+  }
+
+  private setBrushPersistence(persistence: number): void {
+    const next = normalizePersistence(persistence)
+    if (this.brushState.persistence === next)
+      return
+    this.brushState = { ...this.brushState, persistence: next }
+    this.emitBrushChange()
+  }
+
+  private setBrushWetEdge(wetEdge: number): void {
+    const next = normalizeWetEdge(wetEdge)
+    if (this.brushState.wetEdge === next)
+      return
+    this.brushState = { ...this.brushState, wetEdge: next }
+    this.emitBrushChange()
+  }
+
+  private setBrushDensity(density: number): void {
+    const next = normalizeDensity(density)
+    if (this.brushState.density === next)
+      return
+    this.brushState = { ...this.brushState, density: next }
+    this.emitBrushChange()
+  }
+
+  private setBrushPaperTextureId(paperTextureId: string | undefined): void {
+    const next = normalizePaperTextureId(paperTextureId)
+    if (this.brushState.paperTextureId === next)
+      return
+    this.brushState = { ...this.brushState, paperTextureId: next }
+    this.emitBrushChange()
+  }
+
   private emitBrushChange(): void {
     this.emitter.emit('brush:change', cloneBrushState(this.brushState))
   }
@@ -362,6 +447,13 @@ function normalizeBrushState(
     spacing: normalizeSpacing(brush.spacing ?? preset.spacing),
     hardness: clamp01(brush.hardness ?? preset.hardness),
     flow: normalizeFlow(brush.flow ?? preset.flow),
+    smudge: normalizeSmudge(brush.smudge ?? preset.smudge),
+    colorAmount: normalizeColorAmount(brush.colorAmount ?? preset.colorAmount),
+    dilution: normalizeDilution(brush.dilution ?? preset.dilution),
+    persistence: normalizePersistence(brush.persistence ?? preset.persistence),
+    wetEdge: normalizeWetEdge(brush.wetEdge ?? preset.wetEdge),
+    density: normalizeDensity(brush.density ?? preset.density),
+    paperTextureId: normalizePaperTextureId(brush.paperTextureId ?? preset.paperTextureId),
     presets: presets.map(toBrushPresetSummary),
   }
 }
@@ -401,13 +493,20 @@ function cloneBrushState(brush: PainterBrushState): PainterBrushState {
     spacing: brush.spacing,
     hardness: brush.hardness,
     flow: brush.flow,
+    smudge: brush.smudge,
+    colorAmount: brush.colorAmount,
+    dilution: brush.dilution,
+    persistence: brush.persistence,
+    wetEdge: brush.wetEdge,
+    density: brush.density,
+    paperTextureId: brush.paperTextureId,
     presets: brush.presets.map(preset => ({ ...preset })),
   }
 }
 
 function normalizeBrushPresets(presets?: readonly BrushPreset[]): BrushPreset[] {
   return (presets?.length ? [...presets] : createDefaultBrushPresetRegistry().list())
-    .map(preset => ({ ...preset }))
+    .map(clonePreset)
 }
 
 function normalizeSpacing(spacing: number): number {
@@ -418,6 +517,34 @@ function normalizeFlow(flow = 1): number {
   return Math.max(1, flow)
 }
 
+function normalizeSmudge(smudge = 0): number {
+  return clamp01(smudge)
+}
+
+function normalizeColorAmount(colorAmount = 1): number {
+  return clamp01(colorAmount)
+}
+
+function normalizeDilution(dilution = 0): number {
+  return clamp01(dilution)
+}
+
+function normalizePersistence(persistence = 0): number {
+  return clamp01(persistence)
+}
+
+function normalizeWetEdge(wetEdge = 0): number {
+  return clamp01(wetEdge)
+}
+
+function normalizeDensity(density = 1): number {
+  return clamp01(density)
+}
+
+function normalizePaperTextureId(paperTextureId: string | undefined): string | undefined {
+  return paperTextureId === '' ? undefined : paperTextureId
+}
+
 function sameBrushState(a: PainterBrushState, b: PainterBrushState): boolean {
   return a.presetId === b.presetId
     && a.size === b.size
@@ -426,6 +553,13 @@ function sameBrushState(a: PainterBrushState, b: PainterBrushState): boolean {
     && a.spacing === b.spacing
     && a.hardness === b.hardness
     && a.flow === b.flow
+    && a.smudge === b.smudge
+    && a.colorAmount === b.colorAmount
+    && a.dilution === b.dilution
+    && a.persistence === b.persistence
+    && a.wetEdge === b.wetEdge
+    && a.density === b.density
+    && a.paperTextureId === b.paperTextureId
 }
 
 function normalizeRGBA(color: RGBA): RGBA {

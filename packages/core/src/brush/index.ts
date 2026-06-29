@@ -13,6 +13,7 @@ export {
   BrushPresetRegistry,
   type BrushPresetSummary,
   type BuiltinBrushPresetId,
+  clonePreset,
   createBrushEngineFromPreset,
   createDefaultBrushPresetRegistry,
   DEFAULT_BRUSH_PRESET_ID,

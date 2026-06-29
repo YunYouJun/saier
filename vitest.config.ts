@@ -45,6 +45,13 @@ export default defineConfig({
             'packages/saier/test/**/*.browser.spec.ts',
             'packages/pixi/test/**/*.browser.spec.ts',
           ],
+          // Browser specs drive real WebGL; running files in parallel exhausts
+          // GPU / browser resources and makes heavy specs (e.g. 5000-dab) flake
+          // under load. Run them sequentially with generous timeouts — slower but
+          // deterministic. (The node project stays parallel.)
+          fileParallelism: false,
+          testTimeout: 30_000,
+          hookTimeout: 30_000,
           browser: {
             enabled: true,
             headless: true,

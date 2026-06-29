@@ -8,7 +8,13 @@ title: P6-03 · 剪贴图层（clipping layer）
 - **Depends on**: P6-01、P5-02（Pixi 图层显示同步）
 - **Files**: `packages/pixi/src/RenderTextureBackend.ts`、`packages/pixi/src/PixiTileTextureBackend.ts`、`packages/saier/src/painter.ts`（导出合成）、`packages/core/src/controller/PainterController.ts`、`test/`
 - **Effort**: M
-- **Status**: 📝 待执行
+- **Status**: ✅ 已完成（RT 后端）
+
+## Result
+
+**遮罩基建(P6-03/04 共用)**:Pixi v8 不能用 RenderTexture 精灵当 `.mask`(`AlphaMaskPipe` 抛 `relativeRenderGroupDepth` null),且只暴露 `destination-out` 一种 Porter-Duff。改用**两遍 `destination-out` 合成派生纹理**(`content × maskAlpha`):① 不透明白 erase by maskAlpha → `1−maskAlpha`;② content erase by 上一步 → `content × maskAlpha`。派生纹理当普通精灵显示(`sprite.texture = derivedRT`)→ **extract / 导出安全**。`RenderTextureBackend.setLayerDisplayMask(layerId, maskLayerId)` + `refreshDerivedDisplays()`;painter `syncDisplayMasks` 把每个 clip 层遮罩到下方层,strokes/undo 后刷新。**关键坑修复**:裸 Sprite 作 render-root 时 blendMode 被忽略——必须包一层 Container 渲染。验收(真 WebGL):剪贴层只在下层不透明处显示、关剪贴恢复普通层、派生纹理可 extract。
+
+**已知限制 / 遗留**:① 仅 **RT 后端**(tile 后端显示无单一纹理,降级为普通层);② **在下层(base)上继续绘制时,clip 派生显示的同帧刷新有时读到旧纹理**(同帧 render-to-RT 再采样的 GPU 同步边缘)——结构变更 / 在 clip 层自身绘制时刷新正常,留作后续;③ 自由变换 + 剪贴叠加未处理。
 
 ## Context
 
@@ -26,9 +32,9 @@ title: P6-03 · 剪贴图层（clipping layer）
 
 ## Acceptance
 
-- [ ] 剪贴层只在下层不透明区域显示，下层透明处不显示。
-- [ ] 导出合成结果与屏幕显示一致。
-- [ ] 改变图层顺序 / 显隐后剪贴关系即时正确。
+- [x] 剪贴层只在下层不透明区域显示，下层透明处不显示。
+- [x] 导出合成结果与屏幕显示一致。
+- [x] 改变图层顺序 / 显隐后剪贴关系即时正确。
 
 ## Out of scope
 

@@ -47,6 +47,10 @@ interface LayerRecord {
   committedRT: RenderTexture
   sprite: Sprite
   lockAlpha: boolean
+  /** when set, the sprite displays `committedRT` clipped by this layer's alpha */
+  displayMaskLayerId?: string
+  /** derived display texture (content × mask alpha), shown instead of committedRT */
+  derivedRT?: RenderTexture
 }
 
 function rgbaToTint(color: BrushDab['color']): number {
@@ -106,11 +110,21 @@ export class RenderTextureBackend implements SurfaceBackend {
   /** Disable rAF preview batching (deterministic synchronous flush in tests). */
   autoFlushPreview = true
 
+  // Reusable resources for derived masked-display compositing (clip / mask).
+  private readonly maskScratchRT: RenderTexture
+  private readonly maskSprite: Sprite
+  private readonly maskContainer = new Container()
+
   constructor(options: RenderTextureBackendOptions) {
     this.renderer = options.renderer
     this.stage = options.stage
     this.width = options.width ?? options.renderer.width
     this.height = options.height ?? options.renderer.height
+
+    this.maskScratchRT = this.createRenderTexture()
+    this.maskSprite = new Sprite(Texture.EMPTY)
+    this.maskSprite.label = 'saier-mask-temp'
+    this.maskContainer.addChild(this.maskSprite)
 
     this.strokeRT = this.createRenderTexture()
     this.strokeSprite = new Sprite(this.strokeRT)
@@ -150,6 +164,66 @@ export class RenderTextureBackend implements SurfaceBackend {
       layer.lockAlpha = state.lockAlpha
   }
 
+  /**
+   * Display `layerId` clipped by `maskLayerId`'s alpha (clip layers, layer
+   * masks). Pixi v8 can't use a RenderTexture sprite as an alpha mask, so we
+   * composite a derived texture (content × maskAlpha) and show that — which is
+   * also safe to `extract` for export. Pass `undefined` to show content直接.
+   */
+  setLayerDisplayMask(layerId: string, maskLayerId: string | undefined): void {
+    const layer = this.getLayer(layerId)
+    layer.displayMaskLayerId = maskLayerId
+    if (!maskLayerId) {
+      layer.sprite.texture = layer.committedRT
+      if (layer.derivedRT) {
+        layer.derivedRT.destroy(true)
+        layer.derivedRT = undefined
+      }
+      return
+    }
+    this.computeMaskedDisplay(layer)
+  }
+
+  /** Recompute every masked layer's derived display (call after pixels change). */
+  refreshDerivedDisplays(): void {
+    for (const layer of this.layers.values()) {
+      if (layer.displayMaskLayerId)
+        this.computeMaskedDisplay(layer)
+    }
+  }
+
+  private computeMaskedDisplay(layer: LayerRecord): void {
+    const maskLayer = layer.displayMaskLayerId ? this.layers.get(layer.displayMaskLayerId) : undefined
+    if (!maskLayer) {
+      layer.sprite.texture = layer.committedRT
+      return
+    }
+    const derived = layer.derivedRT ?? (layer.derivedRT = this.createRenderTexture())
+
+    // pass 1: scratch = opaque white, erased by the mask alpha → (1 − maskAlpha)
+    this.renderer.render({ container: this.clearContainer, target: this.maskScratchRT, clear: true, clearColor: [1, 1, 1, 1] })
+    this.drawMaskSprite(maskLayer.committedRT, 'erase', this.maskScratchRT, false)
+
+    // pass 2: derived = content, erased by scratch → content × maskAlpha
+    this.drawMaskSprite(layer.committedRT, 'normal', derived, true)
+    this.drawMaskSprite(this.maskScratchRT, 'erase', derived, false)
+
+    layer.sprite.texture = derived
+  }
+
+  private drawMaskSprite(texture: Texture, blendMode: 'normal' | 'erase', target: RenderTexture, clear: boolean): void {
+    this.maskSprite.texture = texture
+    this.maskSprite.blendMode = blendMode
+    this.maskSprite.anchor.set(0)
+    this.maskSprite.position.set(0, 0)
+    this.maskSprite.scale.set(1)
+    this.maskSprite.rotation = 0
+    this.maskSprite.alpha = 1
+    // Render via a container so the sprite's blend mode is applied (a bare
+    // render-root sprite's blend mode is ignored).
+    this.renderer.render({ container: this.maskContainer, target, clear })
+  }
+
   reorderLayers(ids: string[]): void {
     // Stack tracked raster layers on top of the container in document order,
     // ABOVE any foreign children (e.g. legacy image `EditableLayer`s that share
@@ -173,7 +247,14 @@ export class RenderTextureBackend implements SurfaceBackend {
     this.stage.removeChild(layer.sprite)
     layer.sprite.destroy()
     layer.committedRT.destroy(true)
+    layer.derivedRT?.destroy(true)
     this.layers.delete(id)
+
+    // Any layer masked by this one must fall back to showing its content.
+    for (const other of this.layers.values()) {
+      if (other.displayMaskLayerId === id)
+        this.setLayerDisplayMask(other.id, undefined)
+    }
 
     if (this.activeLayerId === id)
       this.endPreview()
@@ -348,6 +429,7 @@ export class RenderTextureBackend implements SurfaceBackend {
       this.stage.removeChild(layer.sprite)
       layer.sprite.destroy()
       layer.committedRT.destroy(true)
+      layer.derivedRT?.destroy(true)
     }
     this.layers.clear()
     this.strokeRT.destroy(true)
@@ -358,6 +440,8 @@ export class RenderTextureBackend implements SurfaceBackend {
       texture.destroy(true)
     this.dabTextures.clear()
     this.clearContainer.destroy({ children: true })
+    this.maskScratchRT.destroy(true)
+    this.maskContainer.destroy({ children: true })
   }
 
   private createRenderTexture(): RenderTexture {

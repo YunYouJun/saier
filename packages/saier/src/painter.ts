@@ -406,10 +406,18 @@ export class Painter {
     if (isEmpty(patch.rect))
       return
 
+    // a stroke on any layer may change a clip/mask source → refresh derived displays
+    this.refreshDerivedDisplays()
     this.undoManager.record(patch)
     this.history.record({
-      undo: () => this.undoManager.undo(),
-      redo: () => this.undoManager.redo(),
+      undo: () => {
+        this.undoManager.undo()
+        this.refreshDerivedDisplays()
+      },
+      redo: () => {
+        this.undoManager.redo()
+        this.refreshDerivedDisplays()
+      },
     })
   }
 
@@ -670,6 +678,30 @@ export class Painter {
     }
 
     this.surface.reorderLayers?.(layers.map(layer => layer.id))
+    this.syncDisplayMasks(layers)
+  }
+
+  /**
+   * Wire up clip / mask display masking (RenderTexture backend only — it
+   * composites a derived texture, see `setLayerDisplayMask`). A clip layer is
+   * masked by the layer directly below; a clip layer at the bottom shows
+   * normally.
+   */
+  private syncDisplayMasks(layers: RasterLayer[]): void {
+    if (!(this.surface instanceof RenderTextureBackend))
+      return
+    for (let i = 0; i < layers.length; i++) {
+      const layer = layers[i]!
+      const belowId = i > 0 ? layers[i - 1]!.id : undefined
+      const maskLayerId = layer.clip && belowId ? belowId : undefined
+      this.surface.setLayerDisplayMask(layer.id, maskLayerId)
+    }
+  }
+
+  /** Recompute derived clip / mask display textures after pixels change. */
+  private refreshDerivedDisplays(): void {
+    if (this.surface instanceof RenderTextureBackend)
+      this.surface.refreshDerivedDisplays()
   }
 
   /**

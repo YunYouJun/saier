@@ -1,6 +1,7 @@
 import type { PainterAction } from './features/history'
 import type { PainterInputSnapshot } from './input'
 import type { EditableLayer } from './layers'
+import type { PainterDocumentState } from './painter'
 import mitt from 'mitt'
 
 export function createEmitter() {
@@ -32,6 +33,8 @@ export function createEmitter() {
 
     // document
     'canvas:clear': void
+    'documents:change': { documents: PainterDocumentState[], activeDocumentId: string }
+    'active-document:change': { document: PainterDocumentState, documents: PainterDocumentState[] }
   }>()
   return emitter
 }

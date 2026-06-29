@@ -4,7 +4,13 @@ import type {
   PainterLayerState,
   PainterMemorySnapshot,
 } from '@saier/core'
-import type { Painter, PainterInputSnapshot, PainterOptions } from 'saier'
+import type {
+  CreatePainterDocumentOptions,
+  Painter,
+  PainterDocumentState,
+  PainterInputSnapshot,
+  PainterOptions,
+} from 'saier'
 import type { ComputedRef, Ref, ShallowRef } from 'vue'
 import { createPainter } from 'saier'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
@@ -24,6 +30,8 @@ export interface UsePainterReturn {
   state: ShallowRef<PainterControllerState | undefined>
   memory: ShallowRef<PainterMemorySnapshot | undefined>
   input: ShallowRef<PainterInputSnapshot | undefined>
+  documents: ShallowRef<PainterDocumentState[]>
+  activeDocumentId: ComputedRef<string | null>
   layers: ComputedRef<PainterLayerState[]>
   activeLayerId: ComputedRef<string | null>
   layerThumbnails: ShallowRef<Record<string, string>>
@@ -39,6 +47,12 @@ export interface UsePainterReturn {
     setLockAlpha: (id: string, lockAlpha: boolean) => void
     setClip: (id: string, clip: boolean) => void
   }
+  documentActions: {
+    create: (options: CreatePainterDocumentOptions) => void
+    switch: (id: string) => void
+    close: (id: string) => void
+    rename: (id: string, name: string) => void
+  }
   refreshLayerThumbnails: () => Promise<void>
   refreshMemory: () => Promise<void>
 }
@@ -49,10 +63,12 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
   const state = shallowRef<PainterControllerState>()
   const memory = shallowRef<PainterMemorySnapshot>()
   const input = shallowRef<PainterInputSnapshot>()
+  const documents = shallowRef<PainterDocumentState[]>([])
   const layerThumbnails = shallowRef<Record<string, string>>({})
 
   const layers = computed(() => state.value?.layers ?? [])
   const activeLayerId = computed(() => state.value?.activeLayerId ?? null)
+  const activeDocumentId = computed(() => documents.value.find(document => document.active)?.id ?? null)
 
   let removeControllerListeners: (() => void) | undefined
   let removePainterListeners: (() => void) | undefined
@@ -63,6 +79,10 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
 
   function syncState(p: Painter): void {
     state.value = p.controller.getState()
+  }
+
+  function syncDocuments(p: Painter): void {
+    documents.value = p.getDocuments()
   }
 
   async function refreshLayerThumbnails(): Promise<void> {
@@ -138,6 +158,7 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
   function bindPainter(p: Painter): void {
     const updateLayers = () => {
       syncState(p)
+      syncDocuments(p)
       scheduleMemoryRefresh()
       void refreshLayerThumbnails()
     }
@@ -148,18 +169,29 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     const updateInput = (snapshot: PainterInputSnapshot) => {
       input.value = snapshot
     }
+    const updateDocuments = () => {
+      syncDocuments(p)
+      syncState(p)
+      layerThumbnails.value = {}
+      scheduleMemoryRefresh()
+      void refreshLayerThumbnails()
+    }
 
     bindController(p, updateLayers)
     p.emitter.on('brush:up', updateLayers)
     p.emitter.on('eraser:up', updateLayers)
     p.emitter.on('canvas:clear', handleCanvasClear)
     p.emitter.on('input:pointer', updateInput)
+    p.emitter.on('documents:change', updateDocuments)
+    p.emitter.on('active-document:change', updateDocuments)
 
     removePainterListeners = () => {
       p.emitter.off('brush:up', updateLayers)
       p.emitter.off('eraser:up', updateLayers)
       p.emitter.off('canvas:clear', handleCanvasClear)
       p.emitter.off('input:pointer', updateInput)
+      p.emitter.off('documents:change', updateDocuments)
+      p.emitter.off('active-document:change', updateDocuments)
     }
   }
 
@@ -206,6 +238,21 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     },
   }
 
+  const documentActions = {
+    create: (createOptions: CreatePainterDocumentOptions) => {
+      requirePainter()?.createDocument(createOptions)
+    },
+    switch: (id: string) => {
+      requirePainter()?.switchDocument(id)
+    },
+    close: (id: string) => {
+      requirePainter()?.closeDocument(id)
+    },
+    rename: (id: string, name: string) => {
+      requirePainter()?.renameDocument(id, name)
+    },
+  }
+
   onMounted(async () => {
     if (!canvas.value)
       return
@@ -228,8 +275,10 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     }
     bindPainter(p)
     syncState(p)
+    syncDocuments(p)
     await afterInit?.(p)
     syncState(p)
+    syncDocuments(p)
     painter.value = p
     void refreshLayerThumbnails()
     void refreshMemory()
@@ -245,6 +294,7 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     state.value = undefined
     memory.value = undefined
     input.value = undefined
+    documents.value = []
     layerThumbnails.value = {}
   })
 
@@ -254,10 +304,13 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     state,
     memory,
     input,
+    documents,
+    activeDocumentId,
     layers,
     activeLayerId,
     layerThumbnails,
     layerActions,
+    documentActions,
     refreshLayerThumbnails,
     refreshMemory,
   }

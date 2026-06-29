@@ -71,6 +71,13 @@ export interface PainterControllerOptions {
   brushPresets?: readonly BrushPreset[]
 }
 
+export interface PainterControllerBinding {
+  /** Framework-agnostic document model that owns layer state. */
+  document: Document
+  /** Optional stroke history source; omitted history starts as unavailable. */
+  history?: UndoManager
+}
+
 /**
  * Headless, framework-agnostic UI state surface for a painter instance.
  *
@@ -107,8 +114,8 @@ export class PainterController {
     setMaskEnabled: (id: string, enabled: boolean) => this.setLayerMaskEnabled(id, enabled),
   }
 
-  private readonly document: Document
-  private readonly history: UndoManager | null
+  private document: Document
+  private history: UndoManager | null
   private readonly emitter: Emitter<PainterControllerEvents> = mitt<PainterControllerEvents>()
   private readonly brushPresets: BrushPreset[]
 
@@ -133,8 +140,7 @@ export class PainterController {
         }
       : { canUndo: false, canRedo: false }
 
-    this.document.on('layers:change', this.handleLayersChange)
-    this.history?.on('history:change', this.handleHistoryChange)
+    this.bindSources()
   }
 
   on = this.emitter.on
@@ -158,6 +164,26 @@ export class PainterController {
       return
     this.tool = tool
     this.emitter.emit('tool:change', tool)
+  }
+
+  bind(binding: PainterControllerBinding): void {
+    this.unbindSources()
+    this.document = binding.document
+    this.history = binding.history ?? null
+    this.layers = snapshotLayers(this.document.layers)
+    this.activeLayerId = this.document.activeLayerId
+    this.historyState = this.history
+      ? {
+          canUndo: this.history.canUndo(),
+          canRedo: this.history.canRedo(),
+        }
+      : { canUndo: false, canRedo: false }
+    this.bindSources()
+    this.emitter.emit('layers:change', {
+      layers: cloneLayerStates(this.layers),
+      activeLayerId: this.activeLayerId,
+    })
+    this.emitter.emit('history:change', { ...this.historyState })
   }
 
   setActiveLayer(id: string): void {
@@ -217,6 +243,15 @@ export class PainterController {
   }
 
   dispose(): void {
+    this.unbindSources()
+  }
+
+  private bindSources(): void {
+    this.document.on('layers:change', this.handleLayersChange)
+    this.history?.on('history:change', this.handleHistoryChange)
+  }
+
+  private unbindSources(): void {
     this.document.off('layers:change', this.handleLayersChange)
     this.history?.off('history:change', this.handleHistoryChange)
   }

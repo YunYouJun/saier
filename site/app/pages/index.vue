@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SitePainterMenuCommand, SitePainterTool } from '~/types/painter-app'
+import type { SiteNewCanvasRequest, SitePainterMenuCommand, SitePainterTool } from '~/types/painter-app'
 import { usePainter } from '@saier/vue/composables/usePainter'
 import { computed, shallowRef } from 'vue'
 
@@ -13,10 +13,13 @@ const {
 } = useSiteI18n()
 
 const exportPreview = shallowRef<string>()
+const newCanvasDialogOpen = shallowRef(false)
 
 const {
   activeLayerId,
   canvas: srcCanvas,
+  documentActions,
+  documents,
   input,
   layerActions,
   layerThumbnails,
@@ -135,13 +138,22 @@ function closePreview(): void {
 }
 
 function createNewCanvas(): void {
-  const p = painter.value
-  if (!p)
-    return
-
   closePreview()
-  p.clearCanvas()
-  p.controller.layer.setLabel('layer-1', layerLabel(1))
+  newCanvasDialogOpen.value = true
+}
+
+function closeNewCanvasDialog(): void {
+  newCanvasDialogOpen.value = false
+}
+
+function createCanvasDocument(request: SiteNewCanvasRequest): void {
+  documentActions.create({
+    name: request.name,
+    width: request.width,
+    height: request.height,
+    defaultLayerLabel: layerLabel(1),
+  })
+  closeNewCanvasDialog()
 }
 
 async function downloadCanvas(): Promise<void> {
@@ -198,6 +210,14 @@ function setActiveLayerVisible(visible: boolean): void {
   const layer = activeLayer.value
   if (layer)
     layerActions.setVisible(layer.id, visible)
+}
+
+function switchDocument(id: string): void {
+  documentActions.switch(id)
+}
+
+function closeDocument(id: string): void {
+  documentActions.close(id)
 }
 
 function isSitePainterTool(tool: unknown): tool is SitePainterTool {
@@ -270,6 +290,17 @@ function formatBytes(bytes: number): string {
       />
     </template>
 
+    <template #documents>
+      <SiteFileTabs
+        :documents="documents"
+        :disabled="!painter"
+        :labels="text.documents"
+        @new="createNewCanvas"
+        @switch="switchDocument"
+        @close="closeDocument"
+      />
+    </template>
+
     <template #canvas>
       <canvas ref="srcCanvas" />
     </template>
@@ -321,4 +352,12 @@ function formatBytes(bytes: number): string {
       />
     </template>
   </SitePainterShell>
+
+  <SiteNewCanvasDialog
+    :open="newCanvasDialogOpen"
+    :next-index="documents.length + 1"
+    :labels="text.documents"
+    @close="closeNewCanvasDialog"
+    @create="createCanvasDocument"
+  />
 </template>

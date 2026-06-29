@@ -157,7 +157,8 @@ export class TouchGestureRouter {
     if (touches.length < 2)
       return null
 
-    const [a, b] = touches
+    const a = touches[0]!
+    const b = touches[1]!
     return {
       centroid: {
         x: (a.x + b.x) / 2,

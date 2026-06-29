@@ -85,6 +85,46 @@ export function createStore(_options: PainterOptions): PainterStore {
   return { }
 }
 
+export interface PainterDocumentState {
+  id: string
+  name: string
+  width: number
+  height: number
+  active: boolean
+}
+
+export interface CreatePainterDocumentOptions {
+  id?: string
+  name?: string
+  width: number
+  height: number
+  defaultLayerLabel?: string
+  activate?: boolean
+}
+
+interface PainterViewportState {
+  x: number
+  y: number
+  scale: number
+}
+
+interface PainterDocumentSession {
+  id: string
+  name: string
+  width: number
+  height: number
+  document: RasterDocument
+  surface: SurfaceBackend
+  undoManager: UndoManager
+  history: PainterHistory
+  layersContainer: Container
+  boundingBoxes: Container
+  surfaceLayerIds: Set<string>
+  maskSurfaceIds: Set<string>
+  viewport: PainterViewportState
+  removeDocumentListener: () => void
+}
+
 export class Painter {
   debug = false
 
@@ -134,11 +174,10 @@ export class Painter {
   /** Whether brush / eraser paint onto the active layer's content or its mask. */
   paintTarget: 'content' | 'mask' = 'content'
   private readonly handleResize = () => this.onResize()
-  private readonly surfaceLayerIds = new Set<string>()
-  private readonly maskSurfaceIds = new Set<string>()
-  private readonly handleDocumentLayersChange = (event: { layers: RasterLayer[] }) => {
-    this.syncSurfaceLayers(event.layers)
-  }
+  private readonly documentSessions = new Map<string, PainterDocumentSession>()
+  private readonly documentOrder: string[] = []
+  private activeDocumentId: string | null = null
+  private documentCounter = 0
 
   constructor(options: PainterOptions) {
     this.options = options
@@ -354,10 +393,24 @@ export class Painter {
   }
 
   setupRasterPipeline() {
-    const { width, height } = PainterBoard.size
-    this.document = new RasterDocument({ width, height })
-    this.surface = this.createSurfaceBackend(width, height)
-    this.undoManager = new UndoManager({ backend: this.surface })
+    const {
+      boardSize = {
+        width: 512,
+        height: 512,
+      },
+    } = this.options
+    const session = this.createDocumentSession({
+      id: 'document-1',
+      name: 'Canvas 1',
+      width: boardSize.width,
+      height: boardSize.height,
+      defaultLayerLabel: 'Layer 1',
+    })
+    this.documentCounter = 1
+    this.documentSessions.set(session.id, session)
+    this.documentOrder.push(session.id)
+    this.activeDocumentId = session.id
+    this.activateSession(session)
     this.controller = new PainterController({
       document: this.document,
       history: this.undoManager,
@@ -369,17 +422,13 @@ export class Painter {
         color: painterColorToRGBA(PainterBrush.color),
       },
     })
-    this.document.on('layers:change', this.handleDocumentLayersChange)
-
-    const layer = this.document.addLayer({ id: 'layer-1', label: 'Layer 1' })
-    this.syncSurfaceLayers([layer])
   }
 
-  createSurfaceBackend(width: number, height: number): SurfaceBackend {
+  createSurfaceBackend(width: number, height: number, stage = this.canvas.layersContainer): SurfaceBackend {
     if (this.options.backend === 'tiled') {
       return new PixiTileTextureBackend({
         renderer: this.app.renderer,
-        stage: this.canvas.layersContainer,
+        stage,
         width,
         height,
       })
@@ -387,10 +436,101 @@ export class Painter {
 
     return new RenderTextureBackend({
       renderer: this.app.renderer,
-      stage: this.canvas.layersContainer,
+      stage,
       width,
       height,
     })
+  }
+
+  getDocuments(): PainterDocumentState[] {
+    return this.documentOrder
+      .map(id => this.documentSessions.get(id))
+      .filter((session): session is PainterDocumentSession => Boolean(session))
+      .map(session => this.toDocumentState(session))
+  }
+
+  getActiveDocumentId(): string {
+    return this.requireActiveSession().id
+  }
+
+  createDocument(options: CreatePainterDocumentOptions): PainterDocumentState {
+    const width = normalizeDocumentDimension(options.width)
+    const height = normalizeDocumentDimension(options.height)
+    const id = options.id ?? this.nextDocumentId()
+    if (this.documentSessions.has(id))
+      throw new Error(`Document id already exists: ${id}`)
+
+    this.cancelActiveStroke()
+    const session = this.createDocumentSession({
+      ...options,
+      id,
+      name: options.name?.trim() || `Canvas ${this.documentOrder.length + 1}`,
+      width,
+      height,
+    })
+    this.documentSessions.set(session.id, session)
+    this.documentOrder.push(session.id)
+
+    if (options.activate ?? true)
+      this.switchDocument(session.id)
+    else
+      session.layersContainer.visible = false
+
+    this.emitDocumentsChange()
+    return this.toDocumentState(session)
+  }
+
+  switchDocument(id: string): void {
+    const next = this.documentSessions.get(id)
+    if (!next)
+      throw new Error(`Unknown document: ${id}`)
+    const current = this.activeDocumentId ? this.documentSessions.get(this.activeDocumentId) : undefined
+    if (current?.id === next.id)
+      return
+
+    this.cancelActiveStroke()
+    if (current) {
+      this.saveViewport(current)
+      current.layersContainer.visible = false
+      current.boundingBoxes.visible = false
+    }
+
+    this.activeDocumentId = next.id
+    this.activateSession(next)
+    this.controller.bind({
+      document: next.document,
+      history: next.undoManager,
+    })
+    this.useTool(this.tool as PainterTool)
+    this.emitActiveDocumentChange(next)
+  }
+
+  closeDocument(id: string): void {
+    const session = this.documentSessions.get(id)
+    if (!session || this.documentOrder.length <= 1)
+      return
+
+    const index = this.documentOrder.indexOf(id)
+    const wasActive = this.activeDocumentId === id
+    if (wasActive) {
+      const nextId = this.documentOrder[index + 1] ?? this.documentOrder[index - 1]
+      if (nextId)
+        this.switchDocument(nextId)
+    }
+
+    this.destroySession(session)
+    this.documentSessions.delete(id)
+    this.documentOrder.splice(index, 1)
+    this.emitDocumentsChange()
+  }
+
+  renameDocument(id: string, name: string): void {
+    const session = this.documentSessions.get(id)
+    const next = name.trim()
+    if (!session || !next || session.name === next)
+      return
+    session.name = next
+    this.emitDocumentsChange()
   }
 
   flushSurfaceUploads() {
@@ -411,14 +551,15 @@ export class Painter {
 
     // a stroke on any layer may change a clip/mask source → refresh derived displays
     this.refreshDerivedDisplays()
-    this.undoManager.record(patch)
+    const undoManager = this.undoManager
+    undoManager.record(patch)
     this.history.record({
       undo: () => {
-        this.undoManager.undo()
+        undoManager.undo()
         this.refreshDerivedDisplays()
       },
       redo: () => {
-        this.undoManager.redo()
+        undoManager.redo()
         this.refreshDerivedDisplays()
       },
     })
@@ -470,15 +611,15 @@ export class Painter {
     const imgSprite = await importImageSprite(src)
     imgSprite.label = src
 
-    const { canvas } = this
+    const session = this.requireActiveSession()
     const layer = new EditableLayer(this)
     layer.eventMode = 'static'
     layer.label = `Image ${EditableLayer.order++}`
-    canvas.layersContainer.addChild(layer)
+    session.layersContainer.addChild(layer)
     layer.addChild(imgSprite)
     layer.updateTransformBoundingBox()
 
-    this.boundingBoxes.addChild(layer.boundingBoxContainer)
+    session.boundingBoxes.addChild(layer.boundingBoxContainer)
 
     this.history.record({
       undo: () => {
@@ -496,8 +637,9 @@ export class Painter {
   }
 
   showBoundingBox() {
-    this.boundingBoxes.visible = true
-    this.canvas.layersContainer.children.forEach((layer) => {
+    const session = this.requireActiveSession()
+    session.boundingBoxes.visible = true
+    session.layersContainer.children.forEach((layer) => {
       layer.children?.forEach((child) => {
         child.cursor = 'move'
       })
@@ -505,8 +647,9 @@ export class Painter {
   }
 
   hideBoundingBox() {
-    this.boundingBoxes.visible = false
-    this.canvas.layersContainer.children.forEach((layer) => {
+    const session = this.requireActiveSession()
+    session.boundingBoxes.visible = false
+    session.layersContainer.children.forEach((layer) => {
       layer.children?.forEach((child) => {
         child.cursor = 'default'
       })
@@ -610,24 +753,39 @@ export class Painter {
    * clear content in inner canvas
    */
   clearCanvas() {
-    this.document.off('layers:change', this.handleDocumentLayersChange)
-    this.controller.dispose()
-    this.surface.destroy()
-    this.surfaceLayerIds.clear()
-    this.history.clear()
-    this.canvas.clearLayers()
-    this.boundingBoxes.removeChildren()
-    this.setupRasterPipeline()
+    const current = this.requireActiveSession()
+    this.cancelActiveStroke()
+    this.saveViewport(current)
+    const replacement = this.createDocumentSession({
+      id: current.id,
+      name: current.name,
+      width: current.width,
+      height: current.height,
+      defaultLayerLabel: 'Layer 1',
+    })
+    replacement.viewport = { ...current.viewport }
+    this.destroySession(current)
+    this.documentSessions.set(replacement.id, replacement)
+    this.activeDocumentId = replacement.id
+    this.activateSession(replacement)
+    this.controller.bind({
+      document: replacement.document,
+      history: replacement.undoManager,
+    })
+    this.useTool(this.tool as PainterTool)
     this.emitter.emit('canvas:clear')
+    this.emitActiveDocumentChange(replacement)
   }
 
   destroy() {
     this.removeEventListeners()
     this.brush.destroy()
     this.eraser.destroy()
-    this.document.off('layers:change', this.handleDocumentLayersChange)
     this.controller.dispose()
-    this.surface.destroy()
+    for (const session of this.documentSessions.values())
+      this.destroySession(session)
+    this.documentSessions.clear()
+    this.documentOrder.length = 0
     this.board.destroy()
 
     this.app.destroy(false, {
@@ -655,33 +813,180 @@ export class Painter {
     this.brush.sizeUp()
   }
 
-  private syncSurfaceLayers(layers: RasterLayer[]): void {
+  private createDocumentSession(options: Required<Pick<CreatePainterDocumentOptions, 'id' | 'name' | 'width' | 'height'>> & Pick<CreatePainterDocumentOptions, 'defaultLayerLabel'>): PainterDocumentSession {
+    const layersContainer = new Container()
+    layersContainer.label = `${options.id}:layers`
+    const boundingBoxes = new Container()
+    boundingBoxes.label = `${options.id}:boundingBoxes`
+
+    this.canvas.documentsContainer.addChild(layersContainer)
+    this.boundingBoxes.addChild(boundingBoxes)
+
+    const document = new RasterDocument({ width: options.width, height: options.height })
+    const surface = this.createSurfaceBackend(options.width, options.height, layersContainer)
+    const undoManager = new UndoManager({ backend: surface })
+    const history = new PainterHistory(this)
+    const session: PainterDocumentSession = {
+      id: options.id,
+      name: options.name,
+      width: options.width,
+      height: options.height,
+      document,
+      surface,
+      undoManager,
+      history,
+      layersContainer,
+      boundingBoxes,
+      surfaceLayerIds: new Set(),
+      maskSurfaceIds: new Set(),
+      viewport: this.defaultViewport(),
+      removeDocumentListener: () => {},
+    }
+    const handleLayersChange = (event: { layers: RasterLayer[] }) => {
+      this.syncSurfaceLayers(event.layers, session)
+    }
+    document.on('layers:change', handleLayersChange)
+    session.removeDocumentListener = () => {
+      document.off('layers:change', handleLayersChange)
+    }
+
+    const layer = document.addLayer({
+      id: 'layer-1',
+      label: options.defaultLayerLabel ?? 'Layer 1',
+    })
+    this.syncSurfaceLayers([layer], session)
+    layersContainer.visible = false
+    boundingBoxes.visible = false
+    return session
+  }
+
+  private activateSession(session: PainterDocumentSession): void {
+    this.document = session.document
+    this.surface = session.surface
+    this.undoManager = session.undoManager
+    this.history = session.history
+    this.canvas.layersContainer = session.layersContainer
+    if (this.brush)
+      this.brush.parentContainer = session.layersContainer
+    if (this.eraser)
+      this.eraser.parentContainer = session.layersContainer
+    this.canvas.resizeDocument(session.width, session.height)
+    session.layersContainer.visible = true
+    session.boundingBoxes.visible = true
+    this.restoreViewport(session)
+  }
+
+  private destroySession(session: PainterDocumentSession): void {
+    session.removeDocumentListener()
+    session.surface.destroy()
+    session.surfaceLayerIds.clear()
+    session.maskSurfaceIds.clear()
+    session.history.clear()
+    this.canvas.documentsContainer.removeChild(session.layersContainer)
+    this.boundingBoxes.removeChild(session.boundingBoxes)
+    session.layersContainer.destroy({ children: true })
+    session.boundingBoxes.destroy({ children: true })
+  }
+
+  private requireActiveSession(): PainterDocumentSession {
+    const session = this.activeDocumentId ? this.documentSessions.get(this.activeDocumentId) : undefined
+    if (!session)
+      throw new Error('Painter has no active document')
+    return session
+  }
+
+  private toDocumentState(session: PainterDocumentSession): PainterDocumentState {
+    return {
+      id: session.id,
+      name: session.name,
+      width: session.width,
+      height: session.height,
+      active: session.id === this.activeDocumentId,
+    }
+  }
+
+  private nextDocumentId(): string {
+    let id: string
+    do {
+      this.documentCounter += 1
+      id = `document-${this.documentCounter}`
+    } while (this.documentSessions.has(id))
+    return id
+  }
+
+  private defaultViewport(): PainterViewportState {
+    const width = this.app.canvas.width / this.app.renderer.resolution
+    const height = this.app.canvas.height / this.app.renderer.resolution
+    return {
+      x: width / 2,
+      y: height / 2,
+      scale: 1,
+    }
+  }
+
+  private saveViewport(session: PainterDocumentSession): void {
+    session.viewport = {
+      x: this.board.container.position.x,
+      y: this.board.container.position.y,
+      scale: this.board.container.scale.x,
+    }
+  }
+
+  private restoreViewport(session: PainterDocumentSession): void {
+    this.board.container.position.set(session.viewport.x, session.viewport.y)
+    this.boundingBoxes.position.set(session.viewport.x, session.viewport.y)
+    this.canvas.scaleTo(session.viewport.scale)
+  }
+
+  private cancelActiveStroke(): void {
+    this.brush?.cancelStroke()
+    this.eraser?.cancelStroke()
+  }
+
+  private emitDocumentsChange(): void {
+    if (!this.activeDocumentId)
+      return
+    this.emitter.emit('documents:change', {
+      documents: this.getDocuments(),
+      activeDocumentId: this.activeDocumentId,
+    })
+  }
+
+  private emitActiveDocumentChange(session: PainterDocumentSession): void {
+    this.emitter.emit('active-document:change', {
+      document: this.toDocumentState(session),
+      documents: this.getDocuments(),
+    })
+    this.emitDocumentsChange()
+  }
+
+  private syncSurfaceLayers(layers: RasterLayer[], session = this.requireActiveSession()): void {
     const nextIds = new Set(layers.map(layer => layer.id))
 
-    for (const id of [...this.surfaceLayerIds]) {
+    for (const id of [...session.surfaceLayerIds]) {
       if (!nextIds.has(id)) {
-        this.surface.removeLayer(id)
-        this.surfaceLayerIds.delete(id)
+        session.surface.removeLayer(id)
+        session.surfaceLayerIds.delete(id)
       }
     }
 
     for (const layer of layers) {
-      if (!this.surfaceLayerIds.has(layer.id)) {
-        this.surface.createLayer(layer.id)
-        this.surfaceLayerIds.add(layer.id)
+      if (!session.surfaceLayerIds.has(layer.id)) {
+        session.surface.createLayer(layer.id)
+        session.surfaceLayerIds.add(layer.id)
       }
 
-      this.surface.setLayerState?.(layer.id, {
+      session.surface.setLayerState?.(layer.id, {
         visible: layer.visible,
         opacity: layer.opacity,
         blendMode: layer.blendMode,
         lockAlpha: layer.lockAlpha,
       })
-      this.applyLayerDisplayTransform(layer)
+      this.applyLayerDisplayTransform(layer, session)
     }
 
-    this.surface.reorderLayers?.(layers.map(layer => layer.id))
-    this.syncDisplayMasks(layers)
+    session.surface.reorderLayers?.(layers.map(layer => layer.id))
+    this.syncDisplayMasks(layers, session)
   }
 
   /**
@@ -690,10 +995,10 @@ export class Painter {
    * enabled mask is masked by its (hidden, paintable) mask surface; otherwise a
    * clip layer is masked by the layer directly below.
    */
-  private syncDisplayMasks(layers: RasterLayer[]): void {
-    if (!(this.surface instanceof RenderTextureBackend))
+  private syncDisplayMasks(layers: RasterLayer[], session = this.requireActiveSession()): void {
+    if (!(session.surface instanceof RenderTextureBackend))
       return
-    const rt = this.surface
+    const rt = session.surface
 
     for (let i = 0; i < layers.length; i++) {
       const layer = layers[i]!
@@ -702,7 +1007,7 @@ export class Painter {
       if (layer.mask && !rt.hasLayer(layer.mask.id)) {
         rt.createHiddenLayer(layer.mask.id)
         rt.fillLayerOpaque(layer.mask.id) // fresh mask reveals everything
-        this.maskSurfaceIds.add(layer.mask.id)
+        session.maskSurfaceIds.add(layer.mask.id)
       }
 
       const maskLayerId = layer.mask?.enabled
@@ -713,11 +1018,11 @@ export class Painter {
 
     // release mask surfaces whose layer dropped its mask
     const referenced = new Set(layers.filter(l => l.mask).map(l => l.mask!.id))
-    for (const maskId of [...this.maskSurfaceIds]) {
+    for (const maskId of [...session.maskSurfaceIds]) {
       if (!referenced.has(maskId)) {
         if (rt.hasLayer(maskId))
           rt.removeLayer(maskId)
-        this.maskSurfaceIds.delete(maskId)
+        session.maskSurfaceIds.delete(maskId)
       }
     }
   }
@@ -738,8 +1043,9 @@ export class Painter {
 
   /** Recompute derived clip / mask display textures after pixels change. */
   private refreshDerivedDisplays(): void {
-    if (this.surface instanceof RenderTextureBackend)
-      this.surface.refreshDerivedDisplays()
+    const session = this.requireActiveSession()
+    if (session.surface instanceof RenderTextureBackend)
+      session.surface.refreshDerivedDisplays()
   }
 
   /**
@@ -748,13 +1054,13 @@ export class Painter {
    * back into document / screen space. Painting applies the inverse (see brush
    * `toLayerLocalDab`) so a dab dropped at a document point lands correctly.
    */
-  private applyLayerDisplayTransform(layer: RasterLayer): void {
-    const handle = this.surface.getDisplayHandle(layer.id)
+  private applyLayerDisplayTransform(layer: RasterLayer, session = this.requireActiveSession()): void {
+    const handle = session.surface.getDisplayHandle(layer.id)
     if (!(handle instanceof Sprite || handle instanceof Container))
       return
 
-    const cx = this.surface.width / 2
-    const cy = this.surface.height / 2
+    const cx = session.surface.width / 2
+    const cy = session.surface.height / 2
     const t = layer.transform
 
     if (!t || isIdentityTransform(t)) {
@@ -800,6 +1106,15 @@ function resolvePointerSource(source?: PainterPointerSource): PainterPointerSour
   if (source)
     return source
   return typeof globalThis.PointerEvent === 'function' ? 'dom' : 'pixi'
+}
+
+function normalizeDocumentDimension(value: number): number {
+  if (!Number.isFinite(value))
+    throw new Error('Document dimensions must be finite numbers')
+  const next = Math.round(value)
+  if (next <= 0)
+    throw new Error('Document dimensions must be positive')
+  return next
 }
 
 function createFallbackSurfaceMemorySnapshot(surface: SurfaceBackend): SurfaceMemorySnapshot {

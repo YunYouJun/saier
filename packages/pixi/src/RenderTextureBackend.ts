@@ -664,14 +664,14 @@ function createTextureFromPremultipliedPixels(
 function toStraightAlphaPixels(pixels: Uint8Array): Uint8ClampedArray<ArrayBuffer> {
   const out = new Uint8ClampedArray(pixels.length) as Uint8ClampedArray<ArrayBuffer>
   for (let offset = 0; offset < pixels.length; offset += 4) {
-    const alpha = pixels[offset + 3]
+    const alpha = pixels[offset + 3] ?? 0
     out[offset + 3] = alpha
     if (alpha === 0)
       continue
 
-    out[offset] = Math.min(255, Math.round((pixels[offset] * 255) / alpha))
-    out[offset + 1] = Math.min(255, Math.round((pixels[offset + 1] * 255) / alpha))
-    out[offset + 2] = Math.min(255, Math.round((pixels[offset + 2] * 255) / alpha))
+    out[offset] = Math.min(255, Math.round(((pixels[offset] ?? 0) * 255) / alpha))
+    out[offset + 1] = Math.min(255, Math.round(((pixels[offset + 1] ?? 0) * 255) / alpha))
+    out[offset + 2] = Math.min(255, Math.round(((pixels[offset + 2] ?? 0) * 255) / alpha))
   }
   return out
 }

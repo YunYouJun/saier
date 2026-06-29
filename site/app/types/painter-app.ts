@@ -14,3 +14,9 @@ export type SitePainterMenuCommand
     | 'layer:move-down'
     | 'layer:remove'
     | `tool:${SitePainterTool}`
+
+export interface SiteNewCanvasRequest {
+  name: string
+  width: number
+  height: number
+}

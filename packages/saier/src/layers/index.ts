@@ -320,7 +320,7 @@ export class EditableLayer extends Container {
     this.painter.boundingBoxes.addChild(this.boundingBoxContainer)
   }
 
-  destroy(options?: Parameters<Container['destroy']>[0]): void {
+  override destroy(options?: Parameters<Container['destroy']>[0]): void {
     super.destroy(options)
 
     // destroy bounding box and all children

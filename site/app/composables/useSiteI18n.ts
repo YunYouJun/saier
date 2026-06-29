@@ -94,6 +94,30 @@ interface SiteMessages {
     unavailable: string
     risk: Record<MemoryRiskLevel, string>
   }
+  documents: {
+    tabs: string
+    newCanvas: string
+    closeDocument: string
+    title: string
+    name: string
+    width: string
+    height: string
+    preset: string
+    custom: string
+    create: string
+    cancel: string
+    size: string
+    invalidSize: string
+    defaultName: string
+    presets: {
+      square512: string
+      square1024: string
+      hd: string
+      portrait: string
+      a4: string
+      large4096: string
+    }
+  }
   layers: {
     title: string
     addLayer: string
@@ -209,6 +233,30 @@ const messages: Record<SiteLocale, SiteMessages> = {
         normal: 'Normal',
         watch: 'Watch',
         high: 'High',
+      },
+    },
+    documents: {
+      tabs: 'Files',
+      newCanvas: 'New canvas',
+      closeDocument: 'Close file',
+      title: 'New canvas',
+      name: 'Name',
+      width: 'Width',
+      height: 'Height',
+      preset: 'Preset',
+      custom: 'Custom',
+      create: 'Create',
+      cancel: 'Cancel',
+      size: 'Size',
+      invalidSize: 'Use whole pixels from 64 to 8192.',
+      defaultName: 'Canvas',
+      presets: {
+        square512: 'Square 512',
+        square1024: 'Square 1024',
+        hd: 'HD 16:9',
+        portrait: 'Portrait 9:16',
+        a4: 'A4 300dpi',
+        large4096: 'Large 4096',
       },
     },
     layers: {
@@ -330,6 +378,30 @@ const messages: Record<SiteLocale, SiteMessages> = {
         normal: '正常',
         watch: '关注',
         high: '高',
+      },
+    },
+    documents: {
+      tabs: '文件',
+      newCanvas: '新建画布',
+      closeDocument: '关闭文件',
+      title: '新建画布',
+      name: '名称',
+      width: '宽度',
+      height: '高度',
+      preset: '预设',
+      custom: '自定义',
+      create: '创建',
+      cancel: '取消',
+      size: '尺寸',
+      invalidSize: '请输入 64 到 8192 的整数像素。',
+      defaultName: '画布',
+      presets: {
+        square512: '方形 512',
+        square1024: '方形 1024',
+        hd: '横屏 16:9',
+        portrait: '竖屏 9:16',
+        a4: 'A4 300dpi',
+        large4096: '大画布 4096',
       },
     },
     layers: {

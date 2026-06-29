@@ -52,6 +52,10 @@ const emit = defineEmits<{
       <div class="site-painter__toolbar">
         <slot name="toolbar" />
       </div>
+
+      <div class="site-painter__documents">
+        <slot name="documents" />
+      </div>
     </header>
 
     <main class="site-painter__workspace">
@@ -94,7 +98,7 @@ const emit = defineEmits<{
   display: grid;
   height: 100vh;
   min-height: 0;
-  grid-template-rows: 88px minmax(0, 1fr);
+  grid-template-rows: 126px minmax(0, 1fr);
   overflow: hidden;
   background: #262629;
   color: white;
@@ -103,7 +107,7 @@ const emit = defineEmits<{
 .site-painter__chrome {
   display: grid;
   min-width: 0;
-  grid-template-rows: 44px 44px;
+  grid-template-rows: 44px 44px 38px;
   border-bottom: 1px solid rgb(255 255 255 / 10%);
   background: rgb(18 18 20 / 94%);
 }
@@ -181,6 +185,14 @@ const emit = defineEmits<{
   min-width: 0;
   align-items: center;
   padding: 3px 12px 7px;
+  overflow: hidden;
+}
+
+.site-painter__documents {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  padding: 0 12px 6px;
   overflow: hidden;
 }
 

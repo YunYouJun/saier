@@ -9,6 +9,7 @@ export class PainterCanvas {
   /**
    * for paint graphics
    */
+  documentsContainer = new Container()
   layersContainer = new Container()
 
   /**
@@ -22,6 +23,7 @@ export class PainterCanvas {
   constructor(painter: Painter) {
     this.painter = painter
     this.container.label = 'canvasContainer'
+    this.documentsContainer.label = 'documentsContainer'
     this.layersContainer.label = 'layersContainer'
 
     const { options } = this.painter
@@ -59,8 +61,23 @@ export class PainterCanvas {
     this.container.addChild(canvasBg)
     // container children
     // add it after bg
-    this.container.addChild(this.layersContainer)
+    this.container.addChild(this.documentsContainer)
     this.bindEvents()
+  }
+
+  resizeDocument(width: number, height: number) {
+    PainterBoard.size = { width, height }
+    const rect = [-width / 2, -height / 2, width, height] as const
+
+    this.shape
+      .clear()
+      .rect(...rect)
+      .fill(0xFFFFFF)
+
+    this.background
+      .clear()
+      .rect(...rect)
+      .fill(0xFFFFFF)
   }
 
   bindEvents() {
@@ -94,7 +111,7 @@ export class PainterCanvas {
     const boardContainer = this.painter.board.container
     boardContainer.scale.set(scale)
     this.painter.boundingBoxes.scale.set(scale)
-    this.painter.brush.circle.scale.set(scale)
+    this.painter.brush?.circle.scale.set(scale)
   }
 
   /**

@@ -8,7 +8,11 @@ title: P6-06 · 图层面板 UI（锁透明 / 剪贴 / 蒙版）
 - **Depends on**: P6-01..05、P5-03（Vue 图层面板）
 - **Files**: `packages/vue/components/PainterLayerPanel.vue`、`packages/vue/composables/usePainter.ts`、`site/app/**`、`examples/vue/**`、`test/`
 - **Effort**: M
-- **Status**: 📝 待执行
+- **Status**: ✅ 已完成（锁透明 / 剪贴；蒙版 UI 随显示一并延后）
+
+## Result
+
+`usePainter().layerActions` 暴露 `setLockAlpha` / `setClip`,`PainterLayerPanel.vue` 每个图层行加锁透明、剪贴切换钮(active 高亮、剪贴底层禁用),site 首页 + examples/vue 两个 demo 都接线消费,经 controller(无库静态直写)。**蒙版相关 UI(增删/启停/绘画目标切换)随 P6-04 显示受阻一并延后**;`paintTarget` API 已就绪。typecheck 0 · lint clean。
 
 ## Context
 

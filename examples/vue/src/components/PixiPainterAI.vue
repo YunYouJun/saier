@@ -95,6 +95,8 @@ watch(painter, (p, _previous, onCleanup) => {
         @update:opacity="layerActions.setOpacity"
         @update:blend-mode="layerActions.setBlendMode"
         @update:label="layerActions.setLabel"
+        @update:lock-alpha="layerActions.setLockAlpha"
+        @update:clip="layerActions.setClip"
       />
     </template>
 

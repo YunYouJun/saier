@@ -10,6 +10,8 @@ interface PainterLayerPanelLabels {
   moveUp: string
   moveDown: string
   removeLayer: string
+  lockAlpha: string
+  clip: string
   blendModes: Record<BlendMode, string>
 }
 
@@ -31,6 +33,8 @@ const emit = defineEmits<{
   'update:opacity': [id: string, opacity: number]
   'update:blendMode': [id: string, blendMode: BlendMode]
   'update:label': [id: string, label: string]
+  'update:lockAlpha': [id: string, lockAlpha: boolean]
+  'update:clip': [id: string, clip: boolean]
 }>()
 
 const DEFAULT_LABELS: PainterLayerPanelLabels = {
@@ -41,6 +45,8 @@ const DEFAULT_LABELS: PainterLayerPanelLabels = {
   moveUp: 'Move up',
   moveDown: 'Move down',
   removeLayer: 'Remove layer',
+  lockAlpha: 'Lock transparency',
+  clip: 'Clip to layer below',
   blendModes: {
     normal: 'Normal',
     multiply: 'Multiply',
@@ -148,6 +154,27 @@ function blendModeFromEvent(event: Event): BlendMode {
           <button
             type="button"
             class="painter-layer-panel__icon"
+            :class="{ 'is-on': layer.lockAlpha }"
+            :title="text.lockAlpha"
+            :aria-pressed="layer.lockAlpha"
+            @click="emit('update:lockAlpha', layer.id, !layer.lockAlpha)"
+          >
+            <span :class="layer.lockAlpha ? 'i-ph-lock' : 'i-ph-lock-open'" />
+          </button>
+          <button
+            type="button"
+            class="painter-layer-panel__icon"
+            :class="{ 'is-on': layer.clip }"
+            :title="text.clip"
+            :aria-pressed="layer.clip"
+            :disabled="index <= 0"
+            @click="emit('update:clip', layer.id, !layer.clip)"
+          >
+            <span class="i-ph-arrow-elbow-down-left" />
+          </button>
+          <button
+            type="button"
+            class="painter-layer-panel__icon"
             :title="text.moveUp"
             :disabled="index >= layers.length - 1"
             @click="emit('move', layer.id, index + 1)"
@@ -215,6 +242,11 @@ function blendModeFromEvent(event: Event): BlendMode {
 .painter-layer-panel__icon:disabled {
   cursor: not-allowed;
   opacity: 0.36;
+}
+
+.painter-layer-panel__icon.is-on {
+  border-color: rgb(120 170 255 / 80%);
+  background: rgb(80 120 190 / 40%);
 }
 
 .painter-layer-panel__list {

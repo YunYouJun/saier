@@ -36,6 +36,8 @@ export interface UsePainterReturn {
     setOpacity: (id: string, opacity: number) => void
     setBlendMode: (id: string, blendMode: BlendMode) => void
     setLabel: (id: string, label: string) => void
+    setLockAlpha: (id: string, lockAlpha: boolean) => void
+    setClip: (id: string, clip: boolean) => void
   }
   refreshLayerThumbnails: () => Promise<void>
   refreshMemory: () => Promise<void>
@@ -195,6 +197,12 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     },
     setLabel: (id: string, label: string) => {
       requirePainter()?.controller.layer.setLabel(id, label)
+    },
+    setLockAlpha: (id: string, lockAlpha: boolean) => {
+      requirePainter()?.controller.layer.setLockAlpha(id, lockAlpha)
+    },
+    setClip: (id: string, clip: boolean) => {
+      requirePainter()?.controller.layer.setClip(id, clip)
     },
   }
 

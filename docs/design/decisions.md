@@ -8,17 +8,19 @@ title: Decisions (ADR)
 
 ## 决策速查
 
-| #   | 决策            | 推荐                                                                            | 备选 / 触发切换的条件                                     |
-| --- | --------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| D1  | 显示 / 存储后端 | **P1 用每图层 RenderTexture；P2 再上 256×256 tile**                             | 若一开始就要 20k×20k 画布 / smudge，则直接上 tile（更重） |
-| D2  | 笔刷运算坐标系  | **一律 document space**，与 zoom / DPR 解耦                                     | 无                                                        |
-| D3  | Pixi 版本       | **先迁 v8（WebGL renderer 生产稳定）**                                          | WebGPU 仅作实验开关                                       |
-| D4  | 撤销粒度        | P1 笔迹区域快照；**P2 tile before / after patch**                               | 单张全画布快照 = 禁止                                     |
-| D5  | backend 可替换  | `SurfaceBackend` 接口从 P1 就抽象出来                                           | 无（这是不返工的关键）                                    |
-| D6  | 输入采集        | Pixi federated event 够用；**另留 DOM `getCoalescedEvents()` 接入点**给极致采样 | 无                                                        |
-| D7  | UI 分层         | **面板→Vue/DOM；overlay→pixi；输入+状态→core(headless controller)**             | UI 状态的事实来源禁止搬进框架响应式                       |
-| D8  | 品牌 / 包分层   | **品牌 = `saier`；scope 统一 `@saier/*`；可复用 UI 拆包、`site` 只消费**        | 已发布包实际改名（republish）须维护者确认                 |
-| D9  | 蒙版语义        | **图层蒙版按灰度亮度（luminance）显隐；剪贴（clip）按下层 alpha**               | 纯 alpha 蒙版与主流软件相反、无法表达灰阶柔边             |
+| #   | 决策            | 推荐                                                                                  | 备选 / 触发切换的条件                                                   |
+| --- | --------------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| D1  | 显示 / 存储后端 | **P1 用每图层 RenderTexture；P2 再上 256×256 tile**                                   | 若一开始就要 20k×20k 画布 / smudge，则直接上 tile（更重）               |
+| D2  | 笔刷运算坐标系  | **一律 document space**，与 zoom / DPR 解耦                                           | 无                                                                      |
+| D3  | Pixi 版本       | **先迁 v8（WebGL renderer 生产稳定）**                                                | WebGPU 仅作实验开关                                                     |
+| D4  | 撤销粒度        | P1 笔迹区域快照；**P2 tile before / after patch**                                     | 单张全画布快照 = 禁止                                                   |
+| D5  | backend 可替换  | `SurfaceBackend` 接口从 P1 就抽象出来                                                 | 无（这是不返工的关键）                                                  |
+| D6  | 输入采集        | Pixi federated event 够用；**另留 DOM `getCoalescedEvents()` 接入点**给极致采样       | 无                                                                      |
+| D7  | UI 分层         | **面板→Vue/DOM；overlay→pixi；输入+状态→core(headless controller)**                   | UI 状态的事实来源禁止搬进框架响应式                                     |
+| D8  | 品牌 / 包分层   | **品牌 = `saier`；scope 统一 `@saier/*`；可复用 UI 拆包、`site` 只消费**              | 已发布包实际改名（republish）须维护者确认                               |
+| D9  | 蒙版语义        | **图层蒙版按灰度亮度（luminance）显隐；剪贴（clip）按下层 alpha**                     | 纯 alpha 蒙版与主流软件相反、无法表达灰阶柔边                           |
+| D10 | 取色读回路径    | ✅ **已定**：`SurfaceSampler.sampleRegion` 注入笔刷、CPU tile 原生实现、逐 dab 交错采 | 纯协调器交错为备选（业界均逐 dab 串行）                                 |
+| D11 | 混色后端        | ✅ **已定（方案 A）**：**tile 升为默认绘画后端**；CPU tile = 像素真相、GPU 仅显示     | GPU 混色须自研 renderer（见[末尾](#何时才值得彻底脱离-pixi纯原生重写)） |
 
 ## D1 — RenderTexture 先行，Tile 后置 {#d1}
 
@@ -139,6 +141,38 @@ export function usePainter(painter: Painter) {
 **实现**：单 pass 全屏 quad（`Mesh` + 自定义 `Shader`，仅 `glProgram`，生产 WebGL renderer 够用）采样 content + mask 两张 committedRT，输出 `content × reveal` 进派生 RT，仍 `extract` / 导出安全；剪贴沿用原双 pass erase 合成。自定义 vertex 直接写 clip-space `gl_Position`、绕过 Pixi projection，故 quad 的 UV 行序需匹配 Pixi 其它 RenderTexture 朝向（已用 y 方向单测兜底）。
 
 **代价 / 备选**：纯 alpha 蒙版实现更简单，但与主流软件相反且无法表达灰阶柔边——仅在未来需要「通道 / 矢量蒙版」时再作为独立特性引入。
+
+## D10 — 取色混合的读回路径：SurfaceSampler {#d10}
+
+> ✅ **已定（2026-06-29，据 Krita / MyPaint / SAI 的工业实践）**。涉及 [P7-03](./tasks/P7-03-surface-sampler) / [P7-04](./tasks/P7-04-smudge-engine)。
+
+**背景**：smudge / 取色混合必须**读回画布**（取笔下区域的平均色），但 [`BrushEngine`](./interfaces#笔刷-brush) 的契约是「只产 dab、不知后端」。读回能力要既不污染该契约、又保持 core 与 Pixi 无关（[D5](#d5)）、还可确定性单测。
+
+**业界对照**：MyPaint / Krita / SAI 的混色引擎都**直接读 tile surface**（`get_color()` 取笔下圆盘平均色）、维护一个颜色桶（MyPaint `smudge_state = state·smudge_length + sample·(1−smudge_length)`）、并**逐 dab 串行**取色→混合→落笔。saier 用「注入 `SurfaceSampler`」替代「引擎直接耦合后端」，是保留可测性的等价适配；逐 dab 串行则与业界完全一致（非可选项）。
+
+**决策**：
+
+1. 在 `SurfaceBackend` 增**可选** `sampleRegion?(layerId, rect): RGBA`（返回去预乘的直通色），core 不依赖 Pixi 类型；CPU `TiledSurface` 用现成 `readRegion` 原生实现，GPU 后端不实现（见 [D11](#d11)）。
+2. smudge 引擎通过注入的 `SurfaceSampler` 取色（而非自己持后端句柄），从而可用 fake sampler 纯逻辑单测。
+3. 集成层对 smudge 走**逐 dab 交错**（`sample → mix → paintDab`），让第 N+1 dab 的取色能看到第 N dab 刚落的像素——否则同一 `addPoint` 批内取色读到旧像素，快速描边「拖不动色」。
+
+**理由**：把「读」收口成一个可选纯接口，既不破坏笔刷契约，又让 CPU tile 零成本提供、GPU 显式不提供；逐 dab 交错是「拖色」正确性的必要条件。**确定性**成立：采样是 surface 状态的纯函数，surface 状态确定演化。
+
+**备选**：纯协调器模式（引擎只产「位置 + 动态」，颜色全由协调器采样后填）——更彻底但改动面更大；先用注入式，必要时再演进。
+
+## D11 — tile 升为默认绘画后端，混色在 CPU tile 上做 {#d11}
+
+> ✅ **已定（方案 A，2026-06-29）**。涉及 [P7-00](./tasks/P7-00-tile-default-backend) / [P7-04](./tasks/P7-04-smudge-engine) / [P7-07](./tasks/P7-07-presets-and-ui)。
+
+**背景**：当前默认后端是 GPU `RenderTextureBackend`（tile 后端 `backend: 'tiled'` 为 P2-06 引入的**可选**项）。GPU 后端无廉价像素读回，逐 dab GPU→CPU readback 会毁掉「跟手」。
+
+**业界对照**：与 saier 架构最像、且可考据的桌面绘画引擎——**Krita / MyPaint / SAI——混色全在 CPU tile 上做、GPU 只负责显示**。在 GPU 上做混色的（Photoshop Mixer / Procreate）都各自维护**自研渲染器**（Mercury / Metal，可控 framebuffer ping-pong / compute），不在 Pixi 之上可行。
+
+**决策（方案 A）**：**tile 升为默认绘画后端**——CPU tile 是像素真相、GPU 仅作显示。混色 / smudge / 水彩在 tile 上逐 dab 读-改-写（与 [D1](#d1)「要 smudge 就上 tile」一致）。`RenderTextureBackend` 保留为显式可选 / 实验；若显式选了非 tile 后端，混色笔刷禁用。
+
+**连带工作（已排期为 [P7-00](./tasks/P7-00-tile-default-backend)）**：P6 的剪贴 / 蒙版**显示重算**目前仅接在 `RenderTextureBackend`（`painter.syncDisplayMasks` 内 `instanceof RenderTextureBackend` 门控）。tile 升为默认前，须把剪贴 / 蒙版显示移植到 tile 路径（CPU 合成脏 tile → 上传显示，符合「tile = 真相」），保证切默认后端 P6 不回归。锁透明已是两后端 parity（P6-02），无需移植。
+
+**触发改为 GPU 混色**：满足 [decisions 末尾](#何时才值得彻底脱离-pixi纯原生重写)「自定义 GPU blend / compute brush」条件、且愿维护自研 renderer 时再议。
 
 ---
 

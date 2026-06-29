@@ -158,6 +158,28 @@ title: Tasks
 
 **P6 出口（里程碑 M4 起步）目标**：锁透明只改已有像素不扩边；剪贴层只在下层不透明区显示、导出 = 屏显；蒙版可画黑遮蔽 / 画白露出且独立 undo；缩放 / 旋转图层上落点准确（≤ 1px）。
 
-## 后续阶段（P7+）
+## P7 — 绘画的灵魂：混色 / smudge / 水彩（里程碑 M4）
 
-P7–P9 的任务卡按需续写（`P7-01-*.md` …），参照同一格式与依赖链。优先级与取舍见 [Roadmap](../roadmap) 与 [Risks](../roadmap#risks)。
+> 目标：让笔刷会**取色、混色、晕染**——smudge 拖色、两色自然过渡、水彩湿边 / 纸纹可开关。Roadmap P7：「先 stamp brush（笔尖 mask + spacing + opacity accumulation + blend kernel），再做取色混合」。
+>
+> **已定的两条地基决策**（据 Krita / MyPaint / SAI 工业实践）：取色 = **读回画布像素**，CPU `TiledSurface.readRegion` 廉价、GPU 无廉价读回 → 混色在 CPU tile 上逐 dab 读-改-写（[D10](../decisions#d10)）；**tile 升为默认绘画后端**、CPU tile = 像素真相 / GPU 仅显示（[D11](../decisions#d11) 方案 A）。这引入地基卡 [P7-00](./P7-00-tile-default-backend)——切默认后端 + 把 P6 剪贴 / 蒙版显示移植到 tile。
+>
+> 依赖链：`00`（地基）∥ `01`（模型）先行；`01 →（02,03）`；`02,03 → 04`；`04 → 05`；`02 → 06`；UI `07` 接 00,04；验收 `08` 汇合 00,04..07。先做核心切片 **00 → 01 → 02 → 03 → 04 → 08**（tile 默认 + smudge 拖色即「能用」），水彩 / 纸纹 / UI（05/06/07）为可增量后补。
+
+| ID                                           | 卡片                                     | 包         | Depends on          | Effort |
+| -------------------------------------------- | ---------------------------------------- | ---------- | ------------------- | ------ |
+| [P7-00](./P7-00-tile-default-backend)        | **地基**：tile 默认后端 + P6 显示移植    | pixi+saier | P2-06, P6-03, P6-04 | L      |
+| [P7-01](./P7-01-mixing-model)                | 混色 / 沉积模型（types + preset + ctrl） | core       | P4-01, P2-02        | M      |
+| [P7-02](./P7-02-stamp-deposit-kernel)        | stamp 沉积内核（density/dilution/边缘）  | core       | P7-01, P2-02        | L      |
+| [P7-03](./P7-03-surface-sampler)             | 表面取色采样（`sampleRegion`，[D10]）    | core+pixi  | P7-01, P2-01        | M      |
+| [P7-04](./P7-04-smudge-engine)               | smudge 引擎（取色 + persistence + 自色） | core       | P7-02, P7-03        | L      |
+| [P7-05](./P7-05-watercolor-dilution-wetedge) | 水彩：稀释 + 湿边（wet edge）            | core       | P7-02, P7-04        | L      |
+| [P7-06](./P7-06-paper-texture)               | 纸纹（paper texture）调制                | core       | P7-02               | M      |
+| [P7-07](./P7-07-presets-and-ui)              | 混色预设 + Vue UI（tile 默认，无需切换） | vue+saier  | P7-00, P7-04, P4-05 | M      |
+| [P7-08](./P7-08-verify-mixing)               | P7 验收（拖色/过渡/湿边/纸纹/确定性）    | test       | P7-04..07           | M      |
+
+**P7 出口（里程碑 M4）目标**：smudge 能拖动已有颜色；两色交界自然过渡；湿边 / 纸纹可开关；混色描边可 undo / redo；同输入确定性像素一致。
+
+## 后续阶段（P8+）
+
+P8–P9 的任务卡按需续写（`P8-01-*.md` …），参照同一格式与依赖链。优先级与取舍见 [Roadmap](../roadmap) 与 [Risks](../roadmap#risks)。

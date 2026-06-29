@@ -18,6 +18,7 @@ title: Decisions (ADR)
 | D6  | 输入采集        | Pixi federated event 够用；**另留 DOM `getCoalescedEvents()` 接入点**给极致采样 | 无                                                        |
 | D7  | UI 分层         | **面板→Vue/DOM；overlay→pixi；输入+状态→core(headless controller)**             | UI 状态的事实来源禁止搬进框架响应式                       |
 | D8  | 品牌 / 包分层   | **品牌 = `saier`；scope 统一 `@saier/*`；可复用 UI 拆包、`site` 只消费**        | 已发布包实际改名（republish）须维护者确认                 |
+| D9  | 蒙版语义        | **图层蒙版按灰度亮度（luminance）显隐；剪贴（clip）按下层 alpha**               | 纯 alpha 蒙版与主流软件相反、无法表达灰阶柔边             |
 
 ## D1 — RenderTexture 先行，Tile 后置 {#d1}
 
@@ -123,6 +124,21 @@ export function usePainter(painter: Painter) {
 **执行进度**：① shodo 包名**已修** → `@saier/shodo`（安全、零引用）；② 全部设计文档已统一到 `@saier/*` 口径；③ 新包 `@saier/core` / `@saier/pixi` 在 [P1-01](./tasks/P1-01-scaffold-packages) 建包时落地；④ **已发布包的实际改名已完成**：`packages/pixi-painter → packages/saier`（包名 `pixi-painter → saier`）、`packages/controls → packages/vue`（`@pixi-painter/controls → @saier/vue`），全仓引用 / 别名 / CI 发布路径已切换，typecheck·lint·test·build 全绿。**遗留**：npm 上 `pixi-painter` 的 deprecate alias 包仍待在首次 republish 时发布（纯发布期工作）。
 
 **包拆分（已决定）**：**最小拆分 + lockstep 版本**。只拆承重的一刀——`@saier/core`（无 pixi 依赖）⊥ `@saier/pixi`，让**依赖图**强制"核心与 Pixi 解耦"这个命题（比 lint 可靠）；`core` 内再加 ESLint `no-restricted-imports` 禁 `pixi.js` 作双保险。其余不过度拆：`@saier/shodo` 已是包、`@saier/vue` 可晚点独立、`saier`(umbrella) re-export 串起来。全部 **lockstep 一起 bump**（像 `@vue/*`），消掉独立版本负担、可后续再调。→ [P1-01](./tasks/P1-01-scaffold-packages) 维持原样（core + pixi 两包）。
+
+## D9 — 图层蒙版按灰度亮度显隐，剪贴按下层 alpha {#d9}
+
+**决策**：图层蒙版（layer mask, [P6-04](./tasks/P6-04-layer-mask)）的露出系数取蒙版像素的**灰度亮度**（BT.601 加权 `reveal = dot(maskRGB, vec3(0.299, 0.587, 0.114))`），而**非**直接取蒙版 alpha；剪贴层（clipping, [P6-03](./tasks/P6-03-clipping-layers)）维持**按下层 alpha** 裁切。二者在 `RenderTextureBackend.computeMaskedDisplay` 内按 `DisplayMaskMode`（`'luminance'` / `'alpha'`）分流，由 `painter.syncDisplayMasks` 在 `mask.enabled` / `clip` 分支分别注入。
+
+**理由**：
+
+- **对齐行业心智**：Photoshop / Procreate / SAI2 / Krita（透明度蒙版）/ Clip Studio 的图层蒙版一律「白显、黑遮、灰=部分」的灰度语义，可在蒙版里画灰阶柔边。若改用 alpha，则「在蒙版上画黑色不透明」会变成全显（alpha=1），与所有参考软件相反、违反直觉。
+- **与剪贴正交**：剪贴已按下层 **alpha / 形状** 裁切；蒙版若也用 alpha，则两者语义重叠、难以区分。用亮度让「蒙版=灰度调制」与「剪贴=下层形状」职责清晰。
+- **预乘下天然成立**：Pixi 预乘纹理中蒙版像素 `m=(R·a,G·a,B·a,a)`，`dot(m.rgb, w) = a·straightLuminance`（权重和=1），已把蒙版自身 alpha 折入——「画黑」与「擦空（a=0 ⇒ rgb=0）」都落到 `reveal=0`，两条隐藏路径统一，shader 内无需 un-premultiply。
+- **显示是纯 alpha 衰减**：`out = content × reveal` 等价于内容直 alpha × reveal、直 rgb 不变，非破坏、不改本色，可单 pass GPU 合成。
+
+**实现**：单 pass 全屏 quad（`Mesh` + 自定义 `Shader`，仅 `glProgram`，生产 WebGL renderer 够用）采样 content + mask 两张 committedRT，输出 `content × reveal` 进派生 RT，仍 `extract` / 导出安全；剪贴沿用原双 pass erase 合成。自定义 vertex 直接写 clip-space `gl_Position`、绕过 Pixi projection，故 quad 的 UV 行序需匹配 Pixi 其它 RenderTexture 朝向（已用 y 方向单测兜底）。
+
+**代价 / 备选**：纯 alpha 蒙版实现更简单，但与主流软件相反且无法表达灰阶柔边——仅在未来需要「通道 / 矢量蒙版」时再作为独立特性引入。
 
 ---
 

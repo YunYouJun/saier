@@ -22,9 +22,13 @@ import {
 import {
   BufferImageSource,
   Container,
+  GlProgram,
   Graphics,
+  Mesh,
+  MeshGeometry,
   Rectangle,
   RenderTexture,
+  Shader,
   Sprite,
   Texture,
 } from 'pixi.js'
@@ -42,14 +46,57 @@ export interface RenderTextureBackendOptions {
   height?: number
 }
 
+/**
+ * How a layer's derived display is masked.
+ * - `alpha`: clip by the mask layer's **alpha** — used by clipping layers
+ *   (P6-03): the layer shows only where the layer below is opaque.
+ * - `luminance`: hide/reveal by the mask layer's **grayscale luminance** — used
+ *   by layer masks (P6-04, Photoshop/Procreate semantics): white reveals, black
+ *   conceals, gray = partial. Erasing the mask (alpha→0) also hides.
+ */
+export type DisplayMaskMode = 'alpha' | 'luminance'
+
+// Single-pass luminance compositor (layer masks). A full-screen clip-space quad
+// samples the content + mask RenderTextures at the same UV and outputs
+// `content × luminance(mask)`. The vertex stage writes clip-space `aPosition`
+// straight to `gl_Position` (no Pixi projection), so `aUV`/`positions` below own
+// the orientation — UV row order is chosen to match Pixi's other RenderTextures.
+const LUMINANCE_VERTEX_SRC = `#version 300 es
+in vec2 aPosition;
+in vec2 aUV;
+out vec2 vUV;
+void main() {
+  vUV = aUV;
+  gl_Position = vec4(aPosition, 0.0, 1.0);
+}`
+
+// `content` and `mask` are premultiplied-alpha (Pixi uploads premult), so
+// `dot(mask.rgb, BT.601)` already equals straightLuminance × maskAlpha — it
+// folds in the mask's own coverage, so erasing the mask (alpha→0 ⇒ rgb→0) hides
+// too. `content × reveal` stays premultiplied-correct, hence extract/export-safe.
+const LUMINANCE_FRAGMENT_SRC = `#version 300 es
+precision highp float;
+in vec2 vUV;
+uniform sampler2D uContent;
+uniform sampler2D uMask;
+out vec4 finalColor;
+void main() {
+  vec4 content = texture(uContent, vUV);
+  vec4 mask = texture(uMask, vUV);
+  float reveal = dot(mask.rgb, vec3(0.299, 0.587, 0.114));
+  finalColor = content * reveal;
+}`
+
 interface LayerRecord {
   id: string
   committedRT: RenderTexture
   sprite: Sprite
   lockAlpha: boolean
-  /** when set, the sprite displays `committedRT` clipped by this layer's alpha */
+  /** when set, the sprite displays `committedRT` masked by this layer's pixels */
   displayMaskLayerId?: string
-  /** derived display texture (content × mask alpha), shown instead of committedRT */
+  /** how the mask layer masks this one (default `alpha` = clip; `luminance` = layer mask) */
+  displayMaskMode?: DisplayMaskMode
+  /** derived display texture (content masked), shown instead of committedRT */
   derivedRT?: RenderTexture
 }
 
@@ -115,6 +162,11 @@ export class RenderTextureBackend implements SurfaceBackend {
   private readonly maskSprite: Sprite
   private readonly maskContainer = new Container()
 
+  // Single-pass luminance compositor for layer masks (content × luminance(mask)).
+  private readonly luminanceGeometry: MeshGeometry
+  private readonly luminanceShader: Shader
+  private readonly luminanceMesh: Mesh
+
   constructor(options: RenderTextureBackendOptions) {
     this.renderer = options.renderer
     this.stage = options.stage
@@ -125,6 +177,17 @@ export class RenderTextureBackend implements SurfaceBackend {
     this.maskSprite = new Sprite(Texture.EMPTY)
     this.maskSprite.label = 'saier-mask-temp'
     this.maskContainer.addChild(this.maskSprite)
+
+    this.luminanceGeometry = new MeshGeometry({
+      positions: new Float32Array([-1, -1, 1, -1, 1, 1, -1, 1]),
+      uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+      indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+    })
+    this.luminanceShader = new Shader({
+      glProgram: new GlProgram({ vertex: LUMINANCE_VERTEX_SRC, fragment: LUMINANCE_FRAGMENT_SRC, name: 'saier-luminance-mask' }),
+      resources: { uContent: Texture.EMPTY.source, uMask: Texture.EMPTY.source },
+    })
+    this.luminanceMesh = new Mesh({ geometry: this.luminanceGeometry, shader: this.luminanceShader })
 
     this.strokeRT = this.createRenderTexture()
     this.strokeSprite = new Sprite(this.strokeRT)
@@ -165,14 +228,19 @@ export class RenderTextureBackend implements SurfaceBackend {
   }
 
   /**
-   * Display `layerId` clipped by `maskLayerId`'s alpha (clip layers, layer
-   * masks). Pixi v8 can't use a RenderTexture sprite as an alpha mask, so we
-   * composite a derived texture (content × maskAlpha) and show that — which is
-   * also safe to `extract` for export. Pass `undefined` to show content直接.
+   * Display `layerId` masked by `maskLayerId`. Pixi v8 can't use a RenderTexture
+   * sprite as a live mask, so we composite a derived texture and show that —
+   * which is also safe to `extract` for export.
+   *
+   * `mode` picks the masking semantics: `alpha` (default) clips by the mask
+   * layer's alpha (clip layers); `luminance` hides/reveals by the mask layer's
+   * grayscale luminance (layer masks). Pass `undefined` mask id to show content
+   * directly.
    */
-  setLayerDisplayMask(layerId: string, maskLayerId: string | undefined): void {
+  setLayerDisplayMask(layerId: string, maskLayerId: string | undefined, mode: DisplayMaskMode = 'alpha'): void {
     const layer = this.getLayer(layerId)
     layer.displayMaskLayerId = maskLayerId
+    layer.displayMaskMode = maskLayerId ? mode : undefined
     if (!maskLayerId) {
       layer.sprite.texture = layer.committedRT
       if (layer.derivedRT) {
@@ -218,6 +286,19 @@ export class RenderTextureBackend implements SurfaceBackend {
     }
     const derived = layer.derivedRT ?? (layer.derivedRT = this.createRenderTexture())
 
+    if (layer.displayMaskMode === 'luminance') {
+      // Layer mask: derived = content × luminance(mask), one GPU pass via the
+      // full-screen quad shader. Swapping the source uniforms re-binds the bind
+      // group (Shader.resources setter → BindGroup.setResource); the source
+      // objects are the layers' stable committedRT, only their pixels change.
+      this.luminanceShader.resources.uContent = layer.committedRT.source
+      this.luminanceShader.resources.uMask = maskLayer.committedRT.source
+      this.renderer.render({ container: this.luminanceMesh, target: derived, clear: true, clearColor: [0, 0, 0, 0] })
+      layer.sprite.texture = derived
+      return
+    }
+
+    // Clip layer (alpha): derived = content × maskAlpha via the two-pass erase.
     // pass 1: scratch = opaque white, erased by the mask alpha → (1 − maskAlpha)
     this.renderer.render({ container: this.clearContainer, target: this.maskScratchRT, clear: true, clearColor: [1, 1, 1, 1] })
     this.drawMaskSprite(maskLayer.committedRT, 'erase', this.maskScratchRT, false)
@@ -460,6 +541,9 @@ export class RenderTextureBackend implements SurfaceBackend {
     this.clearContainer.destroy({ children: true })
     this.maskScratchRT.destroy(true)
     this.maskContainer.destroy({ children: true })
+    this.luminanceMesh.destroy()
+    this.luminanceShader.destroy()
+    this.luminanceGeometry.destroy()
   }
 
   private createRenderTexture(): RenderTexture {

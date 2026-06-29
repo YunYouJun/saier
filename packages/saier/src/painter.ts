@@ -1010,10 +1010,14 @@ export class Painter {
         session.maskSurfaceIds.add(layer.mask.id)
       }
 
-      const maskLayerId = layer.mask?.enabled
-        ? layer.mask.id
-        : (layer.clip && belowId ? belowId : undefined)
-      rt.setLayerDisplayMask(layer.id, maskLayerId)
+      // Layer mask → luminance (grayscale: white reveals, black/erased hides).
+      // Clip layer → alpha (shows only where the layer below is opaque).
+      if (layer.mask?.enabled)
+        rt.setLayerDisplayMask(layer.id, layer.mask.id, 'luminance')
+      else if (layer.clip && belowId)
+        rt.setLayerDisplayMask(layer.id, belowId, 'alpha')
+      else
+        rt.setLayerDisplayMask(layer.id, undefined)
     }
 
     // release mask surfaces whose layer dropped its mask

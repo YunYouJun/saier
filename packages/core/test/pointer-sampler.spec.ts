@@ -34,6 +34,41 @@ describe('pointerSampler', () => {
     ])
   })
 
+  it('preserves pen tilt and barrel rotation from coalesced events', () => {
+    const sampler = new PointerSampler({
+      viewport: { toDocument: point => point },
+    })
+
+    const points = sampler.sample(event({
+      getCoalescedEvents: () => [
+        event({
+          clientX: 12,
+          clientY: 24,
+          pressure: 0.75,
+          pointerType: 'pen',
+          tiltX: 18,
+          tiltY: -12,
+          twist: 45,
+          timeStamp: 7,
+        }),
+      ],
+    }))
+
+    expect(points).toEqual([
+      expect.objectContaining({
+        x: 12,
+        y: 24,
+        pressure: 0.75,
+        hasPressure: true,
+        pointerType: 'pen',
+        tiltX: 18,
+        tiltY: -12,
+        twist: 45,
+        time: 7,
+      }),
+    ])
+  })
+
   it('marks mouse input as no-pressure and does not invent 0.5', () => {
     const sampler = new PointerSampler({
       viewport: { toDocument: point => point },

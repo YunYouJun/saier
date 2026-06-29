@@ -1,4 +1,5 @@
 import type { Emitter } from 'mitt'
+import type { LayerTransform } from '../math'
 import type { BlendMode, CreateLayerOptions, RasterLayer } from './RasterLayer'
 import mitt from 'mitt'
 import { createRasterLayer } from './RasterLayer'
@@ -135,6 +136,59 @@ export class Document {
     if (!layer || !next || layer.label === next)
       return
     layer.label = next
+    this.emitChange()
+  }
+
+  setLockAlpha(id: string, lockAlpha: boolean): void {
+    const layer = this.getLayer(id)
+    if (!layer || layer.lockAlpha === lockAlpha)
+      return
+    layer.lockAlpha = lockAlpha
+    this.emitChange()
+  }
+
+  setClip(id: string, clip: boolean): void {
+    const layer = this.getLayer(id)
+    if (!layer || layer.clip === clip)
+      return
+    layer.clip = clip
+    this.emitChange()
+  }
+
+  /** Set (or clear, with `undefined`) a layer's own affine transform. */
+  setTransform(id: string, transform: LayerTransform | undefined): void {
+    const layer = this.getLayer(id)
+    if (!layer)
+      return
+    if (transform)
+      layer.transform = { ...transform }
+    else
+      delete layer.transform
+    this.emitChange()
+  }
+
+  /** Attach a mask to a layer (no-op if one already exists). */
+  attachMask(id: string, maskId = `${id}:mask`): void {
+    const layer = this.getLayer(id)
+    if (!layer || layer.mask)
+      return
+    layer.mask = { id: maskId, enabled: true }
+    this.emitChange()
+  }
+
+  detachMask(id: string): void {
+    const layer = this.getLayer(id)
+    if (!layer || !layer.mask)
+      return
+    delete layer.mask
+    this.emitChange()
+  }
+
+  setMaskEnabled(id: string, enabled: boolean): void {
+    const layer = this.getLayer(id)
+    if (!layer || !layer.mask || layer.mask.enabled === enabled)
+      return
+    layer.mask.enabled = enabled
     this.emitChange()
   }
 

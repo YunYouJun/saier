@@ -1,7 +1,8 @@
 import type { Emitter } from 'mitt'
 import type { BrushPreset, BrushPresetId, BrushPresetSummary } from '../brush'
 import type { CreateLayerOptions, Document, UndoManager } from '../document'
-import type { BlendMode, RasterLayer } from '../document/RasterLayer'
+import type { BlendMode, LayerMaskRef, RasterLayer } from '../document/RasterLayer'
+import type { LayerTransform } from '../math'
 import type { RGBA } from '../types'
 import mitt from 'mitt'
 import {
@@ -32,6 +33,10 @@ export interface PainterLayerState {
   /** Layer opacity in `0..1`. */
   opacity: number
   blendMode: BlendMode
+  lockAlpha: boolean
+  clip: boolean
+  transform?: LayerTransform
+  mask?: LayerMaskRef
 }
 
 export interface PainterHistoryState {
@@ -94,6 +99,12 @@ export class PainterController {
     setOpacity: (id: string, opacity: number) => this.setLayerOpacity(id, opacity),
     setBlendMode: (id: string, blendMode: BlendMode) => this.setLayerBlendMode(id, blendMode),
     setLabel: (id: string, label: string) => this.setLayerLabel(id, label),
+    setLockAlpha: (id: string, lockAlpha: boolean) => this.setLayerLockAlpha(id, lockAlpha),
+    setClip: (id: string, clip: boolean) => this.setLayerClip(id, clip),
+    setTransform: (id: string, transform: LayerTransform | undefined) => this.setLayerTransform(id, transform),
+    addMask: (id: string, maskId?: string) => this.addLayerMask(id, maskId),
+    removeMask: (id: string) => this.removeLayerMask(id),
+    setMaskEnabled: (id: string, enabled: boolean) => this.setLayerMaskEnabled(id, enabled),
   }
 
   private readonly document: Document
@@ -179,6 +190,30 @@ export class PainterController {
 
   setLayerLabel(id: string, label: string): void {
     this.document.setLabel(id, label)
+  }
+
+  setLayerLockAlpha(id: string, lockAlpha: boolean): void {
+    this.document.setLockAlpha(id, lockAlpha)
+  }
+
+  setLayerClip(id: string, clip: boolean): void {
+    this.document.setClip(id, clip)
+  }
+
+  setLayerTransform(id: string, transform: LayerTransform | undefined): void {
+    this.document.setTransform(id, transform)
+  }
+
+  addLayerMask(id: string, maskId?: string): void {
+    this.document.attachMask(id, maskId)
+  }
+
+  removeLayerMask(id: string): void {
+    this.document.detachMask(id)
+  }
+
+  setLayerMaskEnabled(id: string, enabled: boolean): void {
+    this.document.setMaskEnabled(id, enabled)
   }
 
   dispose(): void {
@@ -307,11 +342,19 @@ function snapshotLayer(layer: RasterLayer): PainterLayerState {
     visible: layer.visible,
     opacity: layer.opacity,
     blendMode: layer.blendMode,
+    lockAlpha: layer.lockAlpha,
+    clip: layer.clip,
+    ...(layer.transform ? { transform: { ...layer.transform } } : {}),
+    ...(layer.mask ? { mask: { ...layer.mask } } : {}),
   }
 }
 
 function cloneLayerStates(layers: PainterLayerState[]): PainterLayerState[] {
-  return layers.map(layer => ({ ...layer }))
+  return layers.map(layer => ({
+    ...layer,
+    ...(layer.transform ? { transform: { ...layer.transform } } : {}),
+    ...(layer.mask ? { mask: { ...layer.mask } } : {}),
+  }))
 }
 
 function cloneBrushState(brush: PainterBrushState): PainterBrushState {

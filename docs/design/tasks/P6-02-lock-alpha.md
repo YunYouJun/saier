@@ -8,7 +8,13 @@ title: P6-02 · 锁透明合成（lock alpha）
 - **Depends on**: P6-01、P1-05（RenderTextureBackend）、P2-02（CPU dab 光栅器）
 - **Files**: `packages/core/src/surface/rasterizer.ts`、`packages/core/src/surface/TiledSurface.ts`、`packages/pixi/src/RenderTextureBackend.ts`、`packages/pixi/src/PixiTileTextureBackend.ts`、`packages/core/src/types/surface.ts`、`test/`
 - **Effort**: L
-- **Status**: 📝 待执行
+- **Status**: ✅ 已完成
+
+## Result
+
+`SurfaceLayerState.lockAlpha` 进入契约,经 painter `setLayerState` 同步给后端(热路径不查模型)。core `compositeLockAlphaRegion`(预乘 RGBA、保 dst alpha、只重着色已有像素)+ rasterizer `compositeLockAlpha`(逐像素,tile 路径,带 `lockAlpha` 选项,穿过 `TilePatchRecorder`)。RT 后端:锁层强制走 CPU surface 累积笔迹,`endStroke` 用 `compositeLockAlphaRegion(before, strokeRegion)` 合成回图层(`source-atop` 不是 v8 blend mode,故用 CPU)。tile 后端:`rasterizeDab(..., { lockAlpha })` 直绘。验收(两后端 parity,真 WebGL):锁透明下横向不透明红带被竖向蓝笔重着色、alpha 不变、透明区不扩边;undo 还原;core 纯函数单测(满/半/零覆盖、确定性)。门禁:typecheck 0 · lint clean · vitest 846。
+
+**已知限制 / 遗留**:① 锁层的**实时预览**仍显示未裁剪笔迹(提交时才裁剪到 alpha)——预览遮罩留后续;② marker(`max-alpha`)+ 锁透明在 **tile 后端**走 max-alpha 分支、未应用锁(RT 后端因走 CPU 提交则正确)——边缘组合,待统一。
 
 ## Context
 
@@ -26,10 +32,10 @@ title: P6-02 · 锁透明合成（lock alpha）
 
 ## Acceptance
 
-- [ ] 锁透明下：透明区 `alpha` 恒为 0（无扩边），不透明区 `alpha` 不被改变、仅 RGB 变化。
-- [ ] RenderTexture 与 tile 两后端结果 parity。
-- [ ] undo / redo 像素一致。
-- [ ] 锁透明开关即时生效（无需重建图层 / 重画）。
+- [x] 锁透明下：透明区 `alpha` 恒为 0（无扩边），不透明区 `alpha` 不被改变、仅 RGB 变化。
+- [x] RenderTexture 与 tile 两后端结果 parity。
+- [x] undo / redo 像素一致。
+- [x] 锁透明开关即时生效（无需重建图层 / 重画）。
 
 ## Out of scope
 

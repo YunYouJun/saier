@@ -10,6 +10,7 @@ import type {
 import type { Renderer } from 'pixi.js'
 import {
   clampToSize,
+  compositeLockAlphaRegion,
   empty,
   fromCircle,
   isEmpty,
@@ -45,6 +46,7 @@ interface LayerRecord {
   id: string
   committedRT: RenderTexture
   sprite: Sprite
+  lockAlpha: boolean
 }
 
 function rgbaToTint(color: BrushDab['color']): number {
@@ -133,7 +135,7 @@ export class RenderTextureBackend implements SurfaceBackend {
     const sprite = new Sprite(committedRT)
     sprite.label = id
     this.stage.addChild(sprite)
-    this.layers.set(id, { id, committedRT, sprite })
+    this.layers.set(id, { id, committedRT, sprite, lockAlpha: false })
   }
 
   setLayerState(id: string, state: SurfaceLayerState): void {
@@ -144,6 +146,8 @@ export class RenderTextureBackend implements SurfaceBackend {
       layer.sprite.alpha = Math.max(0, Math.min(1, state.opacity))
     if (state.blendMode !== undefined)
       layer.sprite.blendMode = state.blendMode
+    if (state.lockAlpha !== undefined)
+      layer.lockAlpha = state.lockAlpha
   }
 
   reorderLayers(ids: string[]): void {
@@ -201,7 +205,9 @@ export class RenderTextureBackend implements SurfaceBackend {
     if (isEmpty(dirty))
       return dirty
 
-    if (mode === 'normal' && shouldRasterizeDabOnCpu(dab)) {
+    // Locked layers commit on the CPU (lock-alpha blend), so route their dabs
+    // through the CPU surface regardless of brush tip.
+    if (mode === 'normal' && (shouldRasterizeDabOnCpu(dab) || this.getLayer(layerId).lockAlpha)) {
       const surface = this.ensureCpuSurface()
       rasterizeDab(surface, dab, 'normal')
       this.dirty = union(this.dirty, dirty)
@@ -245,13 +251,23 @@ export class RenderTextureBackend implements SurfaceBackend {
 
     this.flushPreviewNow()
     const before = this.extractLayerPixels(layer, rect)
-    this.commitSprite.blendMode = this.strokeMode === 'erase' ? 'erase' : 'normal'
 
-    this.renderer.render({
-      container: this.commitContainer,
-      target: layer.committedRT,
-      clear: false,
-    })
+    if (layer.lockAlpha && this.strokeMode !== 'erase' && this.cpuSurface) {
+      // lock-alpha: blend the (CPU-accumulated) stroke onto existing pixels,
+      // preserving the layer's alpha so transparent areas never gain paint.
+      const stroke = new Uint8Array(this.cpuSurface.readRegion(rect))
+      const composited = compositeLockAlphaRegion(before, stroke)
+      this.eraseRect(layer.committedRT, rect)
+      this.renderPixels(layer.committedRT, rect, composited)
+    }
+    else {
+      this.commitSprite.blendMode = this.strokeMode === 'erase' ? 'erase' : 'normal'
+      this.renderer.render({
+        container: this.commitContainer,
+        target: layer.committedRT,
+        clear: false,
+      })
+    }
 
     const after = this.extractLayerPixels(layer, rect)
 
@@ -400,6 +416,13 @@ export class RenderTextureBackend implements SurfaceBackend {
   }
 
   private extractLayerPixels(layer: LayerRecord, rect: DirtyRect): Uint8Array {
+    // NOTE: extracts via `layer.sprite` to keep the alpha format that
+    // `renderPixels` round-trips through (extracting `committedRT` directly
+    // returns a different premultiplication and breaks undo/redo). For a layer
+    // with a non-identity display transform (P6-05) this snapshot is warped —
+    // a known limitation until transform layers are fully integrated (P6-06+);
+    // such layers aren't user-transformable yet, so undo stays correct in
+    // practice.
     const { pixels } = this.renderer.extract.pixels({
       target: layer.sprite,
       frame: new Rectangle(rect.x, rect.y, rect.width, rect.height),

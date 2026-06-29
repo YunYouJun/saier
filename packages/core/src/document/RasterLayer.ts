@@ -1,3 +1,5 @@
+import type { LayerTransform } from '../math'
+
 /** Display blend mode for a layer (stored pixels stay independent). */
 export type BlendMode
   = | 'normal'
@@ -7,6 +9,17 @@ export type BlendMode
     | 'darken'
     | 'lighten'
     | 'add'
+
+/**
+ * Reference to a layer's mask. The mask pixels live in the
+ * {@link SurfaceBackend} (under a derived id); this only records the link and
+ * whether it currently affects display (P6-04 wires the pixels).
+ */
+export interface LayerMaskRef {
+  /** surface id holding the mask pixels (convention: `${layerId}:mask`) */
+  id: string
+  enabled: boolean
+}
 
 /**
  * The framework-agnostic, **pixel-free** record of a raster layer.
@@ -22,6 +35,14 @@ export interface RasterLayer {
   /** `0..1` */
   opacity: number
   blendMode: BlendMode
+  /** lock transparency: painting only changes existing pixels' colour (P6-02) */
+  lockAlpha: boolean
+  /** clip to the layer below's alpha (P6-03) */
+  clip: boolean
+  /** own affine placement in document space; absent ⇒ identity (P6-05) */
+  transform?: LayerTransform
+  /** optional mask (P6-04) */
+  mask?: LayerMaskRef
 }
 
 export interface CreateLayerOptions {
@@ -30,6 +51,9 @@ export interface CreateLayerOptions {
   visible?: boolean
   opacity?: number
   blendMode?: BlendMode
+  lockAlpha?: boolean
+  clip?: boolean
+  transform?: LayerTransform
 }
 
 export function createRasterLayer(id: string, options: CreateLayerOptions = {}): RasterLayer {
@@ -39,6 +63,9 @@ export function createRasterLayer(id: string, options: CreateLayerOptions = {}):
     visible: options.visible ?? true,
     opacity: clamp01(options.opacity ?? 1),
     blendMode: options.blendMode ?? 'normal',
+    lockAlpha: options.lockAlpha ?? false,
+    clip: options.clip ?? false,
+    ...(options.transform ? { transform: options.transform } : {}),
   }
 }
 

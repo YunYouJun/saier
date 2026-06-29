@@ -9,10 +9,13 @@ import type {
   SurfaceBackend,
   SurfaceMemorySnapshot,
 } from '@saier/core'
+import type { ViewportPoint } from '@saier/pixi'
 import type { PainterCanvas } from './canvas'
+import type { PainterInputOptions, PainterPointerSource } from './input'
 import {
   createDefaultBrushPresetRegistry,
   isEmpty,
+  isIdentityTransform,
   PainterController,
   Document as RasterDocument,
   UndoManager,
@@ -27,6 +30,7 @@ import { createEraser, PainterEraser } from './eraser'
 import { createEmitter } from './event'
 import { PainterHistory } from './features/history'
 import { importImageSprite } from './import'
+import { PainterPointerInput } from './input'
 import { Keyboard } from './keyboard'
 import { EditableLayer } from './layers'
 
@@ -51,6 +55,7 @@ export type PainterTool = typeof PAINTER_TOOLS[number]
 export interface PainterOptions {
   debug?: boolean
   backend?: 'rendertexture' | 'tiled'
+  input?: PainterInputOptions
 
   size?: {
     width: number
@@ -110,6 +115,9 @@ export class Painter {
   controller!: PainterController
   brushRegistry: BrushPresetRegistry = createDefaultBrushPresetRegistry()
   touchGestureRouter!: TouchGestureRouter
+  pointerInput?: PainterPointerInput
+  inputPointerSource: PainterPointerSource = 'pixi'
+  inputDiagnostics = false
   store!: PainterStore
 
   history = new PainterHistory(this)
@@ -176,6 +184,9 @@ export class Painter {
       globalThis.__PIXI_APP__ = app
     }
 
+    this.inputPointerSource = resolvePointerSource(this.options.input?.pointerSource)
+    this.inputDiagnostics = this.options.input?.diagnostics ?? this.debug
+
     // board (created after the renderer exists)
     this.board = new PainterBoard(this)
     const boardContainer = this.board.container
@@ -184,7 +195,7 @@ export class Painter {
     this.setupRasterPipeline()
     this.brush = createBrush(this)
     this.eraser = createEraser(this)
-    const removeTouchGestures = this.setupTouchGestures()
+    const removePointerInput = this.setupPointerInput()
 
     // add canvas to stage to draw
     boardContainer.addChild(this.canvas.container)
@@ -222,7 +233,7 @@ export class Painter {
     const removeWindowListeners = this.addEventListeners()
     this.removeEventListeners = () => {
       removeWindowListeners()
-      removeTouchGestures()
+      removePointerInput()
     }
     this.useTool('brush')
   }
@@ -248,7 +259,23 @@ export class Painter {
 
   removeEventListeners() { }
 
-  setupTouchGestures(): () => void {
+  setupPointerInput(): () => void {
+    if (this.inputPointerSource === 'dom') {
+      this.pointerInput = new PainterPointerInput({
+        painter: this,
+        diagnostics: this.inputDiagnostics,
+      })
+      this.pointerInput.start()
+      return () => {
+        this.pointerInput?.destroy()
+        this.pointerInput = undefined
+      }
+    }
+
+    return this.setupPixiTouchGestures()
+  }
+
+  setupPixiTouchGestures(): () => void {
     const canvas = this.app.canvas
     const localEvent = (event: PointerEvent) => {
       const rect = canvas.getBoundingClientRect()
@@ -262,25 +289,8 @@ export class Painter {
 
     this.touchGestureRouter = new TouchGestureRouter({
       viewport: {
-        panBy: (dx, dy) => {
-          this.board.container.position.set(
-            this.board.container.position.x + dx,
-            this.board.container.position.y + dy,
-          )
-          this.boundingBoxes.position.set(
-            this.boundingBoxes.position.x + dx,
-            this.boundingBoxes.position.y + dy,
-          )
-        },
-        zoomAt: (point, scaleFactor) => {
-          const board = this.board.container
-          const scale = Math.max(board.scale.x * scaleFactor, this.board.minScale)
-          const docX = (point.x - board.position.x) / board.scale.x
-          const docY = (point.y - board.position.y) / board.scale.y
-          board.position.set(point.x - docX * scale, point.y - docY * scale)
-          this.boundingBoxes.position.set(board.position.x, board.position.y)
-          this.canvas.scaleTo(scale)
-        },
+        panBy: (dx, dy) => this.panViewportBy(dx, dy),
+        zoomAt: (point, scaleFactor) => this.zoomViewportAt(point, scaleFactor),
       },
       onStrokeCancel: () => {
         this.brush.cancelStroke()
@@ -308,11 +318,36 @@ export class Painter {
   }
 
   isTouchGestureActive(): boolean {
-    return this.touchGestureRouter?.isGestureActive ?? false
+    return this.pointerInput?.isTouchGestureActive
+      ?? this.touchGestureRouter?.isGestureActive
+      ?? false
   }
 
   activeTouchCount(): number {
-    return this.touchGestureRouter?.activeTouchCount ?? 0
+    return this.pointerInput?.activeTouchCount
+      ?? this.touchGestureRouter?.activeTouchCount
+      ?? 0
+  }
+
+  panViewportBy(dx: number, dy: number): void {
+    this.board.container.position.set(
+      this.board.container.position.x + dx,
+      this.board.container.position.y + dy,
+    )
+    this.boundingBoxes.position.set(
+      this.boundingBoxes.position.x + dx,
+      this.boundingBoxes.position.y + dy,
+    )
+  }
+
+  zoomViewportAt(point: ViewportPoint, scaleFactor: number): void {
+    const board = this.board.container
+    const scale = Math.max(board.scale.x * scaleFactor, this.board.minScale)
+    const docX = (point.x - board.position.x) / board.scale.x
+    const docY = (point.y - board.position.y) / board.scale.y
+    board.position.set(point.x - docX * scale, point.y - docY * scale)
+    this.boundingBoxes.position.set(board.position.x, board.position.y)
+    this.canvas.scaleTo(scale)
   }
 
   setupRasterPipeline() {
@@ -623,23 +658,47 @@ export class Painter {
       if (!this.surfaceLayerIds.has(layer.id)) {
         this.surface.createLayer(layer.id)
         this.surfaceLayerIds.add(layer.id)
-        this.positionSurfaceLayer(layer.id)
       }
 
       this.surface.setLayerState?.(layer.id, {
         visible: layer.visible,
         opacity: layer.opacity,
         blendMode: layer.blendMode,
+        lockAlpha: layer.lockAlpha,
       })
+      this.applyLayerDisplayTransform(layer)
     }
 
     this.surface.reorderLayers?.(layers.map(layer => layer.id))
   }
 
-  private positionSurfaceLayer(layerId: string): void {
-    const handle = this.surface.getDisplayHandle(layerId)
-    if (handle instanceof Sprite || handle instanceof Container)
-      handle.position.set(-this.surface.width / 2, -this.surface.height / 2)
+  /**
+   * Place the layer's display handle. Layer pixels live in layer-local space; the
+   * forward {@link LayerTransform} (plus the document-centering offset) maps them
+   * back into document / screen space. Painting applies the inverse (see brush
+   * `toLayerLocalDab`) so a dab dropped at a document point lands correctly.
+   */
+  private applyLayerDisplayTransform(layer: RasterLayer): void {
+    const handle = this.surface.getDisplayHandle(layer.id)
+    if (!(handle instanceof Sprite || handle instanceof Container))
+      return
+
+    const cx = this.surface.width / 2
+    const cy = this.surface.height / 2
+    const t = layer.transform
+
+    if (!t || isIdentityTransform(t)) {
+      handle.pivot.set(0, 0)
+      handle.scale.set(1, 1)
+      handle.rotation = 0
+      handle.position.set(-cx, -cy)
+      return
+    }
+
+    handle.pivot.set(t.anchorX, t.anchorY)
+    handle.scale.set(t.scaleX, t.scaleY)
+    handle.rotation = t.rotation
+    handle.position.set(t.x - cx, t.y - cy)
   }
 
   private createMemorySnapshot(browser?: BrowserMemorySnapshot): PainterMemorySnapshot {
@@ -665,6 +724,12 @@ export function createPainter(options: PainterOptions): Painter {
   statement()
 
   return new Painter(options)
+}
+
+function resolvePointerSource(source?: PainterPointerSource): PainterPointerSource {
+  if (source)
+    return source
+  return typeof globalThis.PointerEvent === 'function' ? 'dom' : 'pixi'
 }
 
 function createFallbackSurfaceMemorySnapshot(surface: SurfaceBackend): SurfaceMemorySnapshot {

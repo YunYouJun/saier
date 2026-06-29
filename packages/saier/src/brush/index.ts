@@ -19,6 +19,7 @@ import {
 import { Graphics, Point } from 'pixi.js'
 import { PainterEraser } from '../eraser'
 import { painterColorToRGBA } from '../utils/color'
+import { toLayerLocalDab } from '../utils/transform'
 
 export interface BrushOptions {
   renderTexture?: PIXI.RenderTexture
@@ -71,20 +72,28 @@ export class PainterBrush {
   engine!: BrushEngine
   stabilizer = this.createStabilizer()
   private animationFrameId: number | null = null
+  private readonly handlePointerDown = (event: PIXI.FederatedPointerEvent) => this.pointerDown(event)
+  private readonly handlePointerUp = (event: PIXI.FederatedPointerEvent) => this.pointerUp(event)
+  private readonly handlePointerMove = (event: PIXI.FederatedPointerEvent) => this.pointerMove(event)
+  private readonly handlePointerOut = (event: PIXI.FederatedPointerEvent) => this.pointerOut(event)
+  private readonly handlePointerEnter = (event: PIXI.FederatedPointerEvent) => this.pointerEnter(event)
 
   /**
    * setup brush events
    * @inner
    */
   setup(painter: Painter) {
+    if (painter.inputPointerSource !== 'pixi')
+      return
+
     const { app } = painter
     app.stage
-      .on('pointerdown', this.pointerDown.bind(this))
-      .on('pointerup', this.pointerUp.bind(this))
-      .on('pointerupoutside', this.pointerUp.bind(this))
-      .on('pointermove', this.pointerMove.bind(this))
-      .on('pointerout', this.pointerOut.bind(this))
-      .on('pointerenter', this.pointerEnter.bind(this))
+      .on('pointerdown', this.handlePointerDown)
+      .on('pointerup', this.handlePointerUp)
+      .on('pointerupoutside', this.handlePointerUp)
+      .on('pointermove', this.handlePointerMove)
+      .on('pointerout', this.handlePointerOut)
+      .on('pointerenter', this.handlePointerEnter)
   }
 
   painter: Painter
@@ -146,12 +155,37 @@ export class PainterBrush {
     this.startTicker()
   }
 
+  beginDocumentStroke(point: BrushInputPoint, pointerId: number): boolean {
+    if (!PainterBrush.enabled || this.dragging)
+      return false
+
+    const layerId = this.requireActiveLayerId()
+    const { brush } = this.painter.controller.getState()
+    this.engine = this.createEngine()
+    this.stabilizer = this.createStabilizer()
+    this.engine.beginStroke({ color: brush.color, baseSize: brush.size })
+    this.painter.surface.beginStroke(layerId)
+    this.strokeLayerId = layerId
+    this.activePointerId = pointerId
+    this.dragging = true
+    this.paintDocumentPoint(point)
+    this.startTicker()
+    return true
+  }
+
   pointerMove(event: PIXI.FederatedPointerEvent) {
     if (!PainterBrush.enabled)
       return
 
     if (this.dragging && this.isActivePointer(event) && !this.shouldIgnoreTouchGesture(event))
       this.paintPoint(event)
+  }
+
+  moveDocumentStroke(point: BrushInputPoint, pointerId: number): void {
+    if (!PainterBrush.enabled || !this.dragging || this.activePointerId !== pointerId)
+      return
+
+    this.paintDocumentPoint(point)
   }
 
   pointerUp(_event: PIXI.FederatedPointerEvent) {
@@ -162,6 +196,24 @@ export class PainterBrush {
     if (!this.dragging || !layerId || !this.isActivePointer(_event))
       return
 
+    this.finishStroke(layerId)
+  }
+
+  endDocumentStroke(pointerId: number, finalPoint?: BrushInputPoint): void {
+    if (!PainterBrush.enabled)
+      return
+
+    const layerId = this.strokeLayerId
+    if (!this.dragging || !layerId || this.activePointerId !== pointerId)
+      return
+
+    if (finalPoint)
+      this.moveDocumentStroke(finalPoint, pointerId)
+
+    this.finishStroke(layerId)
+  }
+
+  private finishStroke(layerId: string): void {
     this.dragging = false
     this.stopTicker()
     this.lastDrawnPoint = null
@@ -274,12 +326,19 @@ export class PainterBrush {
       return
 
     const point = this.toDocumentPoint(x, y, pressure, time, pointerType)
-    for (const sampled of this.stabilizer.push(point)) {
-      this.paintDabs(layerId, this.engine.addPoint(sampled))
-    }
+    this.paintDocumentPoint(point)
 
     this.lastDrawnPoint = this.lastDrawnPoint || new Point()
     this.lastDrawnPoint.set(x, y)
+  }
+
+  paintDocumentPoint(point: BrushInputPoint): void {
+    const layerId = this.strokeLayerId
+    if (!layerId)
+      return
+
+    for (const sampled of this.stabilizer.push(this.normalizeDocumentPoint(point)))
+      this.paintDabs(layerId, this.engine.addPoint(sampled))
   }
 
   toDocumentPoint(
@@ -363,16 +422,18 @@ export class PainterBrush {
     this.graphics?.destroy()
     this.painter.controller.off('brush:change', this.handleBrushChange)
     const { app } = this.painter
-    app.stage.off('pointerdown', this.pointerDown.bind(this))
-    app.stage.off('pointerup', this.pointerUp.bind(this))
-    app.stage.off('pointerupoutside', this.pointerUp.bind(this))
-    app.stage.off('pointermove', this.pointerMove.bind(this))
-    app.stage.off('pointerout', this.pointerOut.bind(this))
+    app.stage.off('pointerdown', this.handlePointerDown)
+    app.stage.off('pointerup', this.handlePointerUp)
+    app.stage.off('pointerupoutside', this.handlePointerUp)
+    app.stage.off('pointermove', this.handlePointerMove)
+    app.stage.off('pointerout', this.handlePointerOut)
+    app.stage.off('pointerenter', this.handlePointerEnter)
   }
 
   private paintDabs(layerId: string, dabs: BrushDab[]): void {
+    const transform = this.painter.document.getLayer(layerId)?.transform
     for (const dab of dabs)
-      this.painter.surface.paintDab(layerId, dab, 'normal')
+      this.painter.surface.paintDab(layerId, toLayerLocalDab(dab, transform), 'normal')
   }
 
   private startTicker(): void {
@@ -391,6 +452,17 @@ export class PainterBrush {
 
   private eventToCanvasLocal(event: PIXI.FederatedPointerEvent): PIXI.Point {
     return this.parentContainer.toLocal(event.global)
+  }
+
+  private normalizeDocumentPoint(point: BrushInputPoint): BrushInputPoint {
+    const pressure = PainterBrush.enablePressure ? point.pressure : 0
+    const pointerType = point.pointerType ?? 'pen'
+    return {
+      ...point,
+      pressure,
+      hasPressure: this.hasPressure(pressure, pointerType) && point.hasPressure !== false,
+      pointerType,
+    }
   }
 
   private readonly handleAnimationFrame = (now: number) => {

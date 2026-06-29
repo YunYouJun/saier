@@ -4,7 +4,7 @@ import type {
   PainterLayerState,
   PainterMemorySnapshot,
 } from '@saier/core'
-import type { Painter, PainterOptions } from 'saier'
+import type { Painter, PainterInputSnapshot, PainterOptions } from 'saier'
 import type { ComputedRef, Ref, ShallowRef } from 'vue'
 import { createPainter } from 'saier'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
@@ -23,6 +23,7 @@ export interface UsePainterReturn {
   painter: ShallowRef<Painter | undefined>
   state: ShallowRef<PainterControllerState | undefined>
   memory: ShallowRef<PainterMemorySnapshot | undefined>
+  input: ShallowRef<PainterInputSnapshot | undefined>
   layers: ComputedRef<PainterLayerState[]>
   activeLayerId: ComputedRef<string | null>
   layerThumbnails: ShallowRef<Record<string, string>>
@@ -45,6 +46,7 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
   const painter = shallowRef<Painter>()
   const state = shallowRef<PainterControllerState>()
   const memory = shallowRef<PainterMemorySnapshot>()
+  const input = shallowRef<PainterInputSnapshot>()
   const layerThumbnails = shallowRef<Record<string, string>>({})
 
   const layers = computed(() => state.value?.layers ?? [])
@@ -141,16 +143,21 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
       bindController(p, updateLayers)
       updateLayers()
     }
+    const updateInput = (snapshot: PainterInputSnapshot) => {
+      input.value = snapshot
+    }
 
     bindController(p, updateLayers)
     p.emitter.on('brush:up', updateLayers)
     p.emitter.on('eraser:up', updateLayers)
     p.emitter.on('canvas:clear', handleCanvasClear)
+    p.emitter.on('input:pointer', updateInput)
 
     removePainterListeners = () => {
       p.emitter.off('brush:up', updateLayers)
       p.emitter.off('eraser:up', updateLayers)
       p.emitter.off('canvas:clear', handleCanvasClear)
+      p.emitter.off('input:pointer', updateInput)
     }
   }
 
@@ -229,6 +236,7 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     painter.value = undefined
     state.value = undefined
     memory.value = undefined
+    input.value = undefined
     layerThumbnails.value = {}
   })
 
@@ -237,6 +245,7 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     painter,
     state,
     memory,
+    input,
     layers,
     activeLayerId,
     layerThumbnails,

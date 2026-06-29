@@ -43,6 +43,8 @@ export interface SurfaceLayerState {
   /** display opacity in `0..1`; stored pixels remain unchanged */
   opacity?: number
   blendMode?: BlendMode
+  /** lock transparency: strokes only recolour existing pixels (P6-02) */
+  lockAlpha?: boolean
 }
 
 /**

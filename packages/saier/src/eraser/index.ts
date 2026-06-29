@@ -1,8 +1,9 @@
-import type { BrushInputPoint } from '@saier/core'
+import type { BrushDab, BrushInputPoint } from '@saier/core'
 import type * as PIXI from 'pixi.js'
 import type { Painter } from '../painter'
 import { isEmpty, SimpleBrushEngine, Stabilizer } from '@saier/core'
 import { Point } from 'pixi.js'
+import { toLayerLocalDab } from '../utils/transform'
 
 export class PainterEraser {
   static index = 0
@@ -36,6 +37,11 @@ export class PainterEraser {
   strokeLayerId: string | null = null
   engine = this.createEngine()
   stabilizer = this.createStabilizer()
+  private readonly handlePointerDown = (event: PIXI.FederatedPointerEvent) => this.pointerDown(event)
+  private readonly handlePointerUp = (event: PIXI.FederatedPointerEvent) => this.pointerUp(event)
+  private readonly handlePointerMove = (event: PIXI.FederatedPointerEvent) => this.pointerMove(event)
+  private readonly handlePointerOut = (event: PIXI.FederatedPointerEvent) => this.pointerOut(event)
+  private readonly handlePointerEnter = (event: PIXI.FederatedPointerEvent) => this.pointerEnter(event)
 
   /**
    * mounted to container
@@ -47,14 +53,17 @@ export class PainterEraser {
    * @inner
    */
   setup(painter: Painter) {
+    if (painter.inputPointerSource !== 'pixi')
+      return
+
     const { app } = painter
     app.stage
-      .on('pointerdown', this.pointerDown.bind(this))
-      .on('pointerup', this.pointerUp.bind(this))
-      .on('pointerupoutside', this.pointerUp.bind(this))
-      .on('pointermove', this.pointerMove.bind(this))
-      .on('pointerout', this.pointerOut.bind(this))
-      .on('pointerenter', this.pointerEnter.bind(this))
+      .on('pointerdown', this.handlePointerDown)
+      .on('pointerup', this.handlePointerUp)
+      .on('pointerupoutside', this.handlePointerUp)
+      .on('pointermove', this.handlePointerMove)
+      .on('pointerout', this.handlePointerOut)
+      .on('pointerenter', this.handlePointerEnter)
   }
 
   painter: Painter
@@ -90,12 +99,38 @@ export class PainterEraser {
     this.pointerMove(event)
   }
 
+  beginDocumentStroke(point: BrushInputPoint, pointerId: number): boolean {
+    if (!PainterEraser.enabled || this.dragging)
+      return false
+
+    const layerId = this.requireActiveLayerId()
+    this.engine = this.createEngine()
+    this.stabilizer = this.createStabilizer()
+    this.engine.beginStroke({
+      color: { r: 1, g: 1, b: 1, a: 1 },
+      baseSize: PainterEraser.size,
+    })
+    this.painter.surface.beginStroke(layerId)
+    this.strokeLayerId = layerId
+    this.activePointerId = pointerId
+    this.dragging = true
+    this.paintDocumentPoint(point)
+    return true
+  }
+
   pointerMove(event: PIXI.FederatedPointerEvent) {
     if (!PainterEraser.enabled)
       return
 
     if (this.dragging && this.isActivePointer(event) && !this.shouldIgnoreTouchGesture(event))
       this.paintPoint(event)
+  }
+
+  moveDocumentStroke(point: BrushInputPoint, pointerId: number): void {
+    if (!PainterEraser.enabled || !this.dragging || this.activePointerId !== pointerId)
+      return
+
+    this.paintDocumentPoint(point)
   }
 
   pointerUp(_event: PIXI.FederatedPointerEvent) {
@@ -106,17 +141,33 @@ export class PainterEraser {
     if (!this.dragging || !layerId || !this.isActivePointer(_event))
       return
 
+    this.finishStroke(layerId)
+  }
+
+  endDocumentStroke(pointerId: number, finalPoint?: BrushInputPoint): void {
+    if (!PainterEraser.enabled)
+      return
+
+    const layerId = this.strokeLayerId
+    if (!this.dragging || !layerId || this.activePointerId !== pointerId)
+      return
+
+    if (finalPoint)
+      this.moveDocumentStroke(finalPoint, pointerId)
+
+    this.finishStroke(layerId)
+  }
+
+  private finishStroke(layerId: string): void {
     this.dragging = false
     this.lastDrawnPoint = null
     this.strokeLayerId = null
     this.activePointerId = null
 
     for (const point of this.stabilizer.flush()) {
-      for (const dab of this.engine.addPoint(point))
-        this.painter.surface.paintDab(layerId, dab, 'erase')
+      this.paintDabs(layerId, this.engine.addPoint(point))
     }
-    for (const dab of this.engine.endStroke())
-      this.painter.surface.paintDab(layerId, dab, 'erase')
+    this.paintDabs(layerId, this.engine.endStroke())
     const patch = this.painter.surface.endStroke(layerId)
     this.painter.emitter.emit('eraser:up')
     this.painter.recordStrokePatch(patch)
@@ -165,13 +216,19 @@ export class PainterEraser {
       return
 
     const point = this.toDocumentPoint(x, y, pressure, time, pointerType)
-    for (const sampled of this.stabilizer.push(point)) {
-      for (const dab of this.engine.addPoint(sampled))
-        this.painter.surface.paintDab(layerId, dab, 'erase')
-    }
+    this.paintDocumentPoint(point)
 
     this.lastDrawnPoint = this.lastDrawnPoint || new Point()
     this.lastDrawnPoint.set(x, y)
+  }
+
+  paintDocumentPoint(point: BrushInputPoint): void {
+    const layerId = this.strokeLayerId
+    if (!layerId)
+      return
+
+    for (const sampled of this.stabilizer.push(this.normalizeDocumentPoint(point)))
+      this.paintDabs(layerId, this.engine.addPoint(sampled))
   }
 
   toDocumentPoint(
@@ -240,15 +297,36 @@ export class PainterEraser {
   destroy() {
     this.graphics?.destroy()
     const { app } = this.painter
-    app.stage.off('pointerdown', this.pointerDown.bind(this))
-    app.stage.off('pointerup', this.pointerUp.bind(this))
-    app.stage.off('pointerupoutside', this.pointerUp.bind(this))
-    app.stage.off('pointermove', this.pointerMove.bind(this))
-    app.stage.off('pointerout', this.pointerOut.bind(this))
+    app.stage.off('pointerdown', this.handlePointerDown)
+    app.stage.off('pointerup', this.handlePointerUp)
+    app.stage.off('pointerupoutside', this.handlePointerUp)
+    app.stage.off('pointermove', this.handlePointerMove)
+    app.stage.off('pointerout', this.handlePointerOut)
+    app.stage.off('pointerenter', this.handlePointerEnter)
   }
 
   private eventToCanvasLocal(event: PIXI.FederatedPointerEvent): PIXI.Point {
     return this.parentContainer.toLocal(event.global)
+  }
+
+  private paintDabs(layerId: string, dabs: BrushDab[]): void {
+    const transform = this.painter.document.getLayer(layerId)?.transform
+    for (const dab of dabs)
+      this.painter.surface.paintDab(layerId, toLayerLocalDab(dab, transform), 'erase')
+  }
+
+  private normalizeDocumentPoint(point: BrushInputPoint): BrushInputPoint {
+    const pressure = PainterEraser.enablePressure ? point.pressure : 0
+    const pointerType = point.pointerType ?? 'pen'
+    return {
+      ...point,
+      pressure,
+      hasPressure: PainterEraser.enablePressure
+        && pointerType !== 'mouse'
+        && pressure > 0
+        && point.hasPressure !== false,
+      pointerType,
+    }
   }
 }
 

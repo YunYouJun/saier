@@ -17,6 +17,7 @@ const exportPreview = shallowRef<string>()
 const {
   activeLayerId,
   canvas: srcCanvas,
+  input,
   layerActions,
   layerThumbnails,
   layers,
@@ -311,8 +312,9 @@ function formatBytes(bytes: number): string {
 
     <template #diagnostics>
       <SitePainterDiagnostics
-        v-if="showDiagnostics && memory"
+        v-if="showDiagnostics && (memory || input)"
         :memory="memory"
+        :input="input"
         :labels="text.memory"
       />
     </template>

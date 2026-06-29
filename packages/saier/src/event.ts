@@ -1,4 +1,5 @@
 import type { PainterAction } from './features/history'
+import type { PainterInputSnapshot } from './input'
 import type { EditableLayer } from './layers'
 import mitt from 'mitt'
 
@@ -25,6 +26,9 @@ export function createEmitter() {
 
     // history
     'history:record': PainterAction
+
+    // input
+    'input:pointer': PainterInputSnapshot
 
     // document
     'canvas:clear': void

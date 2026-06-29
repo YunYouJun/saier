@@ -8,7 +8,11 @@ title: P6-01 · 图层属性模型（锁透明 / 剪贴 / 蒙版 / transform）
 - **Depends on**: P1-04、P5-01
 - **Files**: `packages/core/src/document/RasterLayer.ts`、`packages/core/src/document/Document.ts`、`packages/core/src/controller/PainterController.ts`、`packages/core/src/math/**`、`test/`
 - **Effort**: M
-- **Status**: 📝 待执行
+- **Status**: ✅ 已完成
+
+## Result
+
+`RasterLayer` 扩了 `lockAlpha` / `clip` / `transform?` / `mask?`(默认 unlocked / unclipped / identity / 无蒙版);新增 `math/transform.ts`(`LayerTransform` + `composeLayerMatrix` / `invertMatrix` / `documentToLayer` / `layerToDocument` / `isIdentityTransform`,纯函数确定性)。`Document` 加 `setLockAlpha` / `setClip` / `setTransform` / `attachMask` / `detachMask` / `setMaskEnabled`(clamp + no-op 不重复 emit);`PainterController.layer` 暴露对应命令,`PainterLayerState` 快照带上新字段(transform / mask 深拷贝)。单测覆盖矩阵互逆(误差 < 1e-6)、identity、奇异矩阵抛错、确定性、各 setter 的 emit/no-op、controller 转发与防御性快照。门禁:typecheck 0 · lint clean · vitest 全绿。
 
 ## Context
 
@@ -31,10 +35,10 @@ P6 的四个能力（锁透明 / 剪贴 / 蒙版 / 带 transform 图层绘画）
 
 ## Acceptance
 
-- [ ] `RasterLayer` 含 `lockAlpha/clip/transform/mask` 且有合理默认值。
-- [ ] `documentToLayer` / `layerToDocument` 在平移 + 缩放 + 旋转组合下互逆（误差 < 1e-6）。
-- [ ] 所有新属性变更都经 controller → `Document` → `layers:change`，UI 只读 snapshot。
-- [ ] 无 Pixi 依赖（`@saier/core` 仍禁 `pixi.js` import）。
+- [x] `RasterLayer` 含 `lockAlpha/clip/transform/mask` 且有合理默认值。
+- [x] `documentToLayer` / `layerToDocument` 在平移 + 缩放 + 旋转组合下互逆（误差 < 1e-6）。
+- [x] 所有新属性变更都经 controller → `Document` → `layers:change`，UI 只读 snapshot。
+- [x] 无 Pixi 依赖（`@saier/core` 仍禁 `pixi.js` import）。
 
 ## Out of scope
 

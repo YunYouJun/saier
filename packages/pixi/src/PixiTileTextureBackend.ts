@@ -42,6 +42,7 @@ interface TileLayerRecord {
   surface: TiledSurface
   recorder: TilePatchRecorder
   displays: Map<string, TileDisplay>
+  lockAlpha: boolean
 }
 
 export class PixiTileTextureBackend implements SurfaceBackend {
@@ -87,6 +88,7 @@ export class PixiTileTextureBackend implements SurfaceBackend {
       surface,
       recorder,
       displays: new Map(),
+      lockAlpha: false,
     })
   }
 
@@ -98,6 +100,8 @@ export class PixiTileTextureBackend implements SurfaceBackend {
       layer.container.alpha = Math.max(0, Math.min(1, state.opacity))
     if (state.blendMode !== undefined)
       layer.container.blendMode = state.blendMode
+    if (state.lockAlpha !== undefined)
+      layer.lockAlpha = state.lockAlpha
   }
 
   reorderLayers(ids: string[]): void {
@@ -140,7 +144,7 @@ export class PixiTileTextureBackend implements SurfaceBackend {
     this.strokeMode = mode
 
     const layer = this.getLayer(layerId)
-    const dirty = layer.recorder.paintDab(dab, mode)
+    const dirty = layer.recorder.paintDab(dab, mode, layer.lockAlpha)
     if (!isEmpty(dirty))
       this.scheduleFlush()
     return dirty

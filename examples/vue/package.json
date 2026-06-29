@@ -12,6 +12,7 @@
     "vue": "^3.5.38"
   },
   "devDependencies": {
+    "@advjs/gui": "^0.1.0-beta.1",
     "@vitejs/plugin-vue": "^6.0.7",
     "typescript": "^5.9.3",
     "unocss": "^66.7.2",

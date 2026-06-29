@@ -3,8 +3,8 @@ import type { BrushPresetId, PainterBrushState } from '@saier/core'
 import type { Painter } from '../../saier/src'
 import { computed, onBeforeUnmount, shallowRef, watch } from 'vue'
 import BrushPresetPicker from './BrushPresetPicker.vue'
+import PainterCheckbox from './PainterCheckbox.vue'
 import PainterSlider from './PainterSlider.vue'
-import '@advjs/gui/dist/icons.css'
 
 type BrushPresetLabelMap = Partial<Record<BrushPresetId, string>>
 
@@ -122,7 +122,7 @@ function formatSize(value: number): string {
     />
 
     <div class="painter-options__params">
-      <AGUICheckbox v-model:checked="enablePressure" class="painter-options__pressure" :label="text.pressure" />
+      <PainterCheckbox v-model="enablePressure" class="painter-options__pressure" :label="text.pressure" />
       <PainterSlider v-model="size" :label="text.size" :min="1" :max="100" :step="1" :format-value="formatSize" />
       <PainterSlider v-model="opacity" :label="text.opacity" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
       <PainterSlider v-model="spacing" :label="text.spacing" :min="0.05" :max="1" :step="0.01" :format-value="formatPercent" />
@@ -143,13 +143,5 @@ function formatSize(value: number): string {
 .painter-options__pressure {
   min-height: 34px;
   align-self: end;
-}
-
-input[type='checkbox'] {
-  background: none;
-
-  &::before {
-    content: none !important;
-  }
 }
 </style>

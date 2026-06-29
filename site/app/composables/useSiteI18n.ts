@@ -78,6 +78,15 @@ interface SiteMessages {
     browser: string
     diagnostics: string
     estimated: string
+    event: string
+    input: string
+    inputDevice: string
+    inputDrawing: string
+    inputNo: string
+    inputPressure: string
+    inputSamples: string
+    inputTilt: string
+    inputYes: string
     status: string
     surface: string
     total: string
@@ -182,6 +191,15 @@ const messages: Record<SiteLocale, SiteMessages> = {
       browser: 'Browser',
       diagnostics: 'Diagnostics',
       estimated: 'estimated',
+      event: 'Event',
+      input: 'Input',
+      inputDevice: 'Device',
+      inputDrawing: 'Drawing',
+      inputNo: 'No',
+      inputPressure: 'Pressure',
+      inputSamples: 'Samples / coalesced',
+      inputTilt: 'Tilt / twist',
+      inputYes: 'Yes',
       status: 'Memory',
       surface: 'Surface',
       total: 'Estimated',
@@ -294,6 +312,15 @@ const messages: Record<SiteLocale, SiteMessages> = {
       browser: '浏览器',
       diagnostics: '诊断',
       estimated: '估算',
+      event: '事件',
+      input: '输入',
+      inputDevice: '设备',
+      inputDrawing: '绘制中',
+      inputNo: '否',
+      inputPressure: '压感',
+      inputSamples: '采样 / 合并',
+      inputTilt: '倾斜 / 旋转',
+      inputYes: '是',
       status: '内存',
       surface: '画布资源',
       total: '估算',

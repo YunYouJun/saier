@@ -16,8 +16,6 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     '@nuxtjs/color-mode',
     '@vite-pwa/nuxt',
-
-    '@advjs/gui/nuxt',
   ],
 
   css: ['@unocss/reset/tailwind.css'],
@@ -44,7 +42,6 @@ export default defineNuxtConfig({
   vite: {
     optimizeDeps: {
       include: [
-        '@ctrl/tinycolor',
         'axios',
         'consola',
         'hotkeys-js',

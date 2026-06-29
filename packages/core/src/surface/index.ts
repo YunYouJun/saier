@@ -1,4 +1,5 @@
 export {
+  compositeLockAlphaRegion,
   rasterizeDab,
 } from './rasterizer'
 

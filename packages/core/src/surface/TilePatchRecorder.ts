@@ -34,13 +34,13 @@ export class TilePatchRecorder {
     this.maxAlphaSurface = null
   }
 
-  paintDab(dab: BrushDab, mode: CompositeMode): DirtyRect {
+  paintDab(dab: BrushDab, mode: CompositeMode, lockAlpha = false): DirtyRect {
     const rect = clampToSize(fromCircle(dab.x, dab.y, dab.radius), this.surface.width, this.surface.height)
     if (isEmpty(rect) || dab.opacity * dab.color.a <= 0)
       return empty()
 
     this.captureBefore(rect)
-    const dirty = this.paintIntoStrokeSurface(dab, mode)
+    const dirty = this.paintIntoStrokeSurface(dab, mode, lockAlpha)
     this.dirty = union(this.dirty, dirty)
     return dirty
   }
@@ -107,9 +107,9 @@ export class TilePatchRecorder {
     }
   }
 
-  private paintIntoStrokeSurface(dab: BrushDab, mode: CompositeMode): DirtyRect {
+  private paintIntoStrokeSurface(dab: BrushDab, mode: CompositeMode, lockAlpha: boolean): DirtyRect {
     if (mode !== 'normal' || dab.blendMode !== 'max-alpha')
-      return rasterizeDab(this.surface, dab, mode)
+      return rasterizeDab(this.surface, dab, mode, { lockAlpha })
 
     if (!this.maxAlphaSurface) {
       this.maxAlphaSurface = new TiledSurface({

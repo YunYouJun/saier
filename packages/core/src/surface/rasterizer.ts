@@ -10,10 +10,16 @@ import { clampToSize, fromCircle, isEmpty } from '../math'
  * `erase` uses destination-out. The implementation is deterministic and does
  * not depend on Pixi or browser canvas APIs.
  */
+export interface RasterizeDabOptions {
+  /** lock transparency: only recolour existing pixels, keep their alpha (P6-02) */
+  lockAlpha?: boolean
+}
+
 export function rasterizeDab(
   surface: TiledSurface,
   dab: BrushDab,
   mode: CompositeMode,
+  options: RasterizeDabOptions = {},
 ): DirtyRect {
   const dirty = clampToSize(fromCircle(dab.x, dab.y, dab.radius), surface.width, surface.height)
   if (isEmpty(dirty))
@@ -44,6 +50,8 @@ export function rasterizeDab(
 
         if (mode === 'erase')
           compositeErase(tileData, offset, srcAlpha)
+        else if (options.lockAlpha)
+          compositeLockAlpha(tileData, offset, dab, srcAlpha)
         else if (dab.blendMode === 'max-alpha')
           compositeMaxAlpha(tileData, offset, dab, srcAlpha)
         else
@@ -111,6 +119,23 @@ function compositeMaxAlpha(
   data[offset + 3] = toByte(srcAlpha)
 }
 
+function compositeLockAlpha(
+  data: Uint8ClampedArray,
+  offset: number,
+  dab: BrushDab,
+  srcAlpha: number,
+): void {
+  const dstAlpha = data[offset + 3]!
+  if (dstAlpha <= 0)
+    return
+  const inv = 1 - srcAlpha
+  const keep = srcAlpha * dstAlpha
+  data[offset] = toByte((data[offset]! * inv + Math.max(0, Math.min(1, dab.color.r)) * keep) / 255)
+  data[offset + 1] = toByte((data[offset + 1]! * inv + Math.max(0, Math.min(1, dab.color.g)) * keep) / 255)
+  data[offset + 2] = toByte((data[offset + 2]! * inv + Math.max(0, Math.min(1, dab.color.b)) * keep) / 255)
+  // alpha is preserved
+}
+
 function compositeErase(data: Uint8ClampedArray, offset: number, srcAlpha: number): void {
   const inv = 1 - srcAlpha
   data[offset] = toByte((data[offset]! / 255) * inv)
@@ -125,4 +150,33 @@ function toByte(value: number): number {
 
 function emptyDirty(): DirtyRect {
   return { x: 0, y: 0, width: 0, height: 0 }
+}
+
+/**
+ * Lock-alpha composite of a stroke region onto a destination region, both in
+ * premultiplied RGBA bytes. The destination's alpha is preserved exactly and
+ * only already-opaque pixels are recoloured (transparent areas never gain
+ * paint). Returns a new buffer; inputs are not mutated.
+ *
+ * Derivation (premultiplied, `cov = strokeA/255`, dst alpha kept):
+ *   out_pre = dst_pre·(1 − cov) + strokeStraight·cov·dstA
+ *           = dst_pre·(1 − cov) + stroke_pre·dstA/255
+ */
+export function compositeLockAlphaRegion(dst: Uint8Array, stroke: Uint8Array): Uint8Array {
+  const out = new Uint8Array(dst.length)
+  for (let o = 0; o < dst.length; o += 4) {
+    const dstAlpha = dst[o + 3]!
+    const cov = stroke[o + 3]! / 255
+    const inv = 1 - cov
+    const keep = dstAlpha / 255
+    out[o] = clampByte(dst[o]! * inv + stroke[o]! * keep)
+    out[o + 1] = clampByte(dst[o + 1]! * inv + stroke[o + 1]! * keep)
+    out[o + 2] = clampByte(dst[o + 2]! * inv + stroke[o + 2]! * keep)
+    out[o + 3] = dstAlpha
+  }
+  return out
+}
+
+function clampByte(value: number): number {
+  return Math.max(0, Math.min(255, Math.round(value)))
 }

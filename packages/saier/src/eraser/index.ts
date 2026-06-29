@@ -252,7 +252,7 @@ export class PainterEraser {
     const { activeLayerId } = this.painter.controller.getState()
     if (!activeLayerId)
       throw new Error('Cannot erase without an active layer')
-    return activeLayerId
+    return this.painter.resolvePaintLayerId(activeLayerId)
   }
 
   cancelStroke() {

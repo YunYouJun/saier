@@ -131,8 +131,11 @@ export class Painter {
    * pointer in stage
    */
   isPointerInStage = false
+  /** Whether brush / eraser paint onto the active layer's content or its mask. */
+  paintTarget: 'content' | 'mask' = 'content'
   private readonly handleResize = () => this.onResize()
   private readonly surfaceLayerIds = new Set<string>()
+  private readonly maskSurfaceIds = new Set<string>()
   private readonly handleDocumentLayersChange = (event: { layers: RasterLayer[] }) => {
     this.syncSurfaceLayers(event.layers)
   }
@@ -683,19 +686,54 @@ export class Painter {
 
   /**
    * Wire up clip / mask display masking (RenderTexture backend only — it
-   * composites a derived texture, see `setLayerDisplayMask`). A clip layer is
-   * masked by the layer directly below; a clip layer at the bottom shows
-   * normally.
+   * composites a derived texture, see `setLayerDisplayMask`). A layer with an
+   * enabled mask is masked by its (hidden, paintable) mask surface; otherwise a
+   * clip layer is masked by the layer directly below.
    */
   private syncDisplayMasks(layers: RasterLayer[]): void {
     if (!(this.surface instanceof RenderTextureBackend))
       return
+    const rt = this.surface
+
     for (let i = 0; i < layers.length; i++) {
       const layer = layers[i]!
       const belowId = i > 0 ? layers[i - 1]!.id : undefined
-      const maskLayerId = layer.clip && belowId ? belowId : undefined
-      this.surface.setLayerDisplayMask(layer.id, maskLayerId)
+
+      if (layer.mask && !rt.hasLayer(layer.mask.id)) {
+        rt.createHiddenLayer(layer.mask.id)
+        rt.fillLayerOpaque(layer.mask.id) // fresh mask reveals everything
+        this.maskSurfaceIds.add(layer.mask.id)
+      }
+
+      const maskLayerId = layer.mask?.enabled
+        ? layer.mask.id
+        : (layer.clip && belowId ? belowId : undefined)
+      rt.setLayerDisplayMask(layer.id, maskLayerId)
     }
+
+    // release mask surfaces whose layer dropped its mask
+    const referenced = new Set(layers.filter(l => l.mask).map(l => l.mask!.id))
+    for (const maskId of [...this.maskSurfaceIds]) {
+      if (!referenced.has(maskId)) {
+        if (rt.hasLayer(maskId))
+          rt.removeLayer(maskId)
+        this.maskSurfaceIds.delete(maskId)
+      }
+    }
+  }
+
+  /** Resolve which surface a stroke paints into (content layer or its mask). */
+  resolvePaintLayerId(activeLayerId: string): string {
+    if (this.paintTarget === 'mask') {
+      const layer = this.document.getLayer(activeLayerId)
+      if (layer?.mask?.enabled)
+        return layer.mask.id
+    }
+    return activeLayerId
+  }
+
+  setPaintTarget(target: 'content' | 'mask'): void {
+    this.paintTarget = target
   }
 
   /** Recompute derived clip / mask display textures after pixels change. */

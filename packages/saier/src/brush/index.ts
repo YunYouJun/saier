@@ -362,7 +362,7 @@ export class PainterBrush {
     const { activeLayerId } = this.painter.controller.getState()
     if (!activeLayerId)
       throw new Error('Cannot paint without an active layer')
-    return activeLayerId
+    return this.painter.resolvePaintLayerId(activeLayerId)
   }
 
   syncBrushState(color: RGBA) {

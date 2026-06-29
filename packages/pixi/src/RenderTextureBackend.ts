@@ -184,6 +184,24 @@ export class RenderTextureBackend implements SurfaceBackend {
     this.computeMaskedDisplay(layer)
   }
 
+  /** Whether a layer exists in this backend. */
+  hasLayer(id: string): boolean {
+    return this.layers.has(id)
+  }
+
+  /** Create a hidden surface (e.g. a layer mask): paintable, not shown directly. */
+  createHiddenLayer(id: string): void {
+    this.createLayer(id)
+    const layer = this.getLayer(id)
+    this.stage.removeChild(layer.sprite)
+  }
+
+  /** Fill a layer fully opaque white (a fresh "reveal-all" mask). */
+  fillLayerOpaque(id: string): void {
+    const layer = this.getLayer(id)
+    this.renderer.render({ container: this.clearContainer, target: layer.committedRT, clear: true, clearColor: [1, 1, 1, 1] })
+  }
+
   /** Recompute every masked layer's derived display (call after pixels change). */
   refreshDerivedDisplays(): void {
     for (const layer of this.layers.values()) {

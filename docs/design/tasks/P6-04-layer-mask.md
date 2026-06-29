@@ -8,7 +8,15 @@ title: P6-04 · 图层蒙版（layer mask）
 - **Depends on**: P6-01、P6-02、P5-02
 - **Files**: `packages/core/src/surface/**`、`packages/core/src/document/Document.ts`、`packages/core/src/controller/PainterController.ts`、`packages/pixi/src/RenderTextureBackend.ts`、`packages/pixi/src/PixiTileTextureBackend.ts`、`packages/saier/src/brush/index.ts`、`test/`
 - **Effort**: L
-- **Status**: 📝 待执行
+- **Status**: 🚧 进行中（脚手架就绪，蒙版显示受阻）
+
+## Progress
+
+**已落地(脚手架)**:`painter.paintTarget`('content' | 'mask')+ `resolvePaintLayerId` + `setPaintTarget`,brush / eraser 据此把笔迹重定向到蒙版表面;`RenderTextureBackend.createHiddenLayer` / `fillLayerOpaque` / `hasLayer`;painter `syncDisplayMasks` 为带蒙版图层创建隐藏蒙版表面(初始不透明=全显)、挂 `setLayerDisplayMask(layer, maskId)`,detach 时释放。蒙版描边走正常 surface stroke/patch(可 undo)。
+
+**受阻(蒙版显示)**:复用 P6-03 的派生遮罩合成,但**同帧写入蒙版纹理后再采样会读到旧像素**——`computeMaskedDisplay` 把蒙版 committedRT 当 sprite texture 采样时,读到的是创建时的(全透明)状态,而非 `fillLayerOpaque` + erase 之后的当前状态(`extract` 读则是对的)。试过 `source.update()` / `gl.flush()` / 容器包裹均无效,疑为 Pixi v8 RenderTexture 作纹理源的采样缓存问题。**P6-03 剪贴的主路径不受影响**(其遮罩源来自上一帧已提交的下层);仅「同帧写蒙版→同帧重算显示」这条受阻。
+
+**下一步选项**:① 深挖 Pixi RT 采样同步(把蒙版重算延后到下一帧 / 改用 CPU 读回合成);② 蒙版改 CPU 合成(读 content + mask 像素,CPU 相乘写派生)绕开 GPU 采样;③ 暂缓蒙版,先收尾 P6-06/07。
 
 ## Context
 

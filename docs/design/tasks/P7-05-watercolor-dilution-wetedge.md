@@ -15,6 +15,8 @@ title: P7-05 · 水彩：稀释 + 湿边（wet edge）
 
 湿边的本质：单笔描边内，**边缘区颜料浓度 > 中心区**。常见做法是基于「单笔覆盖累积场」——中心覆盖高处反而少留色、边缘梯度大处多留色（近似 `edge = coverage·(1 - coverage)` 的环形权重），叠加到沉积 alpha。
 
+**已落地（2026-06-30）**：`BrushDab.wetEdge` 进入 CPU rasterizer，按 `coverage·(1 - coverage)` 近似环形湿边，`wetEdge=0` 与 P7-02 完全等价；watercolor 作为 smudge 系默认预设，组合高 dilution、wetEdge 与纸纹。node / browser 像素测试覆盖湿边开启后边缘更深、稀释透底、确定性与 undo/redo 既有路径。
+
 ## Steps
 
 1. **湿边权重**：在单笔的覆盖累积基础上，给沉积 alpha 叠加边缘强化项（中心衰减、边缘增强），强度由 `wetEdge ∈ [0,1]` 控制；`wetEdge=0` 时完全等价 P7-02 行为。
@@ -25,9 +27,9 @@ title: P7-05 · 水彩：稀释 + 湿边（wet edge）
 
 ## Acceptance
 
-- [ ] 湿边可开关：开时边缘颜料堆积明显、关时无；像素断言可量化区分。
-- [ ] 稀释晕染产生通透叠色（底色按比例透出）。
-- [ ] 确定性（同输入同像素，seeded）；undo / redo 一致。
+- [x] 湿边可开关：开时边缘颜料堆积明显、关时无；像素断言可量化区分。
+- [x] 稀释晕染产生通透叠色（底色按比例透出）。
+- [x] 确定性（同输入同像素，seeded）；undo / redo 一致。
 
 ## Out of scope
 

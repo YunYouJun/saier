@@ -27,11 +27,27 @@ export {
 } from './CalligraphyEngine'
 
 export {
+  BUILTIN_PAPER_TEXTURES,
+  type BuiltinPaperTextureId,
+  getBuiltinPaperTexture,
+  type PaperTexture,
+  type PaperTextureId,
+  samplePaper,
+} from './paper'
+
+export {
   type PressureCurve,
   type PressureFallbackMode,
   SimpleBrushEngine,
   type SimpleBrushEngineOptions,
 } from './SimpleBrushEngine'
+
+export {
+  isSmudgeBrushEngine,
+  type SmudgeBrushEngine,
+  SmudgeEngine,
+  type SmudgeEngineOptions,
+} from './SmudgeEngine'
 
 export {
   type BrushTip,

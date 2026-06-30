@@ -42,6 +42,16 @@ export interface SimpleBrushEngineOptions {
   blendMode?: BrushDabBlendMode
   /** Dab rotation in radians, used by non-round tips. */
   rotation?: number
+  /** Per-dab pigment deposit strength `0..1`. Default `1`. */
+  density?: number
+  /** Per-dab dilution / wetness `0..1`. Default `0`. */
+  dilution?: number
+  /** Wet-edge pigment buildup `0..1`. Default `0`. */
+  wetEdge?: number
+  /** Paper texture id used by later paper-grain coverage modulation. */
+  paperTextureId?: string
+  /** Paper texture modulation strength `0..1`. Default `0`. */
+  paperTextureStrength?: number
   /** Legacy pressure remap used for both size and opacity when specific curves are omitted. */
   pressureCurve?: PressureCurveConfig
   /** Pressure remap for size. Default `linear`. */
@@ -78,6 +88,11 @@ interface ResolvedSimpleBrushEngineOptions {
   tipId: string
   blendMode: BrushDabBlendMode
   rotation: number
+  density: number
+  dilution: number
+  wetEdge: number
+  paperTextureId?: string
+  paperTextureStrength: number
   sizeCurve: PressureCurve
   opacityCurve: PressureCurve
   pressureFallback: PressureFallbackMode
@@ -99,6 +114,10 @@ const DEFAULTS = {
   tipId: 'round-hard',
   blendMode: 'source-over' as const,
   rotation: 0,
+  density: 1,
+  dilution: 0,
+  wetEdge: 0,
+  paperTextureStrength: 0,
   pressureFallback: 'velocity' as const,
   fallbackPressure: 1,
   velocityPressureMin: 0.05,
@@ -281,6 +300,11 @@ export class SimpleBrushEngine implements BrushEngine {
       hardness: this.options.hardness,
       rotation: this.options.rotation,
       tipId: this.options.tipId,
+      density: clamp01(this.options.density),
+      dilution: clamp01(this.options.dilution),
+      wetEdge: clamp01(this.options.wetEdge),
+      paperTextureId: this.options.paperTextureId,
+      paperTextureStrength: clamp01(this.options.paperTextureStrength),
       blendMode: this.options.blendMode,
     }
   }

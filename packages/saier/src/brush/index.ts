@@ -12,7 +12,9 @@ import type { Painter } from '../painter'
 import {
   createBrushEngineFromPreset,
   DEFAULT_BRUSH_PRESET_ID,
+  fromCircle,
   isEmpty,
+  isSmudgeBrushEngine,
   isTickableBrushEngine,
   Stabilizer,
 } from '@saier/core'
@@ -290,6 +292,38 @@ export class PainterBrush {
     this.painter.controller.brush.setFlow(flow)
   }
 
+  setSmudge(smudge: number) {
+    this.painter.controller.brush.setSmudge(smudge)
+  }
+
+  setColorAmount(colorAmount: number) {
+    this.painter.controller.brush.setColorAmount(colorAmount)
+  }
+
+  setDilution(dilution: number) {
+    this.painter.controller.brush.setDilution(dilution)
+  }
+
+  setPersistence(persistence: number) {
+    this.painter.controller.brush.setPersistence(persistence)
+  }
+
+  setDensity(density: number) {
+    this.painter.controller.brush.setDensity(density)
+  }
+
+  setWetEdge(wetEdge: number) {
+    this.painter.controller.brush.setWetEdge(wetEdge)
+  }
+
+  setPaperTextureId(paperTextureId: string | undefined) {
+    this.painter.controller.brush.setPaperTextureId(paperTextureId)
+  }
+
+  setPaperTextureStrength(paperTextureStrength: number) {
+    this.painter.controller.brush.setPaperTextureStrength(paperTextureStrength)
+  }
+
   setPressureEnabled(enabled: boolean) {
     PainterBrush.enablePressure = enabled
   }
@@ -397,6 +431,14 @@ export class PainterBrush {
       flow: brush.flow,
       baseSize: brush.size,
       pressureFallback: PainterBrush.enablePressure ? preset.pressureFallback : 'none',
+      smudge: brush.smudge,
+      colorAmount: brush.colorAmount,
+      dilution: brush.dilution,
+      persistence: brush.persistence,
+      wetEdge: brush.wetEdge,
+      density: brush.density,
+      paperTextureId: brush.paperTextureId,
+      paperTextureStrength: brush.paperTextureStrength,
     })
   }
 
@@ -432,8 +474,26 @@ export class PainterBrush {
 
   private paintDabs(layerId: string, dabs: BrushDab[]): void {
     const transform = this.painter.document.getLayer(layerId)?.transform
-    for (const dab of dabs)
-      this.painter.surface.paintDab(layerId, toLayerLocalDab(dab, transform), 'normal')
+    for (const dab of dabs) {
+      const localDab = toLayerLocalDab(dab, transform)
+
+      if (isSmudgeBrushEngine(this.engine)) {
+        const sampleRegion = this.painter.surface.sampleRegion
+        if (!sampleRegion)
+          throw new Error('Smudge brush requires a surface backend with sampleRegion')
+
+        const sample = sampleRegion.call(
+          this.painter.surface,
+          layerId,
+          fromCircle(localDab.x, localDab.y, localDab.radius),
+          { dab: localDab },
+        )
+        this.painter.surface.paintDab(layerId, this.engine.prepareDab(localDab, sample), 'normal')
+        continue
+      }
+
+      this.painter.surface.paintDab(layerId, localDab, 'normal')
+    }
   }
 
   private startTicker(): void {

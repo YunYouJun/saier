@@ -156,7 +156,7 @@ export class RenderTextureBackend implements SurfaceBackend, DisplayMaskCapableB
   // Single-pass luminance compositor for layer masks (content × luminance(mask)).
   private readonly luminanceGeometry: MeshGeometry
   private readonly luminanceShader: Shader
-  private readonly luminanceMesh: Mesh
+  private readonly luminanceMesh: Mesh<MeshGeometry, Shader>
 
   constructor(options: RenderTextureBackendOptions) {
     this.renderer = options.renderer

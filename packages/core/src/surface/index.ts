@@ -4,6 +4,11 @@ export {
 } from './rasterizer'
 
 export {
+  averagePremultiplied,
+  type AveragePremultipliedOptions,
+} from './sampler'
+
+export {
   Tile,
   type TileOptions,
 } from './Tile'

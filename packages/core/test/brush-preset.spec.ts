@@ -4,6 +4,7 @@ import {
   clonePreset,
   createBrushEngineFromPreset,
   createDefaultBrushPresetRegistry,
+  isSmudgeBrushEngine,
 } from '../src'
 
 const BLACK = { r: 0, g: 0, b: 0, a: 1 }
@@ -26,6 +27,9 @@ describe('brush presets', () => {
       'marker',
       'airbrush',
       'calligraphy',
+      'smudge',
+      'blender',
+      'watercolor',
     ])
 
     registry.register({
@@ -60,6 +64,7 @@ describe('brush presets', () => {
       wetEdge: 0.5,
       density: 0.8,
       paperTextureId: 'cold-press',
+      paperTextureStrength: 0.35,
       sizeCurve: [
         { x: 0, y: 0.2 },
         { x: 1, y: 1 },
@@ -78,6 +83,7 @@ describe('brush presets', () => {
       wetEdge: 0.5,
       density: 0.8,
       paperTextureId: 'cold-press',
+      paperTextureStrength: 0.35,
     })
 
     expect(Array.isArray(cloned.sizeCurve)).toBe(true)
@@ -91,7 +97,7 @@ describe('brush presets', () => {
     expect(preset.sizeCurve[0]!.y).toBe(0.2)
   })
 
-  it('keeps smudge presets behind the P7-04 factory guard', () => {
+  it('creates smudge engines from P7-04 presets', () => {
     const preset: BrushPreset = {
       id: 'smudge-placeholder',
       name: 'Smudge Placeholder',
@@ -105,8 +111,34 @@ describe('brush presets', () => {
       colorAmount: 0,
     }
 
-    expect(() => createBrushEngineFromPreset(preset))
-      .toThrow('smudge engine not implemented (P7-04)')
+    expect(isSmudgeBrushEngine(createBrushEngineFromPreset(preset)))
+      .toBe(true)
+  })
+
+  it('passes P7 deposit parameters into simple engine dabs', () => {
+    const preset: BrushPreset = {
+      id: 'wet-pen',
+      name: 'Wet Pen',
+      engine: 'simple',
+      tipId: 'round-soft',
+      size: 18,
+      opacity: 1,
+      spacing: 0.25,
+      hardness: 0.4,
+      density: 0.6,
+      dilution: 0.3,
+      paperTextureId: 'cold-press',
+      paperTextureStrength: 0.4,
+      wetEdge: 0.2,
+    }
+
+    expect(stroke(preset, [pt(0, 0, 0)])[0]).toMatchObject({
+      density: 0.6,
+      dilution: 0.3,
+      wetEdge: 0.2,
+      paperTextureId: 'cold-press',
+      paperTextureStrength: 0.4,
+    })
   })
 
   it('drives visibly different dab sequences from preset data', () => {

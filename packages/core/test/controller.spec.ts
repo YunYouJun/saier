@@ -59,7 +59,7 @@ describe('painterController', () => {
       opacity: 0.5,
     })
     expect(controller.getState().brush.presets.map(preset => preset.id))
-      .toEqual(['pen', 'pencil', 'marker', 'airbrush', 'calligraphy'])
+      .toEqual(['pen', 'pencil', 'marker', 'airbrush', 'calligraphy', 'smudge', 'blender', 'watercolor'])
     expect(spy).toHaveBeenCalled()
   })
 
@@ -85,6 +85,7 @@ describe('painterController', () => {
           wetEdge: 0.6,
           density: -0.2,
           paperTextureId: 'cold-press',
+          paperTextureStrength: 1.5,
         },
       ],
     })
@@ -100,6 +101,7 @@ describe('painterController', () => {
       wetEdge: 0.6,
       density: 0,
       paperTextureId: 'cold-press',
+      paperTextureStrength: 1,
     })
   })
 
@@ -115,6 +117,7 @@ describe('painterController', () => {
         wetEdge: 2,
         density: -0.5,
         paperTextureId: 'warm-press',
+        paperTextureStrength: 1.5,
       },
     })
     const spy = vi.fn()
@@ -128,6 +131,7 @@ describe('painterController', () => {
       wetEdge: 1,
       density: 0,
       paperTextureId: 'warm-press',
+      paperTextureStrength: 1,
     })
 
     controller.brush.setSmudge(0.2)
@@ -137,6 +141,7 @@ describe('painterController', () => {
     controller.brush.setWetEdge(0.6)
     controller.brush.setDensity(2)
     controller.brush.setPaperTextureId('cold-press')
+    controller.brush.setPaperTextureStrength(-0.5)
 
     expect(controller.getState().brush).toMatchObject({
       smudge: 0.2,
@@ -146,8 +151,9 @@ describe('painterController', () => {
       wetEdge: 0.6,
       density: 1,
       paperTextureId: 'cold-press',
+      paperTextureStrength: 0,
     })
-    expect(spy).toHaveBeenCalledTimes(7)
+    expect(spy).toHaveBeenCalledTimes(8)
     expect(spy).toHaveBeenLastCalledWith(expect.objectContaining({
       smudge: 0.2,
       colorAmount: 0.8,
@@ -156,6 +162,7 @@ describe('painterController', () => {
       wetEdge: 0.6,
       density: 1,
       paperTextureId: 'cold-press',
+      paperTextureStrength: 0,
     }))
   })
 
@@ -168,12 +175,14 @@ describe('painterController', () => {
     state.brush.color.r = 1
     state.brush.smudge = 1
     state.brush.paperTextureId = 'mutated-paper'
+    state.brush.paperTextureStrength = 1
     state.brush.presets[0].name = 'Mutated'
     state.layers[0].label = 'Mutated'
 
     expect(controller.getState().brush.color.r).toBe(0)
     expect(controller.getState().brush.smudge).toBe(0)
     expect(controller.getState().brush.paperTextureId).toBeUndefined()
+    expect(controller.getState().brush.paperTextureStrength).toBe(0)
     expect(controller.getState().brush.presets[0].name).toBe('Pen')
     expect(controller.getState().layers[0].label).toBe('Ink')
   })

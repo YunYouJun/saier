@@ -1,6 +1,7 @@
-import type { DirtyRect } from '../types'
+import type { DirtyRect, RGBA, SurfaceSampleRegionOptions } from '../types'
 import type { SurfaceMemorySnapshot } from '../types/memory'
 import { clampToSize, empty, isEmpty, union } from '../math'
+import { averagePremultiplied } from './sampler'
 import { Tile } from './Tile'
 
 export interface TileCoord {
@@ -166,6 +167,18 @@ export class TiledSurface {
     return out
   }
 
+  sampleRegion(rect: DirtyRect, options: SurfaceSampleRegionOptions = {}): RGBA {
+    const normalized = normalizeSampleRect(rect)
+    if (isEmpty(normalized))
+      return { r: 0, g: 0, b: 0, a: 0 }
+
+    const pixels = this.readRegionWithTransparentBounds(normalized)
+    return averagePremultiplied(pixels, normalized.width, normalized.height, {
+      ...options,
+      rect: normalized,
+    })
+  }
+
   writeRegion(rect: DirtyRect, data: Uint8ClampedArray): void {
     const normalized = this.normalizeRect(rect)
     if (isEmpty(normalized)) {
@@ -273,6 +286,26 @@ export class TiledSurface {
     return clampToSize({ x, y, width: right - x, height: bottom - y }, this.width, this.height)
   }
 
+  private readRegionWithTransparentBounds(rect: DirtyRect): Uint8ClampedArray {
+    const out = new Uint8ClampedArray(byteLengthForRect(rect))
+    const clipped = clampToSize(rect, this.width, this.height)
+    if (isEmpty(clipped))
+      return out
+
+    const clippedData = this.readRegion(clipped)
+    const targetX = clipped.x - rect.x
+    const targetY = clipped.y - rect.y
+
+    for (let row = 0; row < clipped.height; row++) {
+      const srcOffset = regionOffset(0, row, clipped.width)
+      const dstOffset = regionOffset(targetX, targetY + row, rect.width)
+      const widthBytes = clipped.width * 4
+      out.set(clippedData.subarray(srcOffset, srcOffset + widthBytes), dstOffset)
+    }
+
+    return out
+  }
+
   private copyRegion(
     rect: DirtyRect,
     cb: (
@@ -316,6 +349,19 @@ function compareTileCoords(a: TileCoord, b: TileCoord): number {
 
 function byteLengthForRect(rect: DirtyRect): number {
   return rect.width * rect.height * 4
+}
+
+function normalizeSampleRect(rect: DirtyRect): DirtyRect {
+  if (isEmpty(rect))
+    return empty()
+
+  const x = Math.floor(rect.x)
+  const y = Math.floor(rect.y)
+  const right = Math.ceil(rect.x + rect.width)
+  const bottom = Math.ceil(rect.y + rect.height)
+  if (right <= x || bottom <= y)
+    return empty()
+  return { x, y, width: right - x, height: bottom - y }
 }
 
 function tileOffset(x: number, y: number, tileSize: number): number {

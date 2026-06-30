@@ -38,6 +38,8 @@ export interface PainterBrushState {
   density: number
   /** Paper texture id used by later paper-grain coverage modulation. */
   paperTextureId?: string
+  /** Paper texture coverage modulation strength, `0..1`. */
+  paperTextureStrength: number
   presets: BrushPresetSummary[]
 }
 
@@ -117,6 +119,7 @@ export class PainterController {
     setWetEdge: (wetEdge: number) => this.setBrushWetEdge(wetEdge),
     setDensity: (density: number) => this.setBrushDensity(density),
     setPaperTextureId: (paperTextureId: string | undefined) => this.setBrushPaperTextureId(paperTextureId),
+    setPaperTextureStrength: (paperTextureStrength: number) => this.setBrushPaperTextureStrength(paperTextureStrength),
   }
 
   readonly layer = {
@@ -298,6 +301,7 @@ export class PainterController {
       wetEdge: normalizeWetEdge(preset.wetEdge),
       density: normalizeDensity(preset.density),
       paperTextureId: normalizePaperTextureId(preset.paperTextureId),
+      paperTextureStrength: normalizePaperTextureStrength(preset.paperTextureStrength),
     }
 
     if (sameBrushState(this.brushState, next))
@@ -410,6 +414,14 @@ export class PainterController {
     this.emitBrushChange()
   }
 
+  private setBrushPaperTextureStrength(paperTextureStrength: number): void {
+    const next = normalizePaperTextureStrength(paperTextureStrength)
+    if (this.brushState.paperTextureStrength === next)
+      return
+    this.brushState = { ...this.brushState, paperTextureStrength: next }
+    this.emitBrushChange()
+  }
+
   private emitBrushChange(): void {
     this.emitter.emit('brush:change', cloneBrushState(this.brushState))
   }
@@ -454,6 +466,7 @@ function normalizeBrushState(
     wetEdge: normalizeWetEdge(brush.wetEdge ?? preset.wetEdge),
     density: normalizeDensity(brush.density ?? preset.density),
     paperTextureId: normalizePaperTextureId(brush.paperTextureId ?? preset.paperTextureId),
+    paperTextureStrength: normalizePaperTextureStrength(brush.paperTextureStrength ?? preset.paperTextureStrength),
     presets: presets.map(toBrushPresetSummary),
   }
 }
@@ -500,6 +513,7 @@ function cloneBrushState(brush: PainterBrushState): PainterBrushState {
     wetEdge: brush.wetEdge,
     density: brush.density,
     paperTextureId: brush.paperTextureId,
+    paperTextureStrength: brush.paperTextureStrength,
     presets: brush.presets.map(preset => ({ ...preset })),
   }
 }
@@ -545,6 +559,10 @@ function normalizePaperTextureId(paperTextureId: string | undefined): string | u
   return paperTextureId === '' ? undefined : paperTextureId
 }
 
+function normalizePaperTextureStrength(paperTextureStrength = 0): number {
+  return clamp01(paperTextureStrength)
+}
+
 function sameBrushState(a: PainterBrushState, b: PainterBrushState): boolean {
   return a.presetId === b.presetId
     && a.size === b.size
@@ -560,6 +578,7 @@ function sameBrushState(a: PainterBrushState, b: PainterBrushState): boolean {
     && a.wetEdge === b.wetEdge
     && a.density === b.density
     && a.paperTextureId === b.paperTextureId
+    && a.paperTextureStrength === b.paperTextureStrength
 }
 
 function normalizeRGBA(color: RGBA): RGBA {

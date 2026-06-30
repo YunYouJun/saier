@@ -15,6 +15,8 @@ title: P7-06 · 纸纹（paper texture）调制
 
 复用思路：与 `tips.ts` 的 `sampleBrushTipAlpha`（笔尖 mask）正交——笔尖决定 dab 形状，纸纹按落点的文档坐标再乘一层颗粒系数。
 
+**已落地（2026-06-30）**：新增 `brush/paper.ts`，提供 deterministic 程序化纸纹（`cold-press` / `rough` / `linen`）；`BrushDab.paperTextureId` + `paperTextureStrength` 调制 raster coverage，strength=0 与无纹理像素一致，开启后按 document pixel 稳定产生颗粒。
+
 ## Steps
 
 1. **纹理源**：`paper.ts` 提供少量内置程序化纸纹（确定性、seeded 程序生成或固定小图平铺），按 `paperTextureId` 注册，`samplePaper(textureId, docX, docY): number`（0..1）。
@@ -24,8 +26,8 @@ title: P7-06 · 纸纹（paper texture）调制
 
 ## Acceptance
 
-- [ ] 纸纹可开关，开启时笔迹出现稳定颗粒、关闭时等价旧行为。
-- [ ] 纸纹按文档空间锚定（缩放 / 重复涂抹咬合），确定性。
+- [x] 纸纹可开关，开启时笔迹出现稳定颗粒、关闭时等价旧行为。
+- [x] 纸纹按文档空间锚定（缩放 / 重复涂抹咬合），确定性。
 
 ## Out of scope
 

@@ -3,9 +3,11 @@ import type { BrushDabBlendMode, BrushEngine } from '../types'
 import type { AirbrushEngineOptions } from './AirbrushEngine'
 import type { CalligraphyEngineOptions } from './CalligraphyEngine'
 import type { PressureFallbackMode, SimpleBrushEngineOptions } from './SimpleBrushEngine'
+import type { SmudgeEngineOptions } from './SmudgeEngine'
 import { AirbrushEngine } from './AirbrushEngine'
 import { CalligraphyEngine } from './CalligraphyEngine'
 import { SimpleBrushEngine } from './SimpleBrushEngine'
+import { SmudgeEngine } from './SmudgeEngine'
 
 export type BuiltinBrushPresetId
   = | 'pen'
@@ -13,6 +15,9 @@ export type BuiltinBrushPresetId
     | 'marker'
     | 'airbrush'
     | 'calligraphy'
+    | 'smudge'
+    | 'blender'
+    | 'watercolor'
 
 export type BrushPresetId = BuiltinBrushPresetId | (string & {})
 
@@ -43,6 +48,8 @@ export interface BrushPreset {
   density?: number
   /** Paper texture id used by later paper-grain coverage modulation. */
   paperTextureId?: string
+  /** Paper texture coverage modulation strength, `0..1`; `0` disables paper. */
+  paperTextureStrength?: number
   /** Dabs per second; used by airbrush. */
   flow?: number
   minSizeRatio?: number
@@ -77,6 +84,14 @@ export interface BrushEngineFromPresetOptions {
   flow?: number
   baseSize?: number
   pressureFallback?: PressureFallbackMode
+  smudge?: number
+  colorAmount?: number
+  dilution?: number
+  persistence?: number
+  wetEdge?: number
+  density?: number
+  paperTextureId?: string
+  paperTextureStrength?: number
 }
 
 export const DEFAULT_BRUSH_PRESET_ID: BuiltinBrushPresetId = 'pen'
@@ -162,6 +177,66 @@ export const DEFAULT_BRUSH_PRESETS: readonly BrushPreset[] = [
     minOpacity: 0.35,
     maxOpacity: 1,
   },
+  {
+    id: 'smudge',
+    name: 'Smudge',
+    engine: 'smudge',
+    tipId: 'round-soft',
+    size: 32,
+    opacity: 0.9,
+    spacing: 0.18,
+    hardness: 0.7,
+    minSizeRatio: 0.85,
+    maxSizeRatio: 1,
+    minOpacity: 0.8,
+    maxOpacity: 1,
+    smudge: 1,
+    colorAmount: 0,
+    persistence: 0.86,
+    density: 0.75,
+    dilution: 0.18,
+  },
+  {
+    id: 'blender',
+    name: 'Blender',
+    engine: 'smudge',
+    tipId: 'round-soft',
+    size: 40,
+    opacity: 0.85,
+    spacing: 0.2,
+    hardness: 0.78,
+    minSizeRatio: 0.9,
+    maxSizeRatio: 1,
+    minOpacity: 0.75,
+    maxOpacity: 1,
+    smudge: 0.75,
+    colorAmount: 0.12,
+    persistence: 0.78,
+    density: 0.55,
+    dilution: 0.28,
+  },
+  {
+    id: 'watercolor',
+    name: 'Watercolor',
+    engine: 'smudge',
+    tipId: 'round-soft',
+    size: 36,
+    opacity: 0.78,
+    spacing: 0.16,
+    hardness: 0.82,
+    minSizeRatio: 0.88,
+    maxSizeRatio: 1,
+    minOpacity: 0.72,
+    maxOpacity: 1,
+    smudge: 0.65,
+    colorAmount: 0.38,
+    persistence: 0.72,
+    density: 0.6,
+    dilution: 0.42,
+    wetEdge: 0.72,
+    paperTextureId: 'cold-press',
+    paperTextureStrength: 0.45,
+  },
 ]
 
 export class BrushPresetRegistry {
@@ -224,7 +299,7 @@ export function createBrushEngineFromPreset(
     case 'calligraphy':
       return new CalligraphyEngine(resolveCalligraphyOptions(preset, options))
     case 'smudge':
-      throw new Error('smudge engine not implemented (P7-04)')
+      return new SmudgeEngine(resolveSmudgeOptions(preset, options))
     case 'simple':
     default:
       return new SimpleBrushEngine(resolveSimpleOptions(preset, options))
@@ -247,6 +322,11 @@ function resolveSimpleOptions(
     tipId: preset.tipId,
     blendMode: preset.blendMode,
     rotation: preset.rotation,
+    density: options.density ?? preset.density,
+    dilution: options.dilution ?? preset.dilution,
+    wetEdge: options.wetEdge ?? preset.wetEdge,
+    paperTextureId: options.paperTextureId ?? preset.paperTextureId,
+    paperTextureStrength: options.paperTextureStrength ?? preset.paperTextureStrength,
     pressureCurve: preset.pressureCurve,
     sizeCurve: preset.sizeCurve,
     opacityCurve: preset.opacityCurve,
@@ -254,6 +334,40 @@ function resolveSimpleOptions(
     taperIn: preset.taperIn ?? baseSize,
     taperOut: preset.taperOut ?? baseSize,
     taperMinFactor: preset.taperMinFactor,
+    ...preset.simple,
+  }
+}
+
+function resolveSmudgeOptions(
+  preset: BrushPreset,
+  options: BrushEngineFromPresetOptions,
+): SmudgeEngineOptions {
+  const opacity = clamp01(options.opacity ?? preset.opacity)
+  const baseSize = options.baseSize ?? preset.size
+  return {
+    spacingRatio: options.spacing ?? preset.spacing,
+    minSizeRatio: preset.minSizeRatio,
+    maxSizeRatio: preset.maxSizeRatio,
+    minOpacity: (preset.minOpacity ?? 1) * opacity,
+    maxOpacity: (preset.maxOpacity ?? 1) * opacity,
+    hardness: options.hardness ?? preset.hardness,
+    tipId: preset.tipId,
+    rotation: preset.rotation,
+    pressureCurve: preset.pressureCurve,
+    sizeCurve: preset.sizeCurve,
+    opacityCurve: preset.opacityCurve,
+    pressureFallback: options.pressureFallback ?? preset.pressureFallback,
+    taperIn: preset.taperIn ?? baseSize,
+    taperOut: preset.taperOut ?? baseSize,
+    taperMinFactor: preset.taperMinFactor,
+    smudge: options.smudge ?? preset.smudge,
+    colorAmount: options.colorAmount ?? preset.colorAmount,
+    persistence: options.persistence ?? preset.persistence,
+    density: options.density ?? preset.density,
+    dilution: options.dilution ?? preset.dilution,
+    wetEdge: options.wetEdge ?? preset.wetEdge,
+    paperTextureId: options.paperTextureId ?? preset.paperTextureId,
+    paperTextureStrength: options.paperTextureStrength ?? preset.paperTextureStrength,
     ...preset.simple,
   }
 }

@@ -26,9 +26,11 @@ P7 的核心。smudge / color-mixing 笔刷维护一个**颜色桶（smudge buck
 
 **做法**（[D10](../decisions#d10)）：`SmudgeEngine` 注入一个 `SurfaceSampler`，集成层把绘制循环改为**逐 dab 交错**——`sample → mix → paintDab → 下一颗`（`saier/src/brush` 现在是 `paintDabs(addPoint(point))` 批量；smudge 路径改为单颗即画即采）。引擎仍「只产 dab」、不持后端句柄，采样经注入接口；确定性成立（采样是 surface 状态的纯函数，surface 状态确定演化）。
 
+**已落地（2026-06-30）**：`SmudgeEngine` 复用 `SimpleBrushEngine` 产几何 dab，并通过 `prepareDab(dab, sample)` 维护 smudge bucket、计算沉积色；`saier/src/brush` 检测 smudge 引擎后逐 dab 执行 `sampleRegion(layerId, fromCircle(localDab), { dab }) → prepareDab → paintDab`，因此同批第 N+1 颗 dab 能看到第 N 颗刚写入的 CPU tile 像素。默认预设新增 `smudge` / `blender`，RenderTexture 后端因无 `sampleRegion` 走明确门控。
+
 ## Steps
 
-1. **引擎**：实现 `SmudgeEngine implements BrushEngine`（+ `setSampler(sampler)` 注入），按上式维护 `bucket`、读 `persistence` / `smudge` / `colorAmount`；`beginStroke` 初始化桶（建议首点采样初始化，或透明起手，二选一并测）。
+1. **引擎**：实现 `SmudgeEngine implements BrushEngine`（集成层逐 dab 传入 sample），按上式维护 `bucket`、读 `persistence` / `smudge` / `colorAmount`；`beginStroke` 初始化桶（建议首点采样初始化，或透明起手，二选一并测）。
 2. **集成**：`saier/src/brush` 为 smudge 引擎走逐 dab 交错路径（即画即采），其余笔刷保持批量；smudge 笔迹照常 `beginStroke/endStroke/applyPatch`（bbox/tile undo 复用）。
 3. **预设 / factory**：`createBrushEngineFromPreset` 支持 `engine: 'smudge'`；`DEFAULT_BRUSH_PRESETS` 加 `smudge`（纯抹，`colorAmount≈0`）与 `blender` 预设。
 4. **后端门控**：smudge 需 `sampleRegion`，tile 后端提供（[P7-00](./P7-00-tile-default-backend) 已让 tile 成为默认，[D11](../decisions#d11)）；显式选 `RenderTexture` 后端时 smudge 禁用（与 [P7-07](./P7-07-presets-and-ui) 协同）。
@@ -36,10 +38,10 @@ P7 的核心。smudge / color-mixing 笔刷维护一个**颜色桶（smudge buck
 
 ## Acceptance
 
-- [ ] smudge 能**拖动已有颜色**（拖痕随 persistence 变长）。
-- [ ] 两色交界**自然过渡**（边界采样到中间色并沉积）。
-- [ ] smudge 描边可独立 undo / redo，像素一致。
-- [ ] 取色看到同批内刚落的上一 dab（交错路径生效）；同输入确定性。
+- [x] smudge 能**拖动已有颜色**（拖痕随 persistence 变长）。
+- [x] 两色交界**自然过渡**（边界采样到中间色并沉积）。
+- [x] smudge 描边可独立 undo / redo，像素一致。
+- [x] 取色看到同批内刚落的上一 dab（交错路径生效）；同输入确定性。
 
 ## Out of scope
 

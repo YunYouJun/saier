@@ -24,5 +24,7 @@ export type {
   StrokePatch,
   SurfaceBackend,
   SurfaceLayerState,
+  SurfaceSampler,
+  SurfaceSampleRegionOptions,
   TilePatch,
 } from './surface'

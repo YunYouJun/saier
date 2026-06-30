@@ -113,6 +113,22 @@ describe('pixiTileTextureBackend', () => {
     expect(backend.__uploadsThisFrame).toBe(0)
   })
 
+  it('samples straight RGBA from CPU tile pixels before GPU upload', async () => {
+    const { backend } = await createFixture()
+
+    backend.createLayer('ink')
+    backend.beginStroke('ink')
+    backend.paintDab('ink', dab(16, 16, 6, { r: 1, g: 0, b: 0, a: 1 }), 'normal')
+    backend.paintDab('ink', dab(24, 16, 6, { r: 0, g: 0, b: 1, a: 1 }), 'normal')
+    backend.endStroke('ink')
+
+    const color = backend.sampleRegion('ink', { x: 12, y: 10, width: 16, height: 12 })
+
+    expect(color.r).toBeGreaterThan(0.2)
+    expect(color.b).toBeGreaterThan(0.2)
+    expect(color.a).toBeGreaterThan(0.2)
+  })
+
   it('reports tile memory from allocated buffers and uploaded textures', async () => {
     const { backend } = await createFixture()
     const bytesPerTile = 16 * 16 * 4

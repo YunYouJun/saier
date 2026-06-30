@@ -1,5 +1,6 @@
 import type { BrushDab, CompositeMode, DirtyRect } from '../types'
 import type { TiledSurface } from './TiledSurface'
+import { samplePaper } from '../brush/paper'
 import { sampleBrushTipAlpha } from '../brush/tips'
 import { clampToSize, fromCircle, isEmpty } from '../math'
 
@@ -25,7 +26,7 @@ export function rasterizeDab(
   if (isEmpty(dirty))
     return dirty
 
-  const coverageAlpha = Math.max(0, Math.min(1, dab.opacity * dab.color.a))
+  const coverageAlpha = effectiveCoverageAlpha(dab)
   if (coverageAlpha <= 0)
     return emptyDirty()
 
@@ -40,7 +41,7 @@ export function rasterizeDab(
 
     for (let y = top; y < bottom; y++) {
       for (let x = left; x < right; x++) {
-        const coverage = dabCoverage(x + 0.5, y + 0.5, dab)
+        const coverage = effectiveCoverage(x + 0.5, y + 0.5, dab)
         if (coverage <= 0)
           continue
 
@@ -84,6 +85,31 @@ function dabCoverage(x: number, y: number, dab: BrushDab): number {
     hardness: dab.hardness,
     edgeSize: 0.5 / radius,
   })
+}
+
+function effectiveCoverage(x: number, y: number, dab: BrushDab): number {
+  const coverage = dabCoverage(x, y, dab)
+  if (coverage <= 0)
+    return 0
+
+  const wetEdge = clamp01(dab.wetEdge ?? 0)
+  const paperStrength = clamp01(dab.paperTextureStrength ?? 0)
+  let adjusted = wetEdge > 0
+    ? applyWetEdge(coverage, wetEdge)
+    : coverage
+
+  if (paperStrength > 0 && dab.paperTextureId) {
+    const paper = samplePaper(dab.paperTextureId, x, y)
+    adjusted *= 1 - paperStrength + paper * paperStrength
+  }
+
+  return clamp01(adjusted)
+}
+
+function applyWetEdge(coverage: number, wetEdge: number): number {
+  const centerWash = coverage * (1 - wetEdge * 0.5)
+  const edgeDeposit = coverage * (1 - coverage) * wetEdge * 1.3
+  return centerWash + edgeDeposit
 }
 
 function compositeSourceOver(
@@ -144,8 +170,22 @@ function compositeErase(data: Uint8ClampedArray, offset: number, srcAlpha: numbe
   data[offset + 3] = toByte((data[offset + 3]! / 255) * inv)
 }
 
+function effectiveCoverageAlpha(dab: BrushDab): number {
+  const density = clamp01(dab.density ?? 1)
+  const dilution = clamp01(dab.dilution ?? 0)
+  return clamp01(dab.opacity * dab.color.a * density * (1 - dilution))
+}
+
 function toByte(value: number): number {
   return Math.round(Math.max(0, Math.min(1, value)) * 255)
+}
+
+function clamp01(value: number): number {
+  if (value < 0)
+    return 0
+  if (value > 1)
+    return 1
+  return value
 }
 
 function emptyDirty(): DirtyRect {

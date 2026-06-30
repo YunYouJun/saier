@@ -1,5 +1,5 @@
 import type { BlendMode } from '../document/RasterLayer'
-import type { BrushDab } from './brush'
+import type { BrushDab, RGBA } from './brush'
 import type { SurfaceMemorySnapshot } from './memory'
 
 /** An axis-aligned dirty region in document space. */
@@ -47,6 +47,19 @@ export interface SurfaceLayerState {
   lockAlpha?: boolean
 }
 
+export interface SurfaceSampleRegionOptions {
+  /**
+   * Optional dab footprint used as sampling weights. When omitted, every pixel
+   * inside the requested rect contributes equally.
+   */
+  dab?: Pick<BrushDab, 'x' | 'y' | 'radius' | 'hardness' | 'tipId' | 'rotation'>
+}
+
+export interface SurfaceSampler {
+  /** Sample a straight RGBA average from a layer in document space. */
+  sampleRegion: (layerId: string, rect: DirtyRect, options?: SurfaceSampleRegionOptions) => RGBA
+}
+
 /**
  * The **only** pixel interface between core and the renderer.
  *
@@ -66,6 +79,8 @@ export interface SurfaceBackend {
   beginStroke: (layerId: string) => void
   /** stamp one dab; returns the dab's dirty region */
   paintDab: (layerId: string, dab: BrushDab, mode: CompositeMode) => DirtyRect
+  /** optional readback path used by CPU-tile color mixing / smudge */
+  sampleRegion?: SurfaceSampler['sampleRegion']
   /** commit the stroke, returning a before/after patch for undo */
   endStroke: (layerId: string) => StrokePatch
 

@@ -36,8 +36,12 @@ export interface BrushDab {
   density?: number
   /** Per-dab dilution / wetness `0..1`; omitted means no dilution. */
   dilution?: number
+  /** Wet-edge pigment buildup `0..1`; omitted means disabled. */
+  wetEdge?: number
   /** Paper texture id used to modulate dab coverage in later P7 work. */
   paperTextureId?: string
+  /** Paper texture coverage modulation strength `0..1`; omitted means disabled. */
+  paperTextureStrength?: number
   /**
    * Per-stroke dab accumulation mode.
    *

@@ -5,7 +5,11 @@ const props = withDefaults(defineProps<{
   presetLabels?: Partial<Record<BrushPresetId, string>>
   presets: BrushPresetSummary[]
   activePresetId: BrushPresetId
+  disabledPresetIds?: BrushPresetId[]
+  disabledTitle?: string
 }>(), {
+  disabledPresetIds: () => [],
+  disabledTitle: '',
   presetLabels: () => ({}),
 })
 
@@ -15,6 +19,15 @@ const emit = defineEmits<{
 
 function presetLabel(preset: BrushPresetSummary): string {
   return props.presetLabels[preset.id] ?? preset.name
+}
+
+function isDisabled(preset: BrushPresetSummary): boolean {
+  return props.disabledPresetIds.includes(preset.id)
+}
+
+function handleSelect(preset: BrushPresetSummary): void {
+  if (!isDisabled(preset))
+    emit('select', preset.id)
 }
 </script>
 
@@ -28,8 +41,9 @@ function presetLabel(preset: BrushPresetSummary): string {
       :class="{ 'is-active': preset.id === props.activePresetId }"
       :aria-label="presetLabel(preset)"
       :aria-pressed="preset.id === props.activePresetId"
-      :title="presetLabel(preset)"
-      @click="emit('select', preset.id)"
+      :disabled="isDisabled(preset)"
+      :title="isDisabled(preset) ? props.disabledTitle : presetLabel(preset)"
+      @click="handleSelect(preset)"
     >
       <span class="brush-preset-swatch" :data-tip="preset.tipId" />
       <span class="brush-preset-name">{{ presetLabel(preset) }}</span>
@@ -77,6 +91,11 @@ function presetLabel(preset: BrushPresetSummary): string {
 
 .brush-preset-button:hover {
   background: rgb(255 255 255 / 10%);
+}
+
+.brush-preset-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
 }
 
 .brush-preset-swatch {

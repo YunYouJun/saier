@@ -15,6 +15,8 @@ title: P7-07 · 混色预设 + Vue UI（smudge / watercolor + 参数）
 
 > 后端门控（[D11](../decisions#d11) 方案 A，[P7-00](./P7-00-tile-default-backend) 已落）：tile 已是默认后端，混色笔刷开箱即用；UI 无需切后端，仅在用户**显式**选了非 tile 后端时禁用混色预设并提示。
 
+**已落地（2026-06-30）**：默认预设新增 `smudge` / `blender` / `watercolor`；`PainterOptionsBar` 在 smudge 系 preset 下显示 pickup / persistence / colorAmount / density / dilution / wetEdge / paper grain 控件，全部经 `PainterBrush` → `PainterController` setter；`BrushPresetPicker` 对无 `sampleRegion` 的后端禁用 smudge 系 preset 并给出 tile 后端提示。
+
 ## Steps
 
 1. **预设**：补齐 `smudge` / `blender` / `watercolor` 默认预设（参数来自 P7-04 / P7-05），出现在 preset picker。
@@ -25,9 +27,9 @@ title: P7-07 · 混色预设 + Vue UI（smudge / watercolor + 参数）
 
 ## Acceptance
 
-- [ ] preset picker 可选 smudge / watercolor，参数滑块即时驱动 core（经 controller，不碰内部）。
-- [ ] tile 默认下混色笔刷开箱即用；显式选非 tile 后端时混色预设灰显 + 提示。
-- [ ] `examples/vue` 与 `site` 共享同一 `usePainter()` 即得新笔刷；冒烟通过。
+- [x] preset picker 可选 smudge / watercolor，参数滑块即时驱动 core（经 controller，不碰内部）。
+- [x] tile 默认下混色笔刷开箱即用；显式选非 tile 后端时混色预设灰显 + 提示。
+- [x] `examples/vue` 与 `site` 共享同一 `usePainter()` 即得新笔刷；冒烟通过。
 
 ## Out of scope
 

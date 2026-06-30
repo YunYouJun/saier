@@ -15,6 +15,8 @@ Roadmap P7：**「先 stamp brush（笔尖 mask + spacing + opacity accumulation
 
 现状：`rasterizeDab` 的 `compositeSourceOver` 用 `srcAlpha = coverage × opacity × color.a`，硬编码 source-over。P7 要让单 dab 的沉积量受 **density**（浓度累积）与 **dilution**（稀释 → 降低有效 alpha、提升与底色融合）调制，并让边缘软度（`hardness`）可表达更连续的羽化核。
 
+**已落地（2026-06-30）**：`SimpleBrushEngine` 从 preset / controller 透传 `density`、`dilution`、`paperTextureId` 到 dab；`rasterizeDab` 以 `opacity × color.a × density × (1 - dilution)` 计算有效沉积 alpha，默认值与旧行为等价；node 像素测试覆盖 density 累积、dilution 透底、hardness 软边单调。
+
 ## Steps
 
 1. **density（浓度 / paint amount）**：在 `rasterizeDab` 把 `coverageAlpha` 乘以 `dab.density ?? 1`，作为单 dab 的沉积强度上限；确保同一笔内多 dab 仍由 `source-over` 自然累积到饱和（与 marker 的 `max-alpha` 路径区分）。
@@ -25,9 +27,9 @@ Roadmap P7：**「先 stamp brush（笔尖 mask + spacing + opacity accumulation
 
 ## Acceptance
 
-- [ ] density / dilution / 边缘软度三参数在 CPU 光栅器生效，且默认值与现行为像素一致（既有断言全绿）。
-- [ ] dilution 下颜料变薄、可见底色融合；纯 node 像素断言通过。
-- [ ] 同一组输入 → 同样像素（无 `Math.random` / `Date.now`，[testing](../testing)）。
+- [x] density / dilution / 边缘软度三参数在 CPU 光栅器生效，且默认值与现行为像素一致（既有断言全绿）。
+- [x] dilution 下颜料变薄、可见底色融合；纯 node 像素断言通过。
+- [x] 同一组输入 → 同样像素（无 `Math.random` / `Date.now`，[testing](../testing)）。
 
 ## Out of scope
 

@@ -15,6 +15,15 @@ interface PainterOptionsBarLabels {
   spacing: string
   hardness: string
   flow: string
+  smudge: string
+  colorAmount: string
+  dilution: string
+  persistence: string
+  wetEdge: string
+  density: string
+  paperTexture: string
+  paperTextureStrength: string
+  requiresTileBackend: string
   presetLabels: BrushPresetLabelMap
 }
 
@@ -30,6 +39,15 @@ const DEFAULT_LABELS: PainterOptionsBarLabels = {
   spacing: 'Spacing',
   hardness: 'Hard',
   flow: 'Flow',
+  smudge: 'Pickup',
+  colorAmount: 'Color',
+  dilution: 'Dilution',
+  persistence: 'Persistence',
+  wetEdge: 'Wet edge',
+  density: 'Density',
+  paperTexture: 'Paper',
+  paperTextureStrength: 'Grain',
+  requiresTileBackend: 'Requires tiled backend',
   presetLabels: {},
 }
 
@@ -46,7 +64,22 @@ const opacity = shallowRef(initialBrush.opacity)
 const spacing = shallowRef(initialBrush.spacing)
 const hardness = shallowRef(initialBrush.hardness)
 const flow = shallowRef(initialBrush.flow)
+const smudge = shallowRef(initialBrush.smudge)
+const colorAmount = shallowRef(initialBrush.colorAmount)
+const dilution = shallowRef(initialBrush.dilution)
+const persistence = shallowRef(initialBrush.persistence)
+const wetEdge = shallowRef(initialBrush.wetEdge)
+const density = shallowRef(initialBrush.density)
+const paperTextureId = shallowRef(initialBrush.paperTextureId)
+const paperTextureStrength = shallowRef(initialBrush.paperTextureStrength)
+const paperEnabled = shallowRef(Boolean(initialBrush.paperTextureId && initialBrush.paperTextureStrength > 0))
 const enablePressure = shallowRef(true)
+
+const activePreset = computed(() => presets.value.find(preset => preset.id === presetId.value))
+const showMixingControls = computed(() => activePreset.value?.engine === 'smudge')
+const disabledPresetIds = computed(() => props.painter.surface.sampleRegion
+  ? []
+  : presets.value.filter(preset => preset.engine === 'smudge').map(preset => preset.id))
 
 function handleBrushChange(brush: PainterBrushState) {
   presetId.value = brush.presetId
@@ -56,6 +89,15 @@ function handleBrushChange(brush: PainterBrushState) {
   spacing.value = brush.spacing
   hardness.value = brush.hardness
   flow.value = brush.flow
+  smudge.value = brush.smudge
+  colorAmount.value = brush.colorAmount
+  dilution.value = brush.dilution
+  persistence.value = brush.persistence
+  wetEdge.value = brush.wetEdge
+  density.value = brush.density
+  paperTextureId.value = brush.paperTextureId
+  paperTextureStrength.value = brush.paperTextureStrength
+  paperEnabled.value = Boolean(brush.paperTextureId && brush.paperTextureStrength > 0)
 }
 
 props.painter.controller.on('brush:change', handleBrushChange)
@@ -94,6 +136,54 @@ watch(flow, (value) => {
     props.painter.brush.setFlow(value)
 })
 
+watch(smudge, (value) => {
+  if (value !== props.painter.controller.getState().brush.smudge)
+    props.painter.brush.setSmudge(value)
+})
+
+watch(colorAmount, (value) => {
+  if (value !== props.painter.controller.getState().brush.colorAmount)
+    props.painter.brush.setColorAmount(value)
+})
+
+watch(dilution, (value) => {
+  if (value !== props.painter.controller.getState().brush.dilution)
+    props.painter.brush.setDilution(value)
+})
+
+watch(persistence, (value) => {
+  if (value !== props.painter.controller.getState().brush.persistence)
+    props.painter.brush.setPersistence(value)
+})
+
+watch(wetEdge, (value) => {
+  if (value !== props.painter.controller.getState().brush.wetEdge)
+    props.painter.brush.setWetEdge(value)
+})
+
+watch(density, (value) => {
+  if (value !== props.painter.controller.getState().brush.density)
+    props.painter.brush.setDensity(value)
+})
+
+watch(paperEnabled, (value) => {
+  const brush = props.painter.controller.getState().brush
+  if (value) {
+    const textureId = brush.paperTextureId ?? paperTextureId.value ?? 'cold-press'
+    props.painter.brush.setPaperTextureId(textureId)
+    if (brush.paperTextureStrength <= 0)
+      props.painter.brush.setPaperTextureStrength(0.45)
+  }
+  else if (brush.paperTextureStrength !== 0) {
+    props.painter.brush.setPaperTextureStrength(0)
+  }
+})
+
+watch(paperTextureStrength, (value) => {
+  if (value !== props.painter.controller.getState().brush.paperTextureStrength)
+    props.painter.brush.setPaperTextureStrength(value)
+})
+
 watch(enablePressure, (value) => {
   props.painter.brush.setPressureEnabled(value)
   props.painter.eraser.setPressureEnabled(value)
@@ -117,6 +207,8 @@ function formatSize(value: number): string {
     <BrushPresetPicker
       :presets="presets"
       :active-preset-id="presetId"
+      :disabled-preset-ids="disabledPresetIds"
+      :disabled-title="text.requiresTileBackend"
       :preset-labels="text.presetLabels"
       @select="presetId = $event"
     />
@@ -128,6 +220,25 @@ function formatSize(value: number): string {
       <PainterSlider v-model="spacing" :label="text.spacing" :min="0.05" :max="1" :step="0.01" :format-value="formatPercent" />
       <PainterSlider v-model="hardness" :label="text.hardness" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
       <PainterSlider v-model="flow" :label="text.flow" :min="1" :max="80" :step="1" :format-value="formatFlow" />
+    </div>
+
+    <div v-if="showMixingControls" class="painter-options__params">
+      <PainterSlider v-model="smudge" :label="text.smudge" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
+      <PainterSlider v-model="persistence" :label="text.persistence" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
+      <PainterSlider v-model="colorAmount" :label="text.colorAmount" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
+      <PainterSlider v-model="density" :label="text.density" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
+      <PainterSlider v-model="dilution" :label="text.dilution" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
+      <PainterSlider v-model="wetEdge" :label="text.wetEdge" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
+      <PainterCheckbox v-model="paperEnabled" :label="text.paperTexture" />
+      <PainterSlider
+        v-model="paperTextureStrength"
+        :disabled="!paperEnabled"
+        :label="text.paperTextureStrength"
+        :min="0"
+        :max="1"
+        :step="0.01"
+        :format-value="formatPercent"
+      />
     </div>
   </div>
 </template>

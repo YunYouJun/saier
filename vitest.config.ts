@@ -1,5 +1,6 @@
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import vue from '@vitejs/plugin-vue'
 import { playwright } from '@vitest/browser-playwright'
 import { defineConfig } from 'vitest/config'
 
@@ -10,6 +11,7 @@ const alias = {
 }
 
 export default defineConfig({
+  plugins: [vue()],
   optimizeDeps: {
     include: ['consola', 'hotkeys-js', 'mitt', 'pixi.js/advanced-blend-modes', 'pixi.js/math-extras'],
   },
@@ -19,6 +21,7 @@ export default defineConfig({
   test: {
     projects: [
       {
+        plugins: [vue()],
         resolve: {
           alias,
         },
@@ -36,12 +39,14 @@ export default defineConfig({
         },
       },
       {
+        plugins: [vue()],
         resolve: {
           alias,
         },
         test: {
           name: 'browser',
           include: [
+            'packages/vue/test/**/*.browser.spec.ts',
             'packages/saier/test/**/*.browser.spec.ts',
             'packages/pixi/test/**/*.browser.spec.ts',
           ],

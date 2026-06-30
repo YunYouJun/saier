@@ -72,6 +72,15 @@ interface SiteMessages {
     spacing: string
     hardness: string
     flow: string
+    smudge: string
+    colorAmount: string
+    dilution: string
+    persistence: string
+    wetEdge: string
+    density: string
+    paperTexture: string
+    paperTextureStrength: string
+    requiresTileBackend: string
     presetLabels: Record<BuiltinBrushPresetId, string>
   }
   memory: {
@@ -203,12 +212,24 @@ const messages: Record<SiteLocale, SiteMessages> = {
       spacing: 'Spacing',
       hardness: 'Hard',
       flow: 'Flow',
+      smudge: 'Pickup',
+      colorAmount: 'Color',
+      dilution: 'Dilution',
+      persistence: 'Persistence',
+      wetEdge: 'Wet edge',
+      density: 'Density',
+      paperTexture: 'Paper',
+      paperTextureStrength: 'Grain',
+      requiresTileBackend: 'Requires tiled backend',
       presetLabels: {
         pen: 'Pen',
         pencil: 'Pencil',
         marker: 'Marker',
         airbrush: 'Airbrush',
         calligraphy: 'Calligraphy',
+        smudge: 'Smudge',
+        blender: 'Blender',
+        watercolor: 'Watercolor',
       },
     },
     memory: {
@@ -348,12 +369,24 @@ const messages: Record<SiteLocale, SiteMessages> = {
       spacing: '间距',
       hardness: '硬度',
       flow: '流量',
+      smudge: '取色',
+      colorAmount: '自色',
+      dilution: '稀释',
+      persistence: '留色',
+      wetEdge: '湿边',
+      density: '浓度',
+      paperTexture: '纸纹',
+      paperTextureStrength: '颗粒',
+      requiresTileBackend: '需要 tile 后端',
       presetLabels: {
         pen: '钢笔',
         pencil: '铅笔',
         marker: '马克笔',
         airbrush: '喷枪',
         calligraphy: '书法',
+        smudge: '涂抹',
+        blender: '混色',
+        watercolor: '水彩',
       },
     },
     memory: {

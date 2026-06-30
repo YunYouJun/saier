@@ -2,10 +2,12 @@ import type {
   BrushDab,
   CompositeMode,
   DirtyRect,
+  RGBA,
   StrokePatch,
   SurfaceBackend,
   SurfaceLayerState,
   SurfaceMemorySnapshot,
+  SurfaceSampleRegionOptions,
   TileCoord,
   TiledSurface,
   TiledSurfaceDirtySnapshot,
@@ -234,6 +236,10 @@ export class PixiTileTextureBackend implements SurfaceBackend, DisplayMaskCapabl
     if (!isEmpty(dirty))
       this.scheduleFlush()
     return dirty
+  }
+
+  sampleRegion(layerId: string, rect: DirtyRect, options?: SurfaceSampleRegionOptions): RGBA {
+    return this.getLayer(layerId).surface.sampleRegion(rect, options)
   }
 
   endStroke(layerId: string): StrokePatch {

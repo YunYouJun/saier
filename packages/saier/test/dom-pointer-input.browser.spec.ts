@@ -102,6 +102,21 @@ function dispatchPointer(
   painter.app.canvas.dispatchEvent(event)
 }
 
+function dispatchWheel(painter: Painter, options: WheelEventInit = {}): WheelEvent {
+  const event = new WheelEvent('wheel', {
+    bubbles: true,
+    cancelable: true,
+    clientX: 32,
+    clientY: 32,
+    deltaY: -50,
+    ctrlKey: true,
+    ...options,
+  })
+
+  painter.app.canvas.dispatchEvent(event)
+  return event
+}
+
 function coalescedMove(options: PointerEventInit): PointerEvent {
   return new PointerEvent('pointermove', {
     bubbles: true,
@@ -128,6 +143,23 @@ describe('dom pointer input adapter', () => {
 
     expect(readPixel(painter, 32, 32)[3]).toBeGreaterThan(0)
     expect(painter.history.undoStack).toHaveLength(1)
+  })
+
+  it('zooms the viewport from trackpad wheel gestures without browser page zoom', async () => {
+    const painter = await createFixture({ diagnostics: false })
+    const board = painter.board.container
+    const initialScale = board.scale.x
+
+    const zoomIn = dispatchWheel(painter, { deltaY: -50 })
+
+    expect(zoomIn.defaultPrevented).toBe(true)
+    expect(board.scale.x).toBeGreaterThan(initialScale)
+
+    const zoomedScale = board.scale.x
+    const zoomOut = dispatchWheel(painter, { deltaY: 50 })
+
+    expect(zoomOut.defaultPrevented).toBe(true)
+    expect(board.scale.x).toBeLessThan(zoomedScale)
   })
 
   it('feeds coalesced pointermove samples into one active brush stroke', async () => {

@@ -5,6 +5,7 @@ import { PainterBoard } from '../board'
 export class PainterCanvas {
   container = new Container()
   painter: Painter
+  private readonly wheelListenerOptions = { passive: false } satisfies AddEventListenerOptions
 
   /**
    * for paint graphics
@@ -81,30 +82,20 @@ export class PainterCanvas {
   }
 
   bindEvents() {
-    // event
-    const boardContainer = this.painter.board.container
+    this.painter.app.canvas.addEventListener('wheel', this.handleWheel, this.wheelListenerOptions)
+  }
 
-    // scale
-    this.painter.app.stage.on('wheel', (e) => {
-      e.preventDefault()
-      e.stopPropagation()
+  private readonly handleWheel = (event: WheelEvent): void => {
+    event.preventDefault()
+    event.stopPropagation()
 
-      const scroll = Math.sign(e.deltaY) * Math.min(Math.abs(e.deltaY), 50)
-      const scale = Math.max(boardContainer.scale.x * (1 + scroll / 500), this.minScale)
-
-      const offset = e.getLocalPosition(boardContainer)
-
-      boardContainer.position.set(
-        e.global.x - offset.x * scale,
-        e.global.y - offset.y * scale,
-      )
-      this.painter.boundingBoxes.position.set(
-        boardContainer.position.x,
-        boardContainer.position.y,
-      )
-      this.scaleTo(scale)
-      // this.painter.brush.graphics.scale.set(scale)
-    })
+    const rect = this.painter.app.canvas.getBoundingClientRect()
+    const point = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    }
+    const scaleFactor = Math.exp(-normalizeWheelDelta(event) / 500)
+    this.painter.zoomViewportAt(point, scaleFactor)
   }
 
   scaleTo(scale: number) {
@@ -133,8 +124,26 @@ export class PainterCanvas {
   }
 
   destroy() {
-    this.painter.app.stage.off('wheel')
+    this.painter.app.canvas.removeEventListener('wheel', this.handleWheel)
   }
+}
+
+function normalizeWheelDelta(event: WheelEvent): number {
+  const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE
+    ? 16
+    : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+      ? window.innerHeight
+      : 1
+
+  return clamp(event.deltaY * unit, -100, 100)
+}
+
+function clamp(value: number, min: number, max: number): number {
+  if (value < min)
+    return min
+  if (value > max)
+    return max
+  return value
 }
 
 export function createCanvas(painter: Painter) {

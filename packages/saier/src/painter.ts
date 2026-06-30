@@ -5,19 +5,24 @@ import type {
   MemoryRiskLevel,
   PainterMemorySnapshot,
   RasterLayer,
+  SaierProjectFile,
+  SaierProjectMetadata,
   StrokePatch,
   SurfaceBackend,
   SurfaceMemorySnapshot,
+  TiledSurface,
 } from '@saier/core'
 import type { DisplayMaskCapableBackend, ViewportPoint } from '@saier/pixi'
 import type { PainterCanvas } from './canvas'
 import type { PainterInputOptions, PainterPointerSource } from './input'
 import {
   createDefaultBrushPresetRegistry,
+  deserializeSaierProject,
   isEmpty,
   isIdentityTransform,
   PainterController,
   Document as RasterDocument,
+  serializeSaierProject,
   UndoManager,
 } from '@saier/core'
 import { PixiTileTextureBackend, RenderTextureBackend, TouchGestureRouter } from '@saier/pixi'
@@ -99,6 +104,16 @@ export interface CreatePainterDocumentOptions {
   width: number
   height: number
   defaultLayerLabel?: string
+  activate?: boolean
+}
+
+export interface ExportPainterProjectOptions {
+  metadata?: SaierProjectMetadata
+}
+
+export interface ImportPainterProjectOptions {
+  id?: string
+  name?: string
   activate?: boolean
 }
 
@@ -749,6 +764,65 @@ export class Painter {
       throw new Error(`unknown type: ${type}`)
   }
 
+  exportProject(options: ExportPainterProjectOptions = {}): SaierProjectFile {
+    const session = this.requireActiveSession()
+    const surface = requireTiledSurfaceAccess(session.surface)
+    this.flushSurfaceUploads()
+
+    return serializeSaierProject({
+      document: session.document,
+      resolveSurface: id => tryGetSurface(surface, id),
+      metadata: {
+        name: session.name,
+        documentId: session.id,
+        ...options.metadata,
+      },
+    })
+  }
+
+  importProject(project: SaierProjectFile, options: ImportPainterProjectOptions = {}): PainterDocumentState {
+    const restored = deserializeSaierProject(project)
+    const id = options.id ?? this.nextDocumentId()
+    if (this.documentSessions.has(id))
+      throw new Error(`Document id already exists: ${id}`)
+
+    this.cancelActiveStroke()
+    const session = this.createDocumentSession({
+      id,
+      name: options.name?.trim() || projectName(restored.metadata, this.documentOrder.length + 1),
+      width: restored.document.width,
+      height: restored.document.height,
+      document: restored.document,
+    })
+    const surface = requireTiledSurfaceAccess(session.surface)
+
+    for (const [surfaceId, source] of restored.surfaces) {
+      const target = surface.getSurface(surfaceId)
+      target.clear()
+      for (const tile of source.allocatedTiles) {
+        if (!tile.hasVisiblePixels())
+          continue
+        const rect = source.tileRect(tile.tileX, tile.tileY)
+        target.writeRegion(rect, source.readRegion(rect))
+      }
+    }
+
+    if (isDisplayMaskCapableBackend(session.surface))
+      session.surface.refreshDerivedDisplays({ x: 0, y: 0, width: session.width, height: session.height })
+    session.surface.flushUploads?.()
+
+    this.documentSessions.set(session.id, session)
+    this.documentOrder.push(session.id)
+
+    if (options.activate ?? true)
+      this.switchDocument(session.id)
+    else
+      session.layersContainer.visible = false
+
+    this.emitDocumentsChange()
+    return this.toDocumentState(session)
+  }
+
   /**
    * clear content in inner canvas
    */
@@ -813,7 +887,9 @@ export class Painter {
     this.brush.sizeUp()
   }
 
-  private createDocumentSession(options: Required<Pick<CreatePainterDocumentOptions, 'id' | 'name' | 'width' | 'height'>> & Pick<CreatePainterDocumentOptions, 'defaultLayerLabel'>): PainterDocumentSession {
+  private createDocumentSession(options: Required<Pick<CreatePainterDocumentOptions, 'id' | 'name' | 'width' | 'height'>> & Pick<CreatePainterDocumentOptions, 'defaultLayerLabel'> & {
+    document?: RasterDocument
+  }): PainterDocumentSession {
     const layersContainer = new Container()
     layersContainer.label = `${options.id}:layers`
     const boundingBoxes = new Container()
@@ -822,7 +898,7 @@ export class Painter {
     this.canvas.documentsContainer.addChild(layersContainer)
     this.boundingBoxes.addChild(boundingBoxes)
 
-    const document = new RasterDocument({ width: options.width, height: options.height })
+    const document = options.document ?? new RasterDocument({ width: options.width, height: options.height })
     const surface = this.createSurfaceBackend(options.width, options.height, layersContainer)
     const undoManager = new UndoManager({ backend: surface })
     const history = new PainterHistory(this)
@@ -850,11 +926,16 @@ export class Painter {
       document.off('layers:change', handleLayersChange)
     }
 
-    const layer = document.addLayer({
-      id: 'layer-1',
-      label: options.defaultLayerLabel ?? 'Layer 1',
-    })
-    this.syncSurfaceLayers([layer], session)
+    if (options.document) {
+      this.syncSurfaceLayers(document.layers, session)
+    }
+    else {
+      const layer = document.addLayer({
+        id: 'layer-1',
+        label: options.defaultLayerLabel ?? 'Layer 1',
+      })
+      this.syncSurfaceLayers([layer], session)
+    }
     layersContainer.visible = false
     boundingBoxes.visible = false
     return session
@@ -1132,6 +1213,9 @@ function createFallbackSurfaceMemorySnapshot(surface: SurfaceBackend): SurfaceMe
 }
 
 type DisplayMaskSurfaceBackend = SurfaceBackend & DisplayMaskCapableBackend
+type TiledSurfaceAccessBackend = SurfaceBackend & {
+  getSurface: (layerId: string) => TiledSurface
+}
 
 function isDisplayMaskCapableBackend(surface: SurfaceBackend): surface is DisplayMaskSurfaceBackend {
   const maybe = surface as Partial<DisplayMaskCapableBackend>
@@ -1140,6 +1224,29 @@ function isDisplayMaskCapableBackend(surface: SurfaceBackend): surface is Displa
     && typeof maybe.fillLayerOpaque === 'function'
     && typeof maybe.setLayerDisplayMask === 'function'
     && typeof maybe.refreshDerivedDisplays === 'function'
+}
+
+function requireTiledSurfaceAccess(surface: SurfaceBackend): TiledSurfaceAccessBackend {
+  const maybe = surface as Partial<TiledSurfaceAccessBackend>
+  if (typeof maybe.getSurface !== 'function') {
+    throw new TypeError('Project save/load requires the tiled backend surface API')
+  }
+  return surface as TiledSurfaceAccessBackend
+}
+
+function tryGetSurface(surface: TiledSurfaceAccessBackend, id: string): TiledSurface | undefined {
+  try {
+    return surface.getSurface(id)
+  }
+  catch {
+    return undefined
+  }
+}
+
+function projectName(metadata: SaierProjectMetadata, fallbackIndex: number): string {
+  return typeof metadata.name === 'string' && metadata.name.trim()
+    ? metadata.name.trim()
+    : `Canvas ${fallbackIndex}`
 }
 
 function getMemoryRiskLevel(totalEstimatedBytes: number, deviceMemoryBytes?: number): MemoryRiskLevel {

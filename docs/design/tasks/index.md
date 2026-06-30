@@ -182,6 +182,21 @@ title: Tasks
 
 **P7 出口（里程碑 M4）目标**：smudge 能拖动已有颜色；两色交界自然过渡；湿边 / 纸纹可开关；混色描边可 undo / redo；同输入确定性像素一致。
 
-## 后续阶段（P8+）
+## P8 — 文件 / 序列化（里程碑 M5）
 
-P8–P9 的任务卡按需续写（`P8-01-*.md` …），参照同一格式与依赖链。优先级与取舍见 [Roadmap](../roadmap) 与 [Risks](../roadmap#risks)。
+> 目标：工程文件保存 / 读取还原图层；笔迹以 `{X,Y,T,P}` + 操作流格式可存储并确定性回放。PSD 导出是 Roadmap P8 的可选项，不阻塞本阶段验收。
+>
+> **进度（2026-06-30）**：✅ P8-01 `saier.project` v1 schema（Document + sparse tile surfaces）· ✅ P8-02 `Painter.exportProject()` / `importProject()` tiled backend API · ✅ P8-03 shodo stroke record + replay · ✅ P8-04 Node + browser 验收。
+
+| ID                                     | 卡片                                       | 包    | Depends on       | Effort |
+| -------------------------------------- | ------------------------------------------ | ----- | ---------------- | ------ |
+| [P8-01](./P8-01-project-format-schema) | 工程文件格式（Document + tile surfaces）   | core  | P2-01, P5-01, P7 | M      |
+| [P8-02](./P8-02-saier-project-api)     | saier 工程导出 / 导入 API                  | saier | P8-01, P7-00     | M      |
+| [P8-03](./P8-03-stroke-replay-format)  | 笔迹回放格式（shodo `{X,Y,T,P}` 收割）     | core  | P3-04, P7-08     | M      |
+| [P8-04](./P8-04-verify-files)          | P8 验收（工程 round-trip / replay pixels） | test  | P8-01..03        | M      |
+
+**P8 出口（里程碑 M5 核心）目标**：保存 → 读取还原图层；同一笔迹回放像素一致。
+
+## 后续阶段（P9+）
+
+P9 的任务卡按需续写（`P9-01-*.md` …），参照同一格式与依赖链。优先级与取舍见 [Roadmap](../roadmap) 与 [Risks](../roadmap#risks)。

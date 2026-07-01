@@ -285,6 +285,16 @@ export class PainterEraser {
     PainterEraser.enablePressure = enabled
   }
 
+  getStabilizerStrength(): number {
+    return PainterEraser.stabilizerStrength
+  }
+
+  setStabilizerStrength(strength: number) {
+    PainterEraser.stabilizerStrength = normalizeStabilizerStrength(strength)
+    if (!this.dragging)
+      this.stabilizer = this.createStabilizer()
+  }
+
   isActivePointer(event: PIXI.FederatedPointerEvent): boolean {
     return this.activePointerId === getPointerId(event)
   }
@@ -340,4 +350,8 @@ function getPointerId(event: PIXI.FederatedPointerEvent): number {
 
 function getPointerType(event: PIXI.FederatedPointerEvent): string {
   return event.pointerType ?? 'pen'
+}
+
+function normalizeStabilizerStrength(strength: number): number {
+  return Number.isFinite(strength) ? Math.max(0, Math.round(strength)) : 0
 }

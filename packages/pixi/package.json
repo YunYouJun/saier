@@ -10,7 +10,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/YunYouJun/saier",
+    "url": "git+https://github.com/YunYouJun/saier.git",
     "directory": "packages/pixi"
   },
   "sideEffects": false,

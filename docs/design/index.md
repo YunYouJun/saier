@@ -4,7 +4,7 @@ title: Design Overview
 
 # 设计总览：从「Graphics 画板」到「优雅的在线绘画运行时（saier）」
 
-> 本节（`/design/`）是 **saier**（体验优雅的在线绘画运行时，现包名 `pixi-painter`）架构演进的**单一事实来源（source of truth）**，
+> 本节（`/design/`）是 **saier**（体验优雅的在线绘画运行时）架构演进的**单一事实来源（source of truth）**，
 > 写给人类维护者与执行 Agent（codex / Claude）阅读和执行。
 >
 > - 想知道**为什么这么改**、**现状如何** → 看本页。
@@ -84,13 +84,13 @@ packages/
     PixiCursorOverlay      # 复用现有 brush.circle
     PixiSelectionOverlay   # 复用现有 boundingBoxes
 
-  pixi-painter/            # 现有包：逐步瘦身为「默认装配（core + pixi + 默认 UI 行为）」
-  controls/                # Vue UI 面板（纯 DOM；薄皮：绑定到 core controller，不碰内部静态）
-  shodo/                   # 改造为 CalligraphyEngine 的实验场 / 算法来源，最终 render 到 surface 而非 stamp sprite
+  saier/                   # umbrella runtime：默认装配 core + pixi + 兼容 API
+  vue/                     # @saier/vue：Vue UI 面板（纯 DOM；绑定到 core controller）
+  shodo/                   # @saier/shodo：CalligraphyEngine 的实验场 / 算法来源
 ```
 
 ::: tip 兼容性策略
-**不删 `pixi-painter` 包名**（它是已发布的 npm 包）。在其内部把实现委托给新的 `core` + `pixi`，对外 API 尽量保持兼容，破坏性变更走 major 版本。
+`pixi-painter` 是历史 npm 包名。正式发布时保留为 deprecated compatibility alias，主包与文档统一使用 `saier` / `@saier/*`。
 :::
 
 ## UI / 交互分层

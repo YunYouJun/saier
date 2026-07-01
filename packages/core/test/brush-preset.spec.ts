@@ -1,10 +1,14 @@
-import type { BrushContext, BrushInputPoint, BrushPreset } from '../src'
+import type { BrushContext, BrushDab, BrushEngine, BrushInputPoint, BrushPreset } from '../src'
 import { describe, expect, it } from 'vitest'
 import {
   clonePreset,
   createBrushEngineFromPreset,
+  createDefaultBrushEngineRegistry,
   createDefaultBrushPresetRegistry,
   isSmudgeBrushEngine,
+  loadBrushEngineRegistration,
+  parseMyPaintBrushPreset,
+  toBrushPresetSummary,
 } from '../src'
 
 const BLACK = { r: 0, g: 0, b: 0, a: 1 }
@@ -51,6 +55,10 @@ describe('brush presets', () => {
     const preset: BrushPreset = {
       id: 'wet-mix',
       name: 'Wet Mix',
+      group: 'Custom',
+      source: 'custom',
+      custom: true,
+      tags: ['wash'],
       engine: 'smudge',
       tipId: 'round-soft',
       size: 18,
@@ -84,6 +92,7 @@ describe('brush presets', () => {
       density: 0.8,
       paperTextureId: 'cold-press',
       paperTextureStrength: 0.35,
+      tags: ['wash'],
     })
 
     expect(Array.isArray(cloned.sizeCurve)).toBe(true)
@@ -93,8 +102,10 @@ describe('brush presets', () => {
     expect(cloned.sizeCurve[0]).not.toBe(preset.sizeCurve[0])
 
     cloned.sizeCurve[0]!.y = 0.9
+    cloned.tags![0] = 'mutated'
 
     expect(preset.sizeCurve[0]!.y).toBe(0.2)
+    expect(preset.tags![0]).toBe('wash')
   })
 
   it('creates smudge engines from P7-04 presets', () => {
@@ -113,6 +124,169 @@ describe('brush presets', () => {
 
     expect(isSmudgeBrushEngine(createBrushEngineFromPreset(preset)))
       .toBe(true)
+  })
+
+  it('creates P9 external brush engines through a registry slot', () => {
+    class ExternalTraceEngine implements BrushEngine {
+      beginStroke(_ctx: BrushContext): void {}
+
+      addPoint(point: BrushInputPoint): BrushDab[] {
+        return [{
+          x: point.x,
+          y: point.y,
+          radius: 3,
+          opacity: 1,
+          color: BLACK,
+          tipId: 'external-trace',
+        }]
+      }
+
+      endStroke(): BrushDab[] {
+        return []
+      }
+    }
+
+    const engineRegistry = createDefaultBrushEngineRegistry()
+    engineRegistry.register({
+      id: 'external-trace',
+      label: 'External Trace',
+      experimental: true,
+      create: () => new ExternalTraceEngine(),
+    })
+
+    const preset: BrushPreset = {
+      id: 'external-trace-preset',
+      name: 'External Trace Preset',
+      engine: 'external-trace',
+      tipId: 'external-trace',
+      size: 12,
+      opacity: 1,
+      spacing: 0.25,
+      hardness: 0,
+    }
+
+    const engine = createBrushEngineFromPreset(preset, {}, engineRegistry)
+    engine.beginStroke(ctx(preset.size))
+
+    expect(engine.addPoint(pt(4, 5, 0))[0]).toMatchObject({
+      x: 4,
+      y: 5,
+      tipId: 'external-trace',
+    })
+    expect(toBrushPresetSummary(preset, engineRegistry)).toMatchObject({
+      engineAvailable: true,
+      engineLabel: 'External Trace',
+      experimental: true,
+    })
+  })
+
+  it('reports missing P9 engines without falling back to builtins', () => {
+    const preset: BrushPreset = {
+      id: 'missing-engine-preset',
+      name: 'Missing Engine Preset',
+      engine: 'missing-engine',
+      tipId: 'round-soft',
+      size: 12,
+      opacity: 1,
+      spacing: 0.25,
+      hardness: 0,
+    }
+
+    expect(() => createBrushEngineFromPreset(preset)).toThrow(/No brush engine registered/)
+    expect(toBrushPresetSummary(preset)).toMatchObject({
+      engineAvailable: false,
+      requiresSurfaceSampler: false,
+    })
+  })
+
+  it('loads async P9 engine registrations before registry registration', async () => {
+    class AsyncTraceEngine implements BrushEngine {
+      beginStroke(_ctx: BrushContext): void {}
+      addPoint(point: BrushInputPoint): BrushDab[] {
+        return [{
+          x: point.x,
+          y: point.y,
+          radius: 2,
+          opacity: 1,
+          color: BLACK,
+        }]
+      }
+
+      endStroke(): BrushDab[] {
+        return []
+      }
+    }
+
+    const registration = await loadBrushEngineRegistration({
+      id: 'async-trace',
+      label: 'Async Trace',
+      experimental: true,
+      load: async () => () => new AsyncTraceEngine(),
+    })
+    const registry = createDefaultBrushEngineRegistry()
+    registry.register(registration)
+
+    expect(registry.getDescriptor('async-trace')).toMatchObject({
+      label: 'Async Trace',
+      experimental: true,
+    })
+  })
+
+  it('maps representative MyPaint .myb settings into custom saier presets', () => {
+    const classic = parseMyPaintBrushPreset(JSON.stringify({
+      parent_brush_name: 'Classic Ink',
+      group: 'MyPaint Classic',
+      settings: {
+        radius_logarithmic: { base_value: Math.log(8) },
+        opaque: { base_value: 0.9 },
+        hardness: { base_value: 0.85 },
+        dabs_per_actual_radius: { base_value: 5 },
+      },
+    }))
+    const blender = parseMyPaintBrushPreset(JSON.stringify({
+      parent_brush_name: 'Blend Soft',
+      settings: {
+        radius_logarithmic: { base_value: Math.log(24) },
+        opaque: { base_value: 0.6 },
+        smudge: { base_value: 0.7 },
+        smudge_length: { base_value: 0.8 },
+        hardness: { base_value: 0.2 },
+        dabs_per_actual_radius: { base_value: 3 },
+      },
+    }))
+    const legacy = parseMyPaintBrushPreset(`
+# Legacy Pencil
+radius_logarithmic 2.302585
+opaque 0.5
+hardness 0.6
+dabs_per_actual_radius 4
+`)
+
+    expect(classic).toMatchObject({
+      id: 'mypaint-classic-ink',
+      name: 'Classic Ink',
+      group: 'MyPaint Classic',
+      source: 'mypaint',
+      custom: true,
+      engine: 'simple',
+      size: 16,
+      opacity: 0.9,
+      spacing: 0.2,
+    })
+    expect(blender).toMatchObject({
+      name: 'Blend Soft',
+      engine: 'smudge',
+      smudge: 0.7,
+      persistence: 0.8,
+      size: 48,
+    })
+    expect(legacy).toMatchObject({
+      id: 'mypaint-legacy-pencil',
+      name: 'Legacy Pencil',
+      source: 'mypaint',
+      custom: true,
+      size: 20,
+    })
   })
 
   it('passes P7 deposit parameters into simple engine dabs', () => {

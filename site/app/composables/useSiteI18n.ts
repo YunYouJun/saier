@@ -13,6 +13,8 @@ interface SiteMessages {
   menu: {
     file: string
     newCanvas: string
+    openProject: string
+    saveProject: string
     importImage: string
     exportPreview: string
     download: string
@@ -67,6 +69,7 @@ interface SiteMessages {
   }
   brushOptions: {
     pressure: string
+    stabilizer: string
     size: string
     opacity: string
     spacing: string
@@ -153,6 +156,8 @@ const messages: Record<SiteLocale, SiteMessages> = {
     menu: {
       file: 'File',
       newCanvas: 'New canvas',
+      openProject: 'Open project',
+      saveProject: 'Save project',
       importImage: 'Import image',
       exportPreview: 'Preview export',
       download: 'Download PNG',
@@ -207,6 +212,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
     },
     brushOptions: {
       pressure: 'Pressure',
+      stabilizer: 'Stabilizer',
       size: 'Size',
       opacity: 'Opacity',
       spacing: 'Spacing',
@@ -310,6 +316,8 @@ const messages: Record<SiteLocale, SiteMessages> = {
     menu: {
       file: '文件',
       newCanvas: '新建画布',
+      openProject: '打开工程',
+      saveProject: '保存工程',
       importImage: '导入图片',
       exportPreview: '预览导出',
       download: '下载 PNG',
@@ -364,6 +372,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
     },
     brushOptions: {
       pressure: '压感',
+      stabilizer: '抖动修正',
       size: '大小',
       opacity: '不透明度',
       spacing: '间距',

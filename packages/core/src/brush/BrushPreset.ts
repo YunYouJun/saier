@@ -21,11 +21,49 @@ export type BuiltinBrushPresetId
 
 export type BrushPresetId = BuiltinBrushPresetId | (string & {})
 
-export type BrushPresetEngine = 'simple' | 'airbrush' | 'calligraphy' | 'smudge'
+export type BrushPresetSource = 'builtin' | 'custom' | 'external' | 'mypaint'
+
+export type BuiltinBrushPresetEngine = 'simple' | 'airbrush' | 'calligraphy' | 'smudge'
+
+export type BrushPresetEngine = BuiltinBrushPresetEngine | (string & {})
+
+export interface BrushEngineDescriptor {
+  id: BrushPresetEngine
+  label?: string
+  /**
+   * Engine needs read access to committed canvas pixels, so it only works on
+   * surface backends that implement `sampleRegion`.
+   */
+  requiresSurfaceSampler?: boolean
+  /** The engine exposes the P7 mixing controls in UI packages. */
+  supportsMixingControls?: boolean
+  /** Experimental engines are available but should be surfaced as unstable. */
+  experimental?: boolean
+}
+
+export interface BrushEngineFactoryContext {
+  preset: BrushPreset
+  options: BrushEngineFromPresetOptions
+}
+
+export type BrushEngineFactory = (context: BrushEngineFactoryContext) => BrushEngine
+
+export interface BrushEngineRegistration extends BrushEngineDescriptor {
+  create: BrushEngineFactory
+}
+
+interface BrushEngineRegistryEntry {
+  descriptor: BrushEngineDescriptor
+  create: BrushEngineFactory
+}
 
 export interface BrushPreset {
   id: BrushPresetId
   name: string
+  group?: string
+  source?: BrushPresetSource
+  custom?: boolean
+  tags?: string[]
   engine: BrushPresetEngine
   tipId: string
   /** Default brush diameter in document pixels. */
@@ -73,8 +111,17 @@ export interface BrushPreset {
 export interface BrushPresetSummary {
   id: BrushPresetId
   name: string
+  group?: string
+  source?: BrushPresetSource
+  custom?: boolean
+  tags?: string[]
   engine: BrushPresetEngine
   tipId: string
+  engineAvailable?: boolean
+  engineLabel?: string
+  requiresSurfaceSampler?: boolean
+  supportsMixingControls?: boolean
+  experimental?: boolean
 }
 
 export interface BrushEngineFromPresetOptions {
@@ -100,6 +147,8 @@ export const DEFAULT_BRUSH_PRESETS: readonly BrushPreset[] = [
   {
     id: 'pen',
     name: 'Pen',
+    group: 'Sketching',
+    source: 'builtin',
     engine: 'simple',
     tipId: 'round-hard',
     size: 10,
@@ -117,6 +166,8 @@ export const DEFAULT_BRUSH_PRESETS: readonly BrushPreset[] = [
   {
     id: 'pencil',
     name: 'Pencil',
+    group: 'Sketching',
+    source: 'builtin',
     engine: 'simple',
     tipId: 'pencil-grain',
     size: 14,
@@ -134,6 +185,8 @@ export const DEFAULT_BRUSH_PRESETS: readonly BrushPreset[] = [
   {
     id: 'marker',
     name: 'Marker',
+    group: 'Inking',
+    source: 'builtin',
     engine: 'simple',
     tipId: 'marker-chisel',
     size: 22,
@@ -151,6 +204,8 @@ export const DEFAULT_BRUSH_PRESETS: readonly BrushPreset[] = [
   {
     id: 'airbrush',
     name: 'Airbrush',
+    group: 'Painting',
+    source: 'builtin',
     engine: 'airbrush',
     tipId: 'airbrush-soft',
     size: 34,
@@ -166,6 +221,8 @@ export const DEFAULT_BRUSH_PRESETS: readonly BrushPreset[] = [
   {
     id: 'calligraphy',
     name: 'Calligraphy',
+    group: 'Inking',
+    source: 'builtin',
     engine: 'calligraphy',
     tipId: 'calligraphy-round',
     size: 28,
@@ -180,6 +237,8 @@ export const DEFAULT_BRUSH_PRESETS: readonly BrushPreset[] = [
   {
     id: 'smudge',
     name: 'Smudge',
+    group: 'Blending',
+    source: 'builtin',
     engine: 'smudge',
     tipId: 'round-soft',
     size: 32,
@@ -199,6 +258,8 @@ export const DEFAULT_BRUSH_PRESETS: readonly BrushPreset[] = [
   {
     id: 'blender',
     name: 'Blender',
+    group: 'Blending',
+    source: 'builtin',
     engine: 'smudge',
     tipId: 'round-soft',
     size: 40,
@@ -218,6 +279,8 @@ export const DEFAULT_BRUSH_PRESETS: readonly BrushPreset[] = [
   {
     id: 'watercolor',
     name: 'Watercolor',
+    group: 'Painting',
+    source: 'builtin',
     engine: 'smudge',
     tipId: 'round-soft',
     size: 36,
@@ -271,8 +334,8 @@ export class BrushPresetRegistry {
     return [...this.presets.values()].map(clonePreset)
   }
 
-  summaries(): BrushPresetSummary[] {
-    return this.list().map(toBrushPresetSummary)
+  summaries(engineRegistry = createDefaultBrushEngineRegistry()): BrushPresetSummary[] {
+    return this.list().map(preset => toBrushPresetSummary(preset, engineRegistry))
   }
 }
 
@@ -280,30 +343,102 @@ export function createDefaultBrushPresetRegistry(): BrushPresetRegistry {
   return new BrushPresetRegistry(DEFAULT_BRUSH_PRESETS)
 }
 
-export function toBrushPresetSummary(preset: BrushPreset): BrushPresetSummary {
+export class BrushEngineRegistry {
+  private readonly engines = new Map<BrushPresetEngine, BrushEngineRegistryEntry>()
+
+  constructor(engines: readonly BrushEngineRegistration[] = []) {
+    for (const engine of engines)
+      this.register(engine)
+  }
+
+  register(engine: BrushEngineRegistration): void {
+    const { create, ...descriptor } = engine
+    this.engines.set(engine.id, {
+      descriptor: cloneBrushEngineDescriptor(descriptor),
+      create,
+    })
+  }
+
+  unregister(id: BrushPresetEngine): boolean {
+    return this.engines.delete(id)
+  }
+
+  has(id: BrushPresetEngine): boolean {
+    return this.engines.has(id)
+  }
+
+  getDescriptor(id: BrushPresetEngine): BrushEngineDescriptor | undefined {
+    const entry = this.engines.get(id)
+    return entry ? cloneBrushEngineDescriptor(entry.descriptor) : undefined
+  }
+
+  list(): BrushEngineDescriptor[] {
+    return [...this.engines.values()].map(entry => cloneBrushEngineDescriptor(entry.descriptor))
+  }
+
+  create(preset: BrushPreset, options: BrushEngineFromPresetOptions = {}): BrushEngine {
+    const entry = this.engines.get(preset.engine)
+    if (!entry)
+      throw new Error(`No brush engine registered for preset engine: ${preset.engine}`)
+    return entry.create({ preset: clonePreset(preset), options: { ...options } })
+  }
+}
+
+export function createDefaultBrushEngineRegistry(): BrushEngineRegistry {
+  return new BrushEngineRegistry([
+    {
+      id: 'simple',
+      label: 'Simple',
+      create: ({ preset, options }) => new SimpleBrushEngine(resolveSimpleOptions(preset, options)),
+    },
+    {
+      id: 'airbrush',
+      label: 'Airbrush',
+      create: ({ preset, options }) => new AirbrushEngine(resolveAirbrushOptions(preset, options)),
+    },
+    {
+      id: 'calligraphy',
+      label: 'Calligraphy',
+      create: ({ preset, options }) => new CalligraphyEngine(resolveCalligraphyOptions(preset, options)),
+    },
+    {
+      id: 'smudge',
+      label: 'Smudge',
+      requiresSurfaceSampler: true,
+      supportsMixingControls: true,
+      create: ({ preset, options }) => new SmudgeEngine(resolveSmudgeOptions(preset, options)),
+    },
+  ])
+}
+
+export function toBrushPresetSummary(
+  preset: BrushPreset,
+  engineRegistry = createDefaultBrushEngineRegistry(),
+): BrushPresetSummary {
+  const descriptor = engineRegistry.getDescriptor(preset.engine)
   return {
     id: preset.id,
     name: preset.name,
+    group: preset.group,
+    source: preset.source,
+    custom: preset.custom,
+    tags: preset.tags ? [...preset.tags] : undefined,
     engine: preset.engine,
     tipId: preset.tipId,
+    engineAvailable: Boolean(descriptor),
+    engineLabel: descriptor?.label,
+    requiresSurfaceSampler: descriptor?.requiresSurfaceSampler ?? false,
+    supportsMixingControls: descriptor?.supportsMixingControls ?? false,
+    experimental: descriptor?.experimental ?? false,
   }
 }
 
 export function createBrushEngineFromPreset(
   preset: BrushPreset,
   options: BrushEngineFromPresetOptions = {},
+  engineRegistry = createDefaultBrushEngineRegistry(),
 ): BrushEngine {
-  switch (preset.engine) {
-    case 'airbrush':
-      return new AirbrushEngine(resolveAirbrushOptions(preset, options))
-    case 'calligraphy':
-      return new CalligraphyEngine(resolveCalligraphyOptions(preset, options))
-    case 'smudge':
-      return new SmudgeEngine(resolveSmudgeOptions(preset, options))
-    case 'simple':
-    default:
-      return new SimpleBrushEngine(resolveSimpleOptions(preset, options))
-  }
+  return engineRegistry.create(preset, options)
 }
 
 function resolveSimpleOptions(
@@ -414,6 +549,7 @@ function resolveCalligraphyOptions(
 export function clonePreset(preset: BrushPreset): BrushPreset {
   return {
     ...preset,
+    tags: preset.tags ? [...preset.tags] : undefined,
     sizeCurve: clonePressureCurveConfig(preset.sizeCurve),
     opacityCurve: clonePressureCurveConfig(preset.opacityCurve),
     pressureCurve: clonePressureCurveConfig(preset.pressureCurve),
@@ -421,6 +557,10 @@ export function clonePreset(preset: BrushPreset): BrushPreset {
     airbrush: preset.airbrush ? { ...preset.airbrush } : undefined,
     calligraphy: preset.calligraphy ? { ...preset.calligraphy } : undefined,
   }
+}
+
+function cloneBrushEngineDescriptor(descriptor: BrushEngineDescriptor): BrushEngineDescriptor {
+  return { ...descriptor }
 }
 
 function clonePressureCurveConfig(config: PressureCurveConfig | undefined): PressureCurveConfig | undefined {

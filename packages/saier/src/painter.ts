@@ -1,5 +1,8 @@
 import type {
   BrowserMemorySnapshot,
+  BrushEngineRegistration,
+  BrushEngineRegistry,
+  BrushPreset,
   BrushPresetRegistry,
   MemoryEstimateEntry,
   MemoryRiskLevel,
@@ -16,6 +19,7 @@ import type { DisplayMaskCapableBackend, ViewportPoint } from '@saier/pixi'
 import type { PainterCanvas } from './canvas'
 import type { PainterInputOptions, PainterPointerSource } from './input'
 import {
+  createDefaultBrushEngineRegistry,
   createDefaultBrushPresetRegistry,
   deserializeSaierProject,
   isEmpty,
@@ -61,6 +65,8 @@ export interface PainterOptions {
   debug?: boolean
   backend?: 'rendertexture' | 'tiled'
   input?: PainterInputOptions
+  brushPresets?: readonly BrushPreset[]
+  brushEngines?: readonly BrushEngineRegistration[]
 
   size?: {
     width: number
@@ -169,6 +175,7 @@ export class Painter {
   undoManager!: UndoManager
   controller!: PainterController
   brushRegistry: BrushPresetRegistry = createDefaultBrushPresetRegistry()
+  brushEngineRegistry: BrushEngineRegistry = createDefaultBrushEngineRegistry()
   touchGestureRouter!: TouchGestureRouter
   pointerInput?: PainterPointerInput
   inputPointerSource: PainterPointerSource = 'pixi'
@@ -204,6 +211,11 @@ export class Painter {
 
     if (debug)
       this.debug = debug
+
+    for (const engine of options.brushEngines ?? [])
+      this.brushEngineRegistry.register(engine)
+    for (const preset of options.brushPresets ?? [])
+      this.brushRegistry.register(preset)
   }
 
   /**
@@ -431,6 +443,7 @@ export class Painter {
       history: this.undoManager,
       tool: this.tool,
       brushPresets: this.brushRegistry.list(),
+      brushEngineRegistry: this.brushEngineRegistry,
       brush: {
         presetId: PainterBrush.presetId,
         size: PainterBrush.size,

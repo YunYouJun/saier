@@ -17,7 +17,7 @@ afterEach(() => {
     item.unmount()
 })
 
-function createFakePainter(options: { presetId?: BrushPresetId, hasSampler?: boolean } = {}) {
+function createFakePainter(options: { presetId?: BrushPresetId, hasSampler?: boolean, includeExternalPreset?: boolean } = {}) {
   const presetId = options.presetId ?? 'pen'
   const preset = DEFAULT_BRUSH_PRESETS.find(item => item.id === presetId) ?? DEFAULT_BRUSH_PRESETS[0]!
   const brush: PainterBrushState = {
@@ -36,12 +36,33 @@ function createFakePainter(options: { presetId?: BrushPresetId, hasSampler?: boo
     density: preset.density ?? 1,
     paperTextureId: preset.paperTextureId,
     paperTextureStrength: preset.paperTextureStrength ?? 0,
-    presets: DEFAULT_BRUSH_PRESETS.map(item => ({
-      id: item.id,
-      name: item.name,
-      engine: item.engine,
-      tipId: item.tipId,
-    })),
+    presets: [
+      ...DEFAULT_BRUSH_PRESETS.map(item => ({
+        id: item.id,
+        name: item.name,
+        group: item.group,
+        engine: item.engine,
+        tipId: item.tipId,
+        engineAvailable: true,
+        requiresSurfaceSampler: item.engine === 'smudge',
+        supportsMixingControls: item.engine === 'smudge',
+      })),
+      ...(
+        options.includeExternalPreset
+          ? [{
+              id: 'myb-wasm' as BrushPresetId,
+              name: 'MyPaint WASM',
+              group: 'External',
+              engine: 'mypaint-wasm',
+              tipId: 'round-soft',
+              engineAvailable: false,
+              requiresSurfaceSampler: false,
+              supportsMixingControls: false,
+              experimental: true,
+            }]
+          : []
+      ),
+    ],
   }
   const state: PainterControllerState = {
     activeLayerId: 'layer-1',
@@ -53,7 +74,21 @@ function createFakePainter(options: { presetId?: BrushPresetId, hasSampler?: boo
 
   return {
     brush: {
+      getStabilizerStrength: vi.fn(() => 1),
       setColorAmount: vi.fn(),
+      createCustomPreset: vi.fn(() => ({
+        id: 'custom-brush' as BrushPresetId,
+        name: 'Custom Brush',
+        group: 'Custom',
+        source: 'custom',
+        custom: true,
+        engine: 'simple',
+        tipId: 'round-hard',
+        size: 10,
+        opacity: 1,
+        spacing: 0.22,
+        hardness: 0,
+      })),
       setDensity: vi.fn(),
       setDilution: vi.fn(),
       setFlow: vi.fn(),
@@ -67,7 +102,9 @@ function createFakePainter(options: { presetId?: BrushPresetId, hasSampler?: boo
       setSize: vi.fn(),
       setSmudge: vi.fn(),
       setSpacing: vi.fn(),
+      setStabilizerStrength: vi.fn(),
       setWetEdge: vi.fn(),
+      removePreset: vi.fn(),
     },
     controller: {
       getState: () => state,
@@ -75,7 +112,9 @@ function createFakePainter(options: { presetId?: BrushPresetId, hasSampler?: boo
       on: vi.fn(),
     },
     eraser: {
+      getStabilizerStrength: vi.fn(() => 1),
       setPressureEnabled: vi.fn(),
+      setStabilizerStrength: vi.fn(),
     },
     surface: options.hasSampler === false ? {} : { sampleRegion: vi.fn() },
   }
@@ -109,10 +148,20 @@ function buttonByLabel(root: ParentNode, label: string): HTMLButtonElement {
   return button
 }
 
+function buttonByText(root: ParentNode, text: string): HTMLButtonElement {
+  const button = [...root.querySelectorAll('button')]
+    .find(item => item.textContent?.includes(text))
+  if (!(button instanceof HTMLButtonElement))
+    throw new Error(`missing button text: ${text}`)
+  return button
+}
+
 describe('painter options bar P7 controls', () => {
   it('allows watercolor selection when sampleRegion is available', async () => {
     const { el, painter } = mountOptionsBar({ hasSampler: true })
 
+    buttonByText(el, 'Painting').click()
+    await nextTick()
     buttonByLabel(el, 'Watercolor').click()
     await nextTick()
 
@@ -121,10 +170,27 @@ describe('painter options bar P7 controls', () => {
 
   it('disables smudge-family presets when sampleRegion is unavailable', async () => {
     const { el, painter } = mountOptionsBar({ hasSampler: false })
+
+    buttonByText(el, 'Painting').click()
+    await nextTick()
     const watercolor = buttonByLabel(el, 'Watercolor')
 
     expect(watercolor.disabled).toBe(true)
     watercolor.click()
+    await nextTick()
+
+    expect(painter.brush.setPreset).not.toHaveBeenCalled()
+  })
+
+  it('disables external presets while their engine is unavailable', async () => {
+    const { el, painter } = mountOptionsBar({ includeExternalPreset: true })
+
+    buttonByText(el, 'External').click()
+    await nextTick()
+    const external = buttonByLabel(el, 'MyPaint WASM')
+
+    expect(external.disabled).toBe(true)
+    external.click()
     await nextTick()
 
     expect(painter.brush.setPreset).not.toHaveBeenCalled()
@@ -137,5 +203,27 @@ describe('painter options bar P7 controls', () => {
     expect(el.textContent).toContain('Wet edge')
     expect(el.textContent).toContain('Paper')
     expect(el.textContent).toContain('Grain')
+  })
+
+  it('renders a custom stabilizer level control', () => {
+    const { el } = mountOptionsBar()
+
+    expect(el.textContent).toContain('Stabilizer')
+  })
+
+  it('renders a compact grouped brush picker and saves current settings as a custom brush', async () => {
+    const { el, painter } = mountOptionsBar()
+
+    expect(el.textContent).toContain('Sketching')
+    expect(el.querySelector('.brush-preset-list')).toBeTruthy()
+
+    buttonByLabel(el, 'Save current brush').click()
+    await nextTick()
+
+    expect(painter.brush.createCustomPreset).toHaveBeenCalledWith({
+      name: 'Custom Brush',
+      group: 'Custom',
+      select: true,
+    })
   })
 })

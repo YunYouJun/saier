@@ -20,6 +20,7 @@ afterEach(() => {
   PainterBrush.stabilizerStrength = 1
   PainterEraser.enabled = true
   PainterEraser.size = 10
+  PainterEraser.stabilizerStrength = 1
 })
 
 async function createFixture(backend: 'rendertexture' | 'tiled' = 'rendertexture'): Promise<Painter> {
@@ -150,6 +151,18 @@ describe('saier raster pipeline', () => {
     drawBrushStroke(second)
 
     expect(readLayerPixels(first)).toEqual(readLayerPixels(second))
+  })
+
+  it('applies custom stabilizer strength to brush and eraser', async () => {
+    const painter = await createFixture()
+
+    painter.brush.setStabilizerStrength(6)
+    painter.eraser.setStabilizerStrength(3)
+
+    expect(PainterBrush.stabilizerStrength).toBe(6)
+    expect(PainterEraser.stabilizerStrength).toBe(3)
+    expect(painter.brush.createStabilizer().strength).toBe(6)
+    expect(painter.eraser.createStabilizer().strength).toBe(3)
   })
 
   it('paints the first dab under the pointer after board transforms', async () => {

@@ -2,6 +2,8 @@ export type SitePainterTool = 'brush' | 'drag' | 'eraser' | 'image' | 'selection
 
 export type SitePainterMenuCommand
   = | 'file:new'
+    | 'file:open-project'
+    | 'file:save-project'
     | 'file:import-image'
     | 'file:export-preview'
     | 'file:download'

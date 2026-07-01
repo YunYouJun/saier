@@ -6,15 +6,28 @@ export {
 } from './AirbrushEngine'
 
 export {
+  type AsyncBrushEngineRegistrationOptions,
+  loadBrushEngineRegistration,
+} from './BrushEngineAdapter'
+
+export {
+  type BrushEngineDescriptor,
+  type BrushEngineFactory,
+  type BrushEngineFactoryContext,
   type BrushEngineFromPresetOptions,
+  type BrushEngineRegistration,
+  BrushEngineRegistry,
   type BrushPreset,
   type BrushPresetEngine,
   type BrushPresetId,
   BrushPresetRegistry,
+  type BrushPresetSource,
   type BrushPresetSummary,
+  type BuiltinBrushPresetEngine,
   type BuiltinBrushPresetId,
   clonePreset,
   createBrushEngineFromPreset,
+  createDefaultBrushEngineRegistry,
   createDefaultBrushPresetRegistry,
   DEFAULT_BRUSH_PRESET_ID,
   DEFAULT_BRUSH_PRESETS,
@@ -25,6 +38,11 @@ export {
   CalligraphyEngine,
   type CalligraphyEngineOptions,
 } from './CalligraphyEngine'
+
+export {
+  type MyPaintBrushImportOptions,
+  parseMyPaintBrushPreset,
+} from './mypaint'
 
 export {
   BUILTIN_PAPER_TEXTURES,

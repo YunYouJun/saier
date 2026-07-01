@@ -1,10 +1,10 @@
 {
   "name": "saier-monorepo",
   "type": "module",
-  "version": "0.1.6-beta.0",
+  "version": "0.1.6-beta.1",
   "private": true,
   "packageManager": "pnpm@10.17.1",
-  "description": "Painter based on Pixi.JS",
+  "description": "Elegant online painting runtime powered by PixiJS",
   "author": {
     "email": "me@yunyoujun.cn",
     "name": "YunYouJun",
@@ -30,7 +30,11 @@
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "prepare": "simple-git-hooks",
-    "release": "bumpp"
+    "pack:check": "CI=true pnpm --dir packages/core pack --dry-run && CI=true pnpm --dir packages/pixi pack --dry-run && CI=true pnpm --dir packages/saier pack --dry-run && CI=true pnpm --dir packages/vue pack --dry-run",
+    "publish:beta:dry": "pnpm -r --filter @saier/core --filter @saier/pixi --filter saier --filter @saier/vue publish --dry-run --access public --tag beta --no-git-checks",
+    "publish:beta": "pnpm -r --filter @saier/core --filter @saier/pixi --filter saier --filter @saier/vue publish --access public --tag beta --no-git-checks",
+    "release": "bumpp",
+    "release:beta": "bumpp --preid beta && pnpm run publish:beta"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^9.1.0",

@@ -6,8 +6,9 @@ import { groupIconMdPlugin } from 'vitepress-plugin-group-icons'
 import { version } from '../../../package.json'
 
 const GUIDES: DefaultTheme.NavItemWithLink[] = [
-  { text: 'What is pixi-painter?', link: '/guide/what-is' },
+  { text: 'What is saier?', link: '/guide/what-is' },
   { text: 'Getting Started', link: '/guide/getting-started' },
+  { text: 'Custom Brushes', link: '/guide/custom-brushes' },
 ]
 
 // Engineering / planning docs — the source of truth executing agents (codex)

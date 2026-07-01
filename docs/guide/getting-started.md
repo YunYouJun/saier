@@ -8,7 +8,7 @@
 pnpm add saier
 ```
 
-`saier` ships ESM and lists `pixi.js` as a dependency. (The package was previously published as `pixi-painter`, kept as a deprecated alias during the transition.)
+`saier` ships ESM and lists `pixi.js` as a dependency. The previous `pixi-painter` package name is kept only as a deprecated compatibility alias; new projects should install `saier`.
 
 ### Create a painter
 
@@ -99,3 +99,4 @@ pnpm docs:build   # build docs
 
 - [Design Overview](/design/) — how the architecture is changing and why
 - [Roadmap](/design/roadmap) — the ordered plan agents follow
+- [Custom Brushes](/guide/custom-brushes) — save runtime presets, register external engines, and import `.myb` settings

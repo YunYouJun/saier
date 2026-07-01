@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import type { SaierProjectFile } from '@saier/core'
 import type { SiteNewCanvasRequest, SitePainterMenuCommand, SitePainterTool } from '~/types/painter-app'
 import { usePainter } from '@saier/vue/composables/usePainter'
-import { computed, shallowRef } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 
 const {
   htmlLang,
@@ -14,6 +15,7 @@ const {
 
 const exportPreview = shallowRef<string>()
 const newCanvasDialogOpen = shallowRef(false)
+const stabilizerStrength = shallowRef(1)
 
 const {
   activeLayerId,
@@ -45,6 +47,10 @@ const toolLabels = computed<Record<SitePainterTool, string>>(() => ({
   eraser: text.value.menu.eraser,
   image: text.value.menu.image,
   selection: text.value.menu.selection,
+}))
+const toolbarLabels = computed(() => ({
+  ...text.value.menu,
+  stabilizer: text.value.brushOptions.stabilizer,
 }))
 const canMoveLayerUp = computed(() => activeLayerIndex.value >= 0 && activeLayerIndex.value < layers.value.length - 1)
 const canMoveLayerDown = computed(() => activeLayerIndex.value > 0)
@@ -79,6 +85,13 @@ useHead(() => ({
   },
 }))
 
+watch(painter, (current) => {
+  if (!current)
+    return
+
+  setStabilizerStrength(current.brush.getStabilizerStrength())
+}, { immediate: true })
+
 async function handleMenuCommand(command: SitePainterMenuCommand): Promise<void> {
   if (command.startsWith('tool:')) {
     painter.value?.useTool(command.slice(5) as SitePainterTool)
@@ -88,6 +101,12 @@ async function handleMenuCommand(command: SitePainterMenuCommand): Promise<void>
   switch (command) {
     case 'file:new':
       createNewCanvas()
+      break
+    case 'file:open-project':
+      await openProject()
+      break
+    case 'file:save-project':
+      saveProject()
       break
     case 'file:import-image':
       painter.value?.useTool('image')
@@ -167,6 +186,44 @@ async function downloadCanvas(): Promise<void> {
   link.click()
 }
 
+async function openProject(): Promise<void> {
+  const p = painter.value
+  if (!p)
+    return
+
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.saier.project.json,.json,application/json'
+  input.onchange = async () => {
+    const file = input.files?.[0]
+    if (!file)
+      return
+
+    try {
+      const project = JSON.parse(await file.text()) as SaierProjectFile
+      p.importProject(project, { activate: true })
+    }
+    catch (error) {
+      console.error('Failed to import Saier project file.', error)
+    }
+  }
+  input.click()
+}
+
+function saveProject(): void {
+  const p = painter.value
+  if (!p)
+    return
+
+  const project = p.exportProject()
+  const blob = new Blob([JSON.stringify(project)], { type: 'application/json' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = `${safeFileName(project.metadata.name || 'saier')}.saier.project.json`
+  link.click()
+  URL.revokeObjectURL(link.href)
+}
+
 async function extractBase64(): Promise<string | undefined> {
   const dataUrl = await painter.value?.extractCanvas('base64')
   return typeof dataUrl === 'string' ? dataUrl : undefined
@@ -212,6 +269,13 @@ function setActiveLayerVisible(visible: boolean): void {
     layerActions.setVisible(layer.id, visible)
 }
 
+function setStabilizerStrength(strength: number): void {
+  const next = normalizeStabilizerStrength(strength)
+  stabilizerStrength.value = next
+  painter.value?.brush.setStabilizerStrength(next)
+  painter.value?.eraser.setStabilizerStrength(next)
+}
+
 function switchDocument(id: string): void {
   documentActions.switch(id)
 }
@@ -242,6 +306,18 @@ function formatBytes(bytes: number): string {
   }
 
   return `${value >= 10 ? Math.round(value) : value.toFixed(1)} ${unit}`
+}
+
+function normalizeStabilizerStrength(strength: number): number {
+  return Number.isFinite(strength) ? Math.max(0, Math.min(15, Math.round(strength))) : 0
+}
+
+function safeFileName(name: string): string {
+  return name
+    .trim()
+    .replace(/[^\w.-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    || 'saier'
 }
 </script>
 
@@ -285,8 +361,10 @@ function formatBytes(bytes: number): string {
         :can-redo="state?.history.canRedo ?? false"
         :can-undo="state?.history.canUndo ?? false"
         :disabled="!painter"
-        :labels="text.menu"
+        :labels="toolbarLabels"
+        :stabilizer-strength="stabilizerStrength"
         @command="handleMenuCommand"
+        @update:stabilizer-strength="setStabilizerStrength"
       />
     </template>
 
@@ -310,6 +388,8 @@ function formatBytes(bytes: number): string {
         v-if="painter"
         :painter="painter"
         :labels="text.brushOptions"
+        :stabilizer-strength="stabilizerStrength"
+        @update:stabilizer-strength="setStabilizerStrength"
       />
     </template>
 

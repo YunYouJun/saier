@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { BrushPresetId, PainterBrushState } from '@saier/core'
-import type { Painter } from '../../saier/src'
+import type { Painter } from 'saier'
 import { computed, onBeforeUnmount, shallowRef, watch } from 'vue'
 import BrushPresetPicker from './BrushPresetPicker.vue'
 import PainterCheckbox from './PainterCheckbox.vue'
@@ -10,6 +10,7 @@ type BrushPresetLabelMap = Partial<Record<BrushPresetId, string>>
 
 interface PainterOptionsBarLabels {
   pressure: string
+  stabilizer: string
   size: string
   opacity: string
   spacing: string
@@ -24,16 +25,25 @@ interface PainterOptionsBarLabels {
   paperTexture: string
   paperTextureStrength: string
   requiresTileBackend: string
+  unavailablePreset: string
+  addBrush: string
+  removeBrush: string
   presetLabels: BrushPresetLabelMap
 }
 
 const props = defineProps<{
   painter: Painter
   labels?: Partial<PainterOptionsBarLabels>
+  stabilizerStrength?: number
+}>()
+
+const emit = defineEmits<{
+  'update:stabilizerStrength': [strength: number]
 }>()
 
 const DEFAULT_LABELS: PainterOptionsBarLabels = {
   pressure: 'Pressure',
+  stabilizer: 'Stabilizer',
   size: 'Size',
   opacity: 'Opacity',
   spacing: 'Spacing',
@@ -48,6 +58,9 @@ const DEFAULT_LABELS: PainterOptionsBarLabels = {
   paperTexture: 'Paper',
   paperTextureStrength: 'Grain',
   requiresTileBackend: 'Requires tiled backend',
+  unavailablePreset: 'Preset unavailable for the current backend',
+  addBrush: 'Save current brush',
+  removeBrush: 'Remove custom brush',
   presetLabels: {},
 }
 
@@ -74,12 +87,20 @@ const paperTextureId = shallowRef(initialBrush.paperTextureId)
 const paperTextureStrength = shallowRef(initialBrush.paperTextureStrength)
 const paperEnabled = shallowRef(Boolean(initialBrush.paperTextureId && initialBrush.paperTextureStrength > 0))
 const enablePressure = shallowRef(true)
+const stabilizerStrength = shallowRef(normalizeStabilizerStrength(
+  props.stabilizerStrength ?? props.painter.brush.getStabilizerStrength(),
+))
 
 const activePreset = computed(() => presets.value.find(preset => preset.id === presetId.value))
-const showMixingControls = computed(() => activePreset.value?.engine === 'smudge')
-const disabledPresetIds = computed(() => props.painter.surface.sampleRegion
-  ? []
-  : presets.value.filter(preset => preset.engine === 'smudge').map(preset => preset.id))
+const showMixingControls = computed(() => activePreset.value?.supportsMixingControls ?? activePreset.value?.engine === 'smudge')
+const canRemoveActivePreset = computed(() => Boolean(activePreset.value?.custom))
+const disabledPresetIds = computed(() => presets.value
+  .filter(preset => preset.engineAvailable === false || (requiresSurfaceSampler(preset) && !props.painter.surface.sampleRegion))
+  .map(preset => preset.id))
+
+function requiresSurfaceSampler(preset: PainterBrushState['presets'][number]): boolean {
+  return preset.requiresSurfaceSampler ?? preset.engine === 'smudge'
+}
 
 function handleBrushChange(brush: PainterBrushState) {
   presetId.value = brush.presetId
@@ -189,6 +210,30 @@ watch(enablePressure, (value) => {
   props.painter.eraser.setPressureEnabled(value)
 })
 
+watch(() => props.stabilizerStrength, (value) => {
+  if (typeof value !== 'number')
+    return
+
+  const next = normalizeStabilizerStrength(value)
+  if (next !== stabilizerStrength.value)
+    stabilizerStrength.value = next
+})
+
+watch(stabilizerStrength, (value) => {
+  const next = normalizeStabilizerStrength(value)
+  if (next !== value) {
+    stabilizerStrength.value = next
+    return
+  }
+
+  if (props.painter.brush.getStabilizerStrength() !== next)
+    props.painter.brush.setStabilizerStrength(next)
+  if (props.painter.eraser.getStabilizerStrength() !== next)
+    props.painter.eraser.setStabilizerStrength(next)
+
+  emit('update:stabilizerStrength', next)
+})
+
 function formatFlow(value: number): string {
   return `${Math.round(value)}/s`
 }
@@ -200,6 +245,42 @@ function formatPercent(value: number): string {
 function formatSize(value: number): string {
   return `${Math.round(value)} px`
 }
+
+function formatLevel(value: number): string {
+  return String(Math.round(value))
+}
+
+function handleCreateCustomPreset(): void {
+  const preset = props.painter.brush.createCustomPreset({
+    name: nextCustomBrushName(),
+    group: 'Custom',
+    select: true,
+  })
+  presetId.value = preset.id
+}
+
+function handleRemoveActivePreset(): void {
+  const preset = activePreset.value
+  if (!preset?.custom)
+    return
+
+  props.painter.brush.removePreset(preset.id)
+}
+
+function nextCustomBrushName(): string {
+  const used = new Set(presets.value.map(preset => preset.name))
+  let index = 1
+  let name = 'Custom Brush'
+  while (used.has(name)) {
+    index += 1
+    name = `Custom Brush ${index}`
+  }
+  return name
+}
+
+function normalizeStabilizerStrength(strength: number): number {
+  return Number.isFinite(strength) ? Math.max(0, Math.min(15, Math.round(strength))) : 0
+}
 </script>
 
 <template>
@@ -208,13 +289,19 @@ function formatSize(value: number): string {
       :presets="presets"
       :active-preset-id="presetId"
       :disabled-preset-ids="disabledPresetIds"
-      :disabled-title="text.requiresTileBackend"
+      :disabled-title="text.unavailablePreset || text.requiresTileBackend"
       :preset-labels="text.presetLabels"
+      :add-title="text.addBrush"
+      :remove-title="text.removeBrush"
+      :can-remove-active="canRemoveActivePreset"
+      @create-custom="handleCreateCustomPreset"
+      @remove-active="handleRemoveActivePreset"
       @select="presetId = $event"
     />
 
     <div class="painter-options__params">
       <PainterCheckbox v-model="enablePressure" class="painter-options__pressure" :label="text.pressure" />
+      <PainterSlider v-model="stabilizerStrength" :label="text.stabilizer" :min="0" :max="15" :step="1" :format-value="formatLevel" />
       <PainterSlider v-model="size" :label="text.size" :min="1" :max="100" :step="1" :format-value="formatSize" />
       <PainterSlider v-model="opacity" :label="text.opacity" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
       <PainterSlider v-model="spacing" :label="text.spacing" :min="0.05" :max="1" :step="0.01" :format-value="formatPercent" />

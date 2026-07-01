@@ -1,5 +1,5 @@
 import type { Emitter } from 'mitt'
-import type { BrushPreset, BrushPresetId, BrushPresetSummary } from '../brush'
+import type { BrushEngineRegistry, BrushPreset, BrushPresetId, BrushPresetSummary } from '../brush'
 import type { CreateLayerOptions, Document, UndoManager } from '../document'
 import type { BlendMode, LayerMaskRef, RasterLayer } from '../document/RasterLayer'
 import type { LayerTransform } from '../math'
@@ -7,6 +7,7 @@ import type { RGBA } from '../types'
 import mitt from 'mitt'
 import {
   clonePreset,
+  createDefaultBrushEngineRegistry,
   createDefaultBrushPresetRegistry,
   DEFAULT_BRUSH_PRESET_ID,
   toBrushPresetSummary,
@@ -41,6 +42,17 @@ export interface PainterBrushState {
   /** Paper texture coverage modulation strength, `0..1`. */
   paperTextureStrength: number
   presets: BrushPresetSummary[]
+}
+
+export interface RegisterBrushPresetOptions {
+  select?: boolean
+}
+
+export interface CreateCustomBrushPresetOptions {
+  id?: BrushPresetId
+  name: string
+  group?: string
+  select?: boolean
 }
 
 export interface PainterLayerState {
@@ -86,6 +98,7 @@ export interface PainterControllerOptions {
   tool?: PainterTool
   brush?: Partial<PainterBrushState>
   brushPresets?: readonly BrushPreset[]
+  brushEngineRegistry?: BrushEngineRegistry
 }
 
 export interface PainterControllerBinding {
@@ -120,6 +133,9 @@ export class PainterController {
     setDensity: (density: number) => this.setBrushDensity(density),
     setPaperTextureId: (paperTextureId: string | undefined) => this.setBrushPaperTextureId(paperTextureId),
     setPaperTextureStrength: (paperTextureStrength: number) => this.setBrushPaperTextureStrength(paperTextureStrength),
+    registerPreset: (preset: BrushPreset, options?: RegisterBrushPresetOptions) => this.registerBrushPreset(preset, options),
+    createCustomPreset: (options: CreateCustomBrushPresetOptions) => this.createCustomBrushPreset(options),
+    removePreset: (id: BrushPresetId) => this.removeBrushPreset(id),
   }
 
   readonly layer = {
@@ -143,6 +159,7 @@ export class PainterController {
   private history: UndoManager | null
   private readonly emitter: Emitter<PainterControllerEvents> = mitt<PainterControllerEvents>()
   private readonly brushPresets: BrushPreset[]
+  private readonly brushEngineRegistry: BrushEngineRegistry
 
   private tool: PainterTool
   private brushState: PainterBrushState
@@ -154,8 +171,9 @@ export class PainterController {
     this.document = options.document
     this.history = options.history ?? null
     this.brushPresets = normalizeBrushPresets(options.brushPresets)
+    this.brushEngineRegistry = options.brushEngineRegistry ?? createDefaultBrushEngineRegistry()
     this.tool = options.tool ?? 'brush'
-    this.brushState = normalizeBrushState(options.brush, this.brushPresets)
+    this.brushState = normalizeBrushState(options.brush, this.brushPresets, this.brushEngineRegistry)
     this.layers = snapshotLayers(this.document.layers)
     this.activeLayerId = this.document.activeLayerId
     this.historyState = options.history
@@ -310,6 +328,79 @@ export class PainterController {
     this.emitBrushChange()
   }
 
+  private registerBrushPreset(preset: BrushPreset, options: RegisterBrushPresetOptions = {}): BrushPreset {
+    const next = clonePreset(preset)
+    const index = this.brushPresets.findIndex(item => item.id === next.id)
+    if (index >= 0)
+      this.brushPresets.splice(index, 1, next)
+    else
+      this.brushPresets.push(next)
+
+    this.brushState = {
+      ...this.brushState,
+      presets: this.snapshotBrushPresetSummaries(),
+    }
+    if (options.select)
+      this.setBrushPreset(next.id)
+    else
+      this.emitBrushChange()
+    return clonePreset(next)
+  }
+
+  private createCustomBrushPreset(options: CreateCustomBrushPresetOptions): BrushPreset {
+    const base = this.brushPresets.find(preset => preset.id === this.brushState.presetId)
+      ?? this.brushPresets[0]
+    if (!base)
+      throw new Error('Cannot create a custom brush without an existing preset')
+
+    const preset: BrushPreset = {
+      ...clonePreset(base),
+      id: options.id ?? nextCustomBrushPresetId(options.name, this.brushPresets),
+      name: options.name.trim() || 'Custom Brush',
+      group: options.group?.trim() || 'Custom',
+      source: 'custom',
+      custom: true,
+      size: this.brushState.size,
+      opacity: this.brushState.opacity,
+      spacing: this.brushState.spacing,
+      hardness: this.brushState.hardness,
+      flow: this.brushState.flow,
+      smudge: this.brushState.smudge,
+      colorAmount: this.brushState.colorAmount,
+      dilution: this.brushState.dilution,
+      persistence: this.brushState.persistence,
+      wetEdge: this.brushState.wetEdge,
+      density: this.brushState.density,
+      paperTextureId: this.brushState.paperTextureId,
+      paperTextureStrength: this.brushState.paperTextureStrength,
+      tags: mergeTags(base.tags, 'custom'),
+    }
+    return this.registerBrushPreset(preset, { select: options.select ?? true })
+  }
+
+  private removeBrushPreset(id: BrushPresetId): boolean {
+    const index = this.brushPresets.findIndex(preset => preset.id === id)
+    if (index < 0 || this.brushPresets.length <= 1)
+      return false
+
+    this.brushPresets.splice(index, 1)
+    const activeRemoved = this.brushState.presetId === id
+    this.brushState = {
+      ...this.brushState,
+      presets: this.snapshotBrushPresetSummaries(),
+    }
+    if (activeRemoved) {
+      const fallback = this.brushPresets.find(preset => preset.id === DEFAULT_BRUSH_PRESET_ID)
+        ?? this.brushPresets[0]
+      if (fallback)
+        this.setBrushPreset(fallback.id)
+    }
+    else {
+      this.emitBrushChange()
+    }
+    return true
+  }
+
   private setBrushSize(size: number): void {
     const next = Math.max(1, size)
     if (this.brushState.size === next)
@@ -426,6 +517,10 @@ export class PainterController {
     this.emitter.emit('brush:change', cloneBrushState(this.brushState))
   }
 
+  private snapshotBrushPresetSummaries(): BrushPresetSummary[] {
+    return this.brushPresets.map(preset => toBrushPresetSummary(preset, this.brushEngineRegistry))
+  }
+
   private handleLayersChange = (
     event: { layers: RasterLayer[], activeLayerId: string | null },
   ): void => {
@@ -446,6 +541,7 @@ export class PainterController {
 function normalizeBrushState(
   brush: Partial<PainterBrushState> = {},
   presets = normalizeBrushPresets(),
+  engineRegistry = createDefaultBrushEngineRegistry(),
 ): PainterBrushState {
   const preset = presets.find(item => item.id === brush.presetId)
     ?? presets.find(item => item.id === DEFAULT_BRUSH_PRESET_ID)
@@ -467,7 +563,7 @@ function normalizeBrushState(
     density: normalizeDensity(brush.density ?? preset.density),
     paperTextureId: normalizePaperTextureId(brush.paperTextureId ?? preset.paperTextureId),
     paperTextureStrength: normalizePaperTextureStrength(brush.paperTextureStrength ?? preset.paperTextureStrength),
-    presets: presets.map(toBrushPresetSummary),
+    presets: presets.map(preset => toBrushPresetSummary(preset, engineRegistry)),
   }
 }
 
@@ -514,13 +610,39 @@ function cloneBrushState(brush: PainterBrushState): PainterBrushState {
     density: brush.density,
     paperTextureId: brush.paperTextureId,
     paperTextureStrength: brush.paperTextureStrength,
-    presets: brush.presets.map(preset => ({ ...preset })),
+    presets: brush.presets.map(preset => ({
+      ...preset,
+      tags: preset.tags ? [...preset.tags] : undefined,
+    })),
   }
 }
 
 function normalizeBrushPresets(presets?: readonly BrushPreset[]): BrushPreset[] {
   return (presets?.length ? [...presets] : createDefaultBrushPresetRegistry().list())
     .map(clonePreset)
+}
+
+function nextCustomBrushPresetId(name: string, presets: readonly BrushPreset[]): BrushPresetId {
+  const base = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    || 'brush'
+  const existing = new Set(presets.map(preset => preset.id))
+  let index = 1
+  let id: BrushPresetId = `custom-${base}`
+  while (existing.has(id)) {
+    index += 1
+    id = `custom-${base}-${index}`
+  }
+  return id
+}
+
+function mergeTags(tags: string[] | undefined, tag: string): string[] {
+  const out = new Set(tags ?? [])
+  out.add(tag)
+  return [...out]
 }
 
 function normalizeSpacing(spacing: number): number {

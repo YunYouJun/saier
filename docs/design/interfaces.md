@@ -51,6 +51,22 @@ export interface BrushEngine {
 }
 ```
 
+P9 起，`BrushEngine` 实现通过注册表接入，而不是写死在 preset factory 里：
+
+```ts
+export interface BrushEngineRegistration {
+  id: string
+  label?: string
+  requiresSurfaceSampler?: boolean
+  supportsMixingControls?: boolean
+  experimental?: boolean
+  create: (context: {
+    preset: BrushPreset
+    options: BrushEngineFromPresetOptions
+  }) => BrushEngine
+}
+```
+
 未来可有多种实现共存，都满足同一接口：
 
 ```

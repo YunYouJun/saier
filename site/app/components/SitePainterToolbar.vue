@@ -10,6 +10,8 @@ import {
 
 interface SitePainterToolbarLabels {
   newCanvas: string
+  openProject: string
+  saveProject: string
   importImage: string
   exportPreview: string
   download: string
@@ -23,6 +25,7 @@ interface SitePainterToolbarLabels {
   pan: string
   image: string
   selection: string
+  stabilizer: string
 }
 
 defineProps<{
@@ -31,14 +34,21 @@ defineProps<{
   canUndo: boolean
   disabled: boolean
   labels: SitePainterToolbarLabels
+  stabilizerStrength: number
 }>()
 
 const emit = defineEmits<{
-  command: [command: SitePainterMenuCommand]
+  'command': [command: SitePainterMenuCommand]
+  'update:stabilizerStrength': [strength: number]
 }>()
 
-const fileActions: { command: SitePainterMenuCommand, labelKey: 'newCanvas' | 'importImage', icon: string }[] = [
+const STABILIZER_MIN = 0
+const STABILIZER_MAX = 15
+
+const fileActions: { command: SitePainterMenuCommand, labelKey: 'newCanvas' | 'openProject' | 'saveProject' | 'importImage', icon: string }[] = [
   { command: 'file:new', labelKey: 'newCanvas', icon: 'i-ph-file-plus' },
+  { command: 'file:open-project', labelKey: 'openProject', icon: 'i-ph-folder-open' },
+  { command: 'file:save-project', labelKey: 'saveProject', icon: 'i-ph-floppy-disk' },
   { command: 'file:import-image', labelKey: 'importImage', icon: 'i-ph-image' },
 ]
 
@@ -65,12 +75,26 @@ function onToolChange(value: unknown): void {
     emit('command', `tool:${value}`)
 }
 
+function onStabilizerInput(event: Event): void {
+  const input = event.target
+  if (!(input instanceof HTMLInputElement))
+    return
+
+  emit('update:stabilizerStrength', normalizeStabilizerStrength(Number(input.value)))
+}
+
 function isSitePainterTool(value: unknown): value is SitePainterTool {
   return value === 'brush'
     || value === 'drag'
     || value === 'eraser'
     || value === 'image'
     || value === 'selection'
+}
+
+function normalizeStabilizerStrength(strength: number): number {
+  return Number.isFinite(strength)
+    ? Math.max(STABILIZER_MIN, Math.min(STABILIZER_MAX, Math.round(strength)))
+    : STABILIZER_MIN
 }
 </script>
 
@@ -141,6 +165,25 @@ function isSitePainterTool(value: unknown): value is SitePainterTool {
 
     <ToolbarSeparator class="site-toolbar__separator" />
 
+    <label class="site-toolbar__stabilizer" :title="labels.stabilizer">
+      <span class="site-toolbar__stabilizer-icon i-ph-wave-sine" aria-hidden="true" />
+      <span class="site-toolbar__stabilizer-label">{{ labels.stabilizer }}</span>
+      <input
+        class="site-toolbar__stabilizer-range"
+        type="range"
+        :aria-label="labels.stabilizer"
+        :disabled="disabled"
+        :max="STABILIZER_MAX"
+        :min="STABILIZER_MIN"
+        :value="stabilizerStrength"
+        step="1"
+        @input="onStabilizerInput"
+      >
+      <output class="site-toolbar__stabilizer-value">{{ stabilizerStrength }}</output>
+    </label>
+
+    <ToolbarSeparator class="site-toolbar__separator" />
+
     <ToolbarButton
       v-for="action in exportActions"
       :key="action.command"
@@ -179,7 +222,7 @@ function isSitePainterTool(value: unknown): value is SitePainterTool {
   gap: 3px;
 }
 
-.site-toolbar__button {
+:global(.site-toolbar__button) {
   display: inline-grid;
   width: 30px;
   height: 28px;
@@ -193,26 +236,26 @@ function isSitePainterTool(value: unknown): value is SitePainterTool {
   outline: none;
 }
 
-.site-toolbar__button:hover {
+:global(.site-toolbar__button:hover) {
   border-color: rgb(255 255 255 / 12%);
   background: rgb(255 255 255 / 10%);
   color: white;
 }
 
-.site-toolbar__button:focus-visible {
+:global(.site-toolbar__button:focus-visible) {
   border-color: rgb(96 165 250 / 78%);
   box-shadow: 0 0 0 2px rgb(96 165 250 / 18%);
 }
 
-.site-toolbar__button[data-state='on'],
-.site-toolbar__tool[data-state='on'] {
+:global(.site-toolbar__button[data-state='on']),
+:global(.site-toolbar__tool[data-state='on']) {
   border-color: rgb(96 165 250 / 55%);
   background: rgb(96 165 250 / 18%);
   color: white;
 }
 
-.site-toolbar__button:disabled,
-.site-toolbar__button[data-disabled] {
+:global(.site-toolbar__button:disabled),
+:global(.site-toolbar__button[data-disabled]) {
   color: rgb(255 255 255 / 25%);
   pointer-events: none;
 }
@@ -222,5 +265,64 @@ function isSitePainterTool(value: unknown): value is SitePainterTool {
   height: 22px;
   margin: 0 3px;
   background: rgb(255 255 255 / 12%);
+}
+
+.site-toolbar__stabilizer {
+  display: inline-grid;
+  height: 28px;
+  flex: 0 0 auto;
+  grid-template-columns: auto minmax(0, max-content) 88px 2ch;
+  align-items: center;
+  gap: 6px;
+  padding: 0 7px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 5px;
+  color: rgb(255 255 255 / 76%);
+  font-size: 12px;
+}
+
+.site-toolbar__stabilizer-icon {
+  font-size: 16px;
+}
+
+.site-toolbar__stabilizer-label {
+  overflow: hidden;
+  max-width: 78px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.site-toolbar__stabilizer-range {
+  width: 88px;
+  accent-color: #60a5fa;
+}
+
+.site-toolbar__stabilizer-range:focus-visible {
+  outline: 2px solid rgb(96 165 250 / 72%);
+  outline-offset: 2px;
+}
+
+.site-toolbar__stabilizer-range:disabled {
+  opacity: 0.45;
+}
+
+.site-toolbar__stabilizer-value {
+  color: rgb(255 255 255 / 58%);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+@media (max-width: 640px) {
+  .site-toolbar__stabilizer {
+    grid-template-columns: auto 74px 2ch;
+  }
+
+  .site-toolbar__stabilizer-label {
+    display: none;
+  }
+
+  .site-toolbar__stabilizer-range {
+    width: 74px;
+  }
 }
 </style>

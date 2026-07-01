@@ -1,6 +1,34 @@
 {
   "name": "@saier/vue",
-  "version": "0.1.6-beta.0",
+  "type": "module",
+  "version": "0.1.6-beta.1",
+  "description": "Vue components and composables for saier.",
+  "author": {
+    "name": "YunYouJun",
+    "email": "me@yunyoujun.cn"
+  },
+  "license": "MPL-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YunYouJun/saier.git",
+    "directory": "packages/vue"
+  },
+  "exports": {
+    ".": {
+      "types": "./index.ts",
+      "import": "./index.ts"
+    },
+    "./components/*": "./components/*",
+    "./composables/*": "./composables/*"
+  },
+  "files": [
+    "components",
+    "composables",
+    "index.ts"
+  ],
+  "scripts": {
+    "publish:beta": "pnpm publish --access public --tag beta"
+  },
   "peerDependencies": {
     "vue": "^3.5.0"
   },

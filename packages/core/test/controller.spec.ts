@@ -105,6 +105,47 @@ describe('painterController', () => {
     })
   })
 
+  it('creates and removes custom brush presets from the current brush state', () => {
+    const document = new Document({ width: 100, height: 100 })
+    const controller = new PainterController({ document })
+
+    controller.brush.setPreset('watercolor')
+    controller.brush.setSize(42)
+    controller.brush.setOpacity(0.62)
+    controller.brush.setSpacing(0.33)
+    controller.brush.setDensity(0.44)
+
+    const custom = controller.brush.createCustomPreset({
+      name: 'Line Wash',
+      group: 'Custom',
+      select: true,
+    })
+
+    expect(custom).toMatchObject({
+      id: 'custom-line-wash',
+      name: 'Line Wash',
+      group: 'Custom',
+      source: 'custom',
+      custom: true,
+      engine: 'smudge',
+      size: 42,
+      opacity: 0.62,
+      spacing: 0.33,
+      density: 0.44,
+    })
+    expect(controller.getState().brush).toMatchObject({
+      presetId: 'custom-line-wash',
+      size: 42,
+      opacity: 0.62,
+    })
+    expect(controller.getState().brush.presets.find(preset => preset.id === custom.id))
+      .toMatchObject({ custom: true, group: 'Custom' })
+
+    expect(controller.brush.removePreset(custom.id)).toBe(true)
+    expect(controller.getState().brush.presetId).toBe('pen')
+    expect(controller.getState().brush.presets.some(preset => preset.id === custom.id)).toBe(false)
+  })
+
   it('updates P7 brush parameters and emits brush:change snapshots', () => {
     const document = new Document({ width: 100, height: 100 })
     const controller = new PainterController({

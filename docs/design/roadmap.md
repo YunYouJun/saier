@@ -88,10 +88,20 @@ title: Roadmap (P0–P9)
 - **范围**：PNG 导出（已有 extract 基础）；工程文件（图层 + 元数据）；**笔迹回放格式收割 shodo** `tablet.ts` 的 `{X,Y,T,P}` + 操作流，做成可存储 / 回放 / 协作基础；PSD 导出为可选。
 - **验收**：保存 → 读取还原图层；同一笔迹回放像素一致。
 
-## P9 — 可选：接 libmypaint / Hokusai 风格引擎
+## P9 — 外部 brush engine 插槽 + 发布前收口
 
-- **范围**：把 `BrushEngine` 作为插槽，预留 `MyPaintBrushEngineWasm` / `ExperimentalWatercolorEngine`；研究 `.myb` 兼容。
-- **验收**：能以一个 WASM / 实验引擎实现 `BrushEngine` 接口并在 UI 中切换，不改 core 其它部分。
+- **目标**：把 `BrushEngine` 真正产品化为可替换插槽，同时收口 public beta 发布前的必要能力。libmypaint / Hokusai / `.myb` 是 P9 的实验方向，但**不是首次用户发布的 blocker**。
+- **范围（发布前必做）**：
+  - `core`：`BrushEngineRegistry` / `BrushEngineRegistration`，外部 engine factory 可按 id 注册；缺失 engine 不静默 fallback。
+  - `saier`：`Painter` 暴露实例级 `brushEngineRegistry`，并支持 `createPainter({ brushEngines, brushPresets })` 注入。
+  - `@saier/vue`：preset summary 携带 `engineAvailable` / `requiresSurfaceSampler` / `supportsMixingControls` / `experimental`，UI 禁用不可用 preset。
+  - release gate：内置绘画、图层、undo/redo、项目保存读取、PNG 导出、examples/docs/site 与当前 UI 承诺一致。
+- **范围（可选 / 后续）**：
+  - `MyPaintBrushEngineWasm` adapter；`.myb` 参数映射；Hokusai 风格实验水彩。
+  - 对外部 engine 做 golden parity（仅在选定具体引擎后才有意义）。
+- **验收**：fake WASM / 实验 engine 可实现 `BrushEngine` 并在 UI 中切换，不改 core 其它部分；未注册 engine 的 preset 被禁用或创建时报明确错误；内置 preset 不回归。
+
+面向用户发布前的必要功能详见 [P9-00](./tasks/P9-00-public-beta-release-gate)。
 
 ## 里程碑节奏（建议）
 
@@ -100,7 +110,7 @@ M1 = P0            // v8 迁移 + 测试地基（解锁一切）
 M2 = P1 (+P3 部分) // RenderTexture 图层 + 真橡皮 + 基础 stabilizer —— “能当线稿工具用”
 M3 = P2 + P4 + P5  // tile + 笔刷家族 + 图层栈 —— “像绘画软件”
 M4 = P6 + P7       // 锁透明 / 蒙版 + 混色 —— “有专业绘画手感”
-M5 = P8 (+P9)      // 文件 / 回放（+ 外部引擎）
+M5 = P8 + P9 gate  // 文件 / 回放 + 外部引擎插槽 + 发布前收口
 ```
 
 每个 M 结束：demo 可用 + 验收标准全过 + 一次提交 / 发版。

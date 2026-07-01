@@ -2,9 +2,12 @@ import type {
   BrushDab,
   BrushEngine,
   BrushInputPoint,
+  BrushPreset,
   BrushPresetId,
   BrushPresetSummary,
+  CreateCustomBrushPresetOptions,
   PainterBrushState,
+  RegisterBrushPresetOptions,
   RGBA,
 } from '@saier/core'
 import type * as PIXI from 'pixi.js'
@@ -324,8 +327,37 @@ export class PainterBrush {
     this.painter.controller.brush.setPaperTextureStrength(paperTextureStrength)
   }
 
+  registerPreset(preset: BrushPreset, options?: RegisterBrushPresetOptions): BrushPreset {
+    const registered = this.painter.controller.brush.registerPreset(preset, options)
+    this.painter.brushRegistry.register(registered)
+    return registered
+  }
+
+  createCustomPreset(options: CreateCustomBrushPresetOptions): BrushPreset {
+    const preset = this.painter.controller.brush.createCustomPreset(options)
+    this.painter.brushRegistry.register(preset)
+    return preset
+  }
+
+  removePreset(id: BrushPresetId): boolean {
+    const removed = this.painter.controller.brush.removePreset(id)
+    if (removed)
+      this.painter.brushRegistry.unregister(id)
+    return removed
+  }
+
   setPressureEnabled(enabled: boolean) {
     PainterBrush.enablePressure = enabled
+  }
+
+  getStabilizerStrength(): number {
+    return PainterBrush.stabilizerStrength
+  }
+
+  setStabilizerStrength(strength: number) {
+    PainterBrush.stabilizerStrength = normalizeStabilizerStrength(strength)
+    if (!this.dragging)
+      this.stabilizer = this.createStabilizer()
   }
 
   getPresets(): BrushPresetSummary[] {
@@ -439,7 +471,7 @@ export class PainterBrush {
       density: brush.density,
       paperTextureId: brush.paperTextureId,
       paperTextureStrength: brush.paperTextureStrength,
-    })
+    }, this.painter.brushEngineRegistry)
   }
 
   createStabilizer() {
@@ -547,6 +579,10 @@ function getPointerId(event: PIXI.FederatedPointerEvent): number {
 
 function getPointerType(event: PIXI.FederatedPointerEvent): string {
   return event.pointerType ?? 'pen'
+}
+
+function normalizeStabilizerStrength(strength: number): number {
+  return Number.isFinite(strength) ? Math.max(0, Math.round(strength)) : 0
 }
 
 function rgbaToHex(color: RGBA): string {

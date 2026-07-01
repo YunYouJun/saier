@@ -34,6 +34,7 @@ If you want to understand the architecture or contribute to the rewrite, start w
 
 - 📦 **PixiJS v8** rendering and event system
 - 🖌️ Brush & eraser with pointer **pressure** support
+- 🧰 Runtime custom brush presets and external brush-engine slots
 - 🧱 Layer & transform handles (scale / rotate / move) for imported images
 - ↩️ Undo / redo history
 - 🖼️ Image drag-and-drop import
@@ -42,5 +43,6 @@ If you want to understand the architecture or contribute to the rewrite, start w
 ## Next Steps
 
 - [Getting Started](/guide/getting-started) — install and run
+- [Custom Brushes](/guide/custom-brushes) — runtime presets, external engines, and `.myb` mapping
 - [Design Overview](/design/) — current architecture, target architecture, and why
 - [Roadmap](/design/roadmap) — the phased execution plan

@@ -1,5 +1,7 @@
 {
   "name": "@saier/shodo",
+  "version": "0.1.6-beta.1",
+  "private": true,
   "dependencies": {
     "@saier/core": "workspace:*",
     "@saier/pixi": "workspace:*"

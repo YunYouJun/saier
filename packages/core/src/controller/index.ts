@@ -1,4 +1,5 @@
 export {
+  type CreateCustomBrushPresetOptions,
   type PainterBrushState,
   PainterController,
   type PainterControllerEvents,
@@ -7,4 +8,5 @@ export {
   type PainterHistoryState,
   type PainterLayerState,
   type PainterTool,
+  type RegisterBrushPresetOptions,
 } from './PainterController'

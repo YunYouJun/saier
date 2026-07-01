@@ -1,3 +1,3 @@
-# Vue + Vite Mini APP for pixi-painter
+# Vue + Vite Mini App for Saier
 
 - Nuxt is slow

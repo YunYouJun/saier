@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { PainterBrushState } from '@saier/core'
-import type { Painter } from '../../saier/src'
+import type { Painter } from 'saier'
 import { computed, onBeforeUnmount, ref } from 'vue'
 
 interface PainterControlsLabels {

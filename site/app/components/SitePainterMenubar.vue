@@ -21,6 +21,8 @@ import {
 interface SitePainterMenubarLabels {
   file: string
   newCanvas: string
+  openProject: string
+  saveProject: string
   importImage: string
   exportPreview: string
   download: string
@@ -92,6 +94,18 @@ function onLayerVisibleChange(value: boolean | 'indeterminate'): void {
             <span class="site-menubar__item-main">
               <span class="i-ph-file-plus" />
               <span>{{ labels.newCanvas }}</span>
+            </span>
+          </MenubarItem>
+          <MenubarItem class="site-menubar__item" :disabled="disabled" @select="emit('command', 'file:open-project')">
+            <span class="site-menubar__item-main">
+              <span class="i-ph-folder-open" />
+              <span>{{ labels.openProject }}</span>
+            </span>
+          </MenubarItem>
+          <MenubarItem class="site-menubar__item" :disabled="disabled" @select="emit('command', 'file:save-project')">
+            <span class="site-menubar__item-main">
+              <span class="i-ph-floppy-disk" />
+              <span>{{ labels.saveProject }}</span>
             </span>
           </MenubarItem>
           <MenubarSeparator class="site-menubar__separator" />

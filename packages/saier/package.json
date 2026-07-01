@@ -8,9 +8,10 @@
     "name": "YunYouJun",
     "email": "me@yunyoujun.cn"
   },
+  "license": "MPL-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/YunYouJun/saier"
+    "url": "git+https://github.com/YunYouJun/saier.git"
   },
   "exports": {
     ".": {
@@ -22,11 +23,15 @@
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
+  "files": [
+    "README.md",
+    "dist"
+  ],
   "scripts": {
     "build": "unbuild",
     "dev": "unbuild --stub",
     "prepublishOnly": "npm run build",
-    "release": "bumpp && npm publish"
+    "publish:beta": "pnpm publish --access public --tag beta"
   },
   "dependencies": {
     "@ctrl/tinycolor": "^4.2.0",

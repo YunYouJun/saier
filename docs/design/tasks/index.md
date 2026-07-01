@@ -144,7 +144,7 @@ title: Tasks
 >
 > 依赖链：`01 →（02,03,04,05）`；`04` 复用 `02` 的合成；`06` 汇合 01..05 的 UI；`07` 验收。**core 侧（02/04/05 的算法）与 pixi 显示侧可部分并行。**
 >
-> **进度**：✅ P6-01 图层属性模型 · ✅ P6-02 锁透明(两后端 parity) · ✅ P6-03 剪贴(RT,extract 安全派生遮罩) · ✅ P6-05 变换绘画(≤1.5px) · ✅ P6-06 UI(锁/剪贴开关) · ✅ P6-07 验收(已发布功能)。🚧 **P6-04 蒙版**:像素存储 / 绘画重定向 / undo 通,但**显示重算撞 Pixi v8 RenderTexture 同帧采样墙**,已脚手架 + WIP 标记,蒙版显示 + UI 延后。
+> **进度**：✅ P6-01 图层属性模型 · ✅ P6-02 锁透明(两后端 parity) · ✅ P6-03 剪贴(显示 + 导出) · ✅ P6-04 蒙版(亮度语义 + 两后端 browser 覆盖) · ✅ P6-05 变换绘画(≤1.5px) · ✅ P6-06 UI(锁/剪贴开关) · ✅ P6-07 验收。蒙版 API / 像素路径已验证，但默认用户 UI 暂不把蒙版作为正式功能暴露。
 
 | ID                                          | 卡片                                                | 包        | Depends on          | Effort |
 | ------------------------------------------- | --------------------------------------------------- | --------- | ------------------- | ------ |
@@ -197,6 +197,20 @@ title: Tasks
 
 **P8 出口（里程碑 M5 核心）目标**：保存 → 读取还原图层；同一笔迹回放像素一致。
 
-## 后续阶段（P9+）
+## P9 — 外部 brush engine 插槽 + 发布前收口
 
-P9 的任务卡按需续写（`P9-01-*.md` …），参照同一格式与依赖链。优先级与取舍见 [Roadmap](../roadmap) 与 [Risks](../roadmap#risks)。
+> 目标：把 `BrushEngine` 做成真正可替换的插件插槽，同时定义 public beta 发布前必须稳定的功能。P9 不把首次发布绑定到真实 libmypaint / `.myb` 完整兼容；真实外部引擎作为 registry 能力之上的后续增量。
+>
+> **进度（2026-07-01）**：✅ P9-00 release checklist · ✅ P9-01 `BrushEngineRegistry` / external factory slot · ✅ P9-02 async adapter contract · ✅ P9-03 `.myb` preset mapping spike · ✅ P9-04 capability summary + Vue gating · ✅ P9-05 external engine verification · ✅ P9-06 custom brushes + compact brush UI。
+
+| ID                                             | 卡片                           | 包         | Depends on     | Effort |
+| ---------------------------------------------- | ------------------------------ | ---------- | -------------- | ------ |
+| [P9-00](./P9-00-public-beta-release-gate)      | Public beta 发布前必要功能门槛 | docs+site  | P6-07,P7-08,P8 | M      |
+| [P9-01](./P9-01-brush-engine-registry)         | 外部 `BrushEngine` 注册表      | core+saier | P4-01,P7-08    | M      |
+| [P9-02](./P9-02-wasm-adapter-contract)         | WASM / 实验引擎适配契约        | core       | P9-01          | M      |
+| [P9-03](./P9-03-myb-preset-mapping)            | `.myb` preset 映射调研         | docs+core  | P9-01,P9-02    | L      |
+| [P9-04](./P9-04-engine-capability-ui)          | Engine capability UI gating    | core+vue   | P9-01          | S      |
+| [P9-05](./P9-05-verify-external-engines)       | 外部引擎验收                   | test       | P9-01,P9-04    | M      |
+| [P9-06](./P9-06-custom-brushes-and-compact-ui) | 自定义笔刷与紧凑笔刷 UI        | core+vue   | P9-01,P9-04    | M      |
+
+**P9 出口目标**：外部 engine 可注册、可创建、可被 UI 安全暴露；未加载 / 不支持 backend 的 preset 不会误选；首次用户发布的 blocking / experimental 功能边界清晰。

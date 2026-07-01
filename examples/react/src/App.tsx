@@ -13,7 +13,7 @@ function App() {
           <img src={reactLogo} className="logo react" alt="React logo" />
         </a>
       </div>
-      <h1>Pixi Painter + React</h1>
+      <h1>Saier + React</h1>
       <input />
       <div className="card">
         <PixiPainter />

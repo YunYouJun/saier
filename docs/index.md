@@ -17,7 +17,7 @@ hero:
       link: /design/roadmap
     - theme: alt
       text: View on GitHub
-      link: https://github.com/YunYouJun/pixi-painter
+      link: https://github.com/YunYouJun/saier
 
 features:
   - icon: 🎨
@@ -27,8 +27,8 @@ features:
     title: Brush · Eraser · Layers
     details: Pressure-aware tools, selection & transform handles, image import, undo / redo.
   - icon: 🧱
-    title: Raster-first core (WIP)
-    details: Migrating the painting core from Graphics-per-stroke to a swappable raster / tile engine — see the Design section.
+    title: Raster-first core
+    details: Brush, undo, layer and file operations run on a swappable raster / tile engine — see the Design section.
   - icon: 📐
     title: Pixi-agnostic engine
     details: Brush, surface, document and undo live in core; PixiJS is just one display backend.
@@ -59,5 +59,6 @@ saier is under active architectural evolution — from a PixiJS brush demo into 
 written to be executed phase-by-phase by humans or coding agents.
 
 - 🗺️ [Roadmap (P0–P9)](/design/roadmap) — the ordered execution plan
+- 🖌️ [Custom Brushes](/guide/custom-brushes) — runtime custom presets, external engines, and `.myb` mapping
 - 🧩 [Core Interfaces](/design/interfaces) — the contracts between `core` and the Pixi adapter
 - 🧭 [Decisions (ADR)](/design/decisions) — key architectural calls and why

@@ -80,6 +80,14 @@ jobs:
       - name: Install
         run: nci
 
+      - name: Install Playwright browsers (Linux)
+        if: runner.os == 'Linux'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Install Playwright browsers
+        if: runner.os != 'Linux'
+        run: pnpm exec playwright install chromium
+
       - name: Build
         run: nr build
 

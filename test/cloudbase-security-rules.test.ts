@@ -84,6 +84,8 @@ describe('cloudbase security rules', () => {
     expect(rule.write).toContain(`resource.size <= ${maxCloudFileBytes}`)
     expect(rule.write).toContain('/^avatars\\//.test(resource.path)')
     expect(rule.write).toContain('/^saier\\/projects\\//.test(resource.path)')
+    expect(rule.read).not.toContain('.indexOf(')
+    expect(rule.write).not.toContain('.indexOf(')
     expectExpressionLengthsWithinLimit(rule)
   })
 

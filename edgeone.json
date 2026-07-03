@@ -1,9 +1,6 @@
 {
   "name": "saier",
-  "installCommand": "corepack enable && corepack prepare pnpm@10.17.1 --activate && pnpm install --frozen-lockfile",
-  "buildCommand": "corepack enable && corepack prepare pnpm@10.17.1 --activate && pnpm -C site run generate",
   "outputDirectory": "site/.output/public",
-  "nodeVersion": "22.11.0",
   "headers": [
     {
       "source": "/_nuxt/*",

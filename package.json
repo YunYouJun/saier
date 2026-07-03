@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.1.6-beta.1",
   "private": true,
-  "packageManager": "pnpm@10.17.1",
+  "packageManager": "pnpm@10.34.4",
   "description": "Elegant online painting runtime powered by PixiJS",
   "author": {
     "email": "me@yunyoujun.cn",

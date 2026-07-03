@@ -27,7 +27,10 @@ interface PainterOptionsBarLabels {
   requiresTileBackend: string
   unavailablePreset: string
   addBrush: string
+  addGroup: string
+  customGroupName: string
   removeBrush: string
+  removeGroup: string
   presetLabels: BrushPresetLabelMap
 }
 
@@ -60,7 +63,10 @@ const DEFAULT_LABELS: PainterOptionsBarLabels = {
   requiresTileBackend: 'Requires tiled backend',
   unavailablePreset: 'Preset unavailable for the current backend',
   addBrush: 'Save current brush',
+  addGroup: 'New brush group',
+  customGroupName: 'Custom Group',
   removeBrush: 'Remove custom brush',
+  removeGroup: 'Remove brush group',
   presetLabels: {},
 }
 
@@ -87,6 +93,8 @@ const paperTextureId = shallowRef(initialBrush.paperTextureId)
 const paperTextureStrength = shallowRef(initialBrush.paperTextureStrength)
 const paperEnabled = shallowRef(Boolean(initialBrush.paperTextureId && initialBrush.paperTextureStrength > 0))
 const enablePressure = shallowRef(true)
+const customGroups = shallowRef<string[]>([])
+const activeGroupLabel = shallowRef(groupLabelForPreset(initialBrush.presets.find(preset => preset.id === initialBrush.presetId)) ?? DEFAULT_LABELS.customGroupName)
 const stabilizerStrength = shallowRef(normalizeStabilizerStrength(
   props.stabilizerStrength ?? props.painter.brush.getStabilizerStrength(),
 ))
@@ -103,6 +111,7 @@ function requiresSurfaceSampler(preset: PainterBrushState['presets'][number]): b
 }
 
 function handleBrushChange(brush: PainterBrushState) {
+  const previousPresetId = presetId.value
   presetId.value = brush.presetId
   presets.value = brush.presets
   size.value = brush.size
@@ -119,6 +128,11 @@ function handleBrushChange(brush: PainterBrushState) {
   paperTextureId.value = brush.paperTextureId
   paperTextureStrength.value = brush.paperTextureStrength
   paperEnabled.value = Boolean(brush.paperTextureId && brush.paperTextureStrength > 0)
+
+  if (previousPresetId !== brush.presetId) {
+    const nextActivePreset = brush.presets.find(preset => preset.id === brush.presetId)
+    activeGroupLabel.value = groupLabelForPreset(nextActivePreset) ?? activeGroupLabel.value
+  }
 }
 
 props.painter.controller.on('brush:change', handleBrushChange)
@@ -250,12 +264,14 @@ function formatLevel(value: number): string {
   return String(Math.round(value))
 }
 
-function handleCreateCustomPreset(): void {
+function handleCreateCustomPreset(groupLabel: string): void {
+  const group = normalizeGroupLabel(groupLabel, text.value.customGroupName)
   const preset = props.painter.brush.createCustomPreset({
     name: nextCustomBrushName(),
-    group: 'Custom',
+    group,
     select: true,
   })
+  activeGroupLabel.value = group
   presetId.value = preset.id
 }
 
@@ -265,6 +281,28 @@ function handleRemoveActivePreset(): void {
     return
 
   props.painter.brush.removePreset(preset.id)
+}
+
+function handleCreateBrushGroup(): void {
+  const name = nextCustomBrushGroupName()
+  customGroups.value = [...customGroups.value, name]
+  activeGroupLabel.value = name
+}
+
+function handleRemoveBrushGroup(groupLabel: string): void {
+  const group = normalizeGroupLabel(groupLabel, text.value.customGroupName)
+  const groupId = groupKey(group)
+  if (!isRemovableBrushGroup(groupId))
+    return
+
+  const presetsInGroup = presets.value
+    .filter(preset => preset.custom && groupKey(groupLabelForPreset(preset) ?? '') === groupId)
+
+  for (const preset of presetsInGroup)
+    props.painter.brush.removePreset(preset.id)
+
+  customGroups.value = customGroups.value.filter(label => groupKey(label) !== groupId)
+  activeGroupLabel.value = fallbackBrushGroupLabel(groupId)
 }
 
 function nextCustomBrushName(): string {
@@ -278,6 +316,56 @@ function nextCustomBrushName(): string {
   return name
 }
 
+function nextCustomBrushGroupName(): string {
+  const baseName = normalizeGroupLabel(text.value.customGroupName, DEFAULT_LABELS.customGroupName)
+  const used = new Set([
+    ...customGroups.value.map(groupKey),
+    ...presets.value.map(preset => groupKey(groupLabelForPreset(preset) ?? '')),
+  ])
+  let index = 1
+  let name = baseName
+  while (used.has(groupKey(name))) {
+    index += 1
+    name = `${baseName} ${index}`
+  }
+  return name
+}
+
+function fallbackBrushGroupLabel(removedGroupId: string): string {
+  const activePresetGroup = groupLabelForPreset(activePreset.value)
+  if (activePresetGroup && groupKey(activePresetGroup) !== removedGroupId)
+    return activePresetGroup
+
+  const nextPresetGroup = presets.value
+    .map(preset => groupLabelForPreset(preset))
+    .find(label => label && groupKey(label) !== removedGroupId)
+  if (nextPresetGroup)
+    return nextPresetGroup
+
+  return customGroups.value.find(label => groupKey(label) !== removedGroupId)
+    ?? text.value.customGroupName
+}
+
+function isRemovableBrushGroup(groupId: string): boolean {
+  const inCustomGroups = customGroups.value.some(label => groupKey(label) === groupId)
+  const groupPresets = presets.value.filter(preset => groupKey(groupLabelForPreset(preset) ?? '') === groupId)
+  const hasOnlyCustomPresets = groupPresets.length > 0 && groupPresets.every(preset => preset.custom)
+
+  return inCustomGroups || hasOnlyCustomPresets
+}
+
+function groupLabelForPreset(preset: PainterBrushState['presets'][number] | undefined): string | undefined {
+  return preset?.group ?? preset?.engineLabel ?? (preset ? String(preset.engine) : undefined)
+}
+
+function normalizeGroupLabel(label: string | undefined, fallback: string): string {
+  return label?.trim() || fallback
+}
+
+function groupKey(label: string): string {
+  return label.trim().toLowerCase()
+}
+
 function normalizeStabilizerStrength(strength: number): number {
   return Number.isFinite(strength) ? Math.max(0, Math.min(15, Math.round(strength))) : 0
 }
@@ -286,16 +374,25 @@ function normalizeStabilizerStrength(strength: number): number {
 <template>
   <div bg="dark-100" flex="~ col" gap="2" p="2" rounded-lg text-white>
     <BrushPresetPicker
+      v-model:active-group-label="activeGroupLabel"
       :presets="presets"
       :active-preset-id="presetId"
+      :brush-size="size"
+      :brush-opacity="opacity"
+      :brush-hardness="hardness"
+      :custom-groups="customGroups"
       :disabled-preset-ids="disabledPresetIds"
       :disabled-title="text.unavailablePreset || text.requiresTileBackend"
       :preset-labels="text.presetLabels"
       :add-title="text.addBrush"
+      :add-group-title="text.addGroup"
       :remove-title="text.removeBrush"
+      :remove-group-title="text.removeGroup"
       :can-remove-active="canRemoveActivePreset"
       @create-custom="handleCreateCustomPreset"
+      @create-group="handleCreateBrushGroup"
       @remove-active="handleRemoveActivePreset"
+      @remove-group="handleRemoveBrushGroup"
       @select="presetId = $event"
     />
 

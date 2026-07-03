@@ -5,6 +5,8 @@ export {
   SAIER_PROJECT_VERSION,
   type SaierProjectFile,
   type SaierProjectLayer,
+  type SaierProjectLayerGroup,
+  type SaierProjectLayerNode,
   type SaierProjectMetadata,
   type SaierProjectMetadataValue,
   type SaierProjectSurface,

@@ -61,4 +61,32 @@ describe('stabilizer', () => {
 
     expect(flushed).toEqual([pt(5, 0, 1)])
   })
+
+  it('keeps a SAI-style lazy rope still until the pointer pulls beyond the correction radius', () => {
+    const stabilizer = new Stabilizer({ strength: 8, ropeLength: 20 })
+
+    const out = [
+      ...stabilizer.push(pt(0, 0, 0)),
+      ...stabilizer.push(pt(10, 0, 1000)),
+      ...stabilizer.push(pt(20, 0, 2000)),
+      ...stabilizer.push(pt(25, 0, 3000)),
+    ]
+
+    expect(out.map(point => point.x)).toEqual([0, 0, 0, 5])
+    expect(stabilizer.flush()).toEqual([pt(25, 0, 3000)])
+  })
+
+  it('shortens the lazy rope for fast strokes so high correction still follows the hand', () => {
+    const slow = new Stabilizer({ strength: 8, ropeLength: 20 })
+    slow.push(pt(0, 0, 0))
+    const [slowOut] = slow.push(pt(24, 0, 1000))
+
+    const fast = new Stabilizer({ strength: 8, ropeLength: 20 })
+    fast.push(pt(0, 0, 0))
+    const [fastOut] = fast.push(pt(24, 0, 1))
+
+    expect(slowOut!.x).toBeCloseTo(4)
+    expect(fastOut!.x).toBeCloseTo(15)
+    expect(fastOut!.x).toBeGreaterThan(slowOut!.x)
+  })
 })

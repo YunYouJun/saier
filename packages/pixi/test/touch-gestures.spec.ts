@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { TouchGestureRouter } from '../src'
+import { DEFAULT_PINCH_ZOOM_SENSITIVITY, TouchGestureRouter } from '../src'
 
 function touch(pointerId: number, x: number, y: number) {
   return { pointerId, pointerType: 'touch', clientX: x, clientY: y }
@@ -48,6 +48,22 @@ describe('touchGestureRouter', () => {
     expect(onStrokeCancel).toHaveBeenCalledTimes(1)
     expect(onStrokeMove).not.toHaveBeenCalled()
     expect(panBy).toHaveBeenCalledWith(5, 0)
+    expect(zoomAt).toHaveBeenCalledTimes(1)
+    expect(zoomAt.mock.calls[0]![0]).toEqual({ x: 10, y: 0 })
+    expect(zoomAt.mock.calls[0]![1]).toBeCloseTo(2 ** DEFAULT_PINCH_ZOOM_SENSITIVITY)
+  })
+
+  it('can keep pinch zoom at physical one-to-one sensitivity', () => {
+    const zoomAt = vi.fn()
+    const router = new TouchGestureRouter({
+      viewport: { panBy: vi.fn(), zoomAt },
+      pinchZoomSensitivity: 1,
+    })
+
+    router.pointerDown(touch(1, 0, 0))
+    router.pointerDown(touch(2, 10, 0))
+    router.pointerMove(touch(2, 20, 0))
+
     expect(zoomAt).toHaveBeenCalledWith({ x: 10, y: 0 }, 2)
   })
 

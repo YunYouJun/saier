@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { SiteLocale } from '~/composables/useSiteI18n'
-import type { SitePainterMenuCommand, SitePainterTool } from '~/types/painter-app'
+import type { SitePainterColorSectionId, SitePainterCommand, SitePainterMenuCommand, SitePainterPanelId, SitePainterTool } from '~/types/painter-app'
 import {
   MenubarCheckboxItem,
   MenubarContent,
@@ -17,12 +17,14 @@ import {
   MenubarSubTrigger,
   MenubarTrigger,
 } from 'reka-ui'
+import { computed } from 'vue'
 
 interface SitePainterMenubarLabels {
   file: string
   newCanvas: string
   openProject: string
   saveProject: string
+  cloudSync: string
   importImage: string
   exportPreview: string
   download: string
@@ -33,6 +35,26 @@ interface SitePainterMenubarLabels {
   zoomIn: string
   zoomOut: string
   language: string
+  others: string
+  keyboardShortcuts: string
+  filter: string
+  repeatFilter: string
+  adjustments: string
+  invert: string
+  grayscale: string
+  blur: string
+  gaussianBlur: string
+  pixelate: string
+  window: string
+  showPanels: string
+  showColorPanels: string
+  brushOptionsPanel: string
+  operationPanel: string
+  layerPanel: string
+  diagnosticsPanel: string
+  colorWheelPanel: string
+  colorPalettePanel: string
+  rgbSlidersPanel: string
   tools: string
   brush: string
   eraser: string
@@ -41,6 +63,7 @@ interface SitePainterMenubarLabels {
   selection: string
   layers: string
   addLayer: string
+  addGroup: string
   showActiveLayer: string
   moveActiveLayerUp: string
   moveActiveLayerDown: string
@@ -49,24 +72,32 @@ interface SitePainterMenubarLabels {
   chinese: string
 }
 
-defineProps<{
+const props = defineProps<{
   activeLayerVisible: boolean
   activeTool: SitePainterTool
+  availablePanels: SitePainterPanelId[]
+  canApplyFilter: boolean
   canMoveLayerDown: boolean
   canMoveLayerUp: boolean
   canRedo: boolean
   canRemoveLayer: boolean
+  canRepeatFilter: boolean
   canUndo: boolean
   disabled: boolean
   hasActiveLayer: boolean
   labels: SitePainterMenubarLabels
   locale: SiteLocale
+  shortcuts: Readonly<Partial<Record<SitePainterCommand, string>>>
+  colorSectionVisibility: Readonly<Record<SitePainterColorSectionId, boolean>>
+  panelVisibility: Readonly<Record<SitePainterPanelId, boolean>>
 }>()
 
 const emit = defineEmits<{
   command: [command: SitePainterMenuCommand]
+  setColorSectionVisible: [sectionId: SitePainterColorSectionId, visible: boolean]
   setActiveLayerVisible: [visible: boolean]
   setLocale: [locale: SiteLocale]
+  setPanelVisible: [panelId: SitePainterPanelId, visible: boolean]
 }>()
 
 const toolCommands: { value: SitePainterTool, labelKey: 'brush' | 'eraser' | 'pan' | 'image' | 'selection', icon: string }[] = [
@@ -77,8 +108,39 @@ const toolCommands: { value: SitePainterTool, labelKey: 'brush' | 'eraser' | 'pa
   { value: 'selection', labelKey: 'selection', icon: 'i-ph-selection' },
 ]
 
+const panelCommands: { value: SitePainterPanelId, labelKey: 'brushOptionsPanel' | 'diagnosticsPanel' | 'layerPanel' | 'operationPanel', icon: string }[] = [
+  { value: 'options', labelKey: 'brushOptionsPanel', icon: 'i-ph-sliders-horizontal' },
+  { value: 'controls', labelKey: 'operationPanel', icon: 'i-ph-palette' },
+  { value: 'layers', labelKey: 'layerPanel', icon: 'i-ph-stack' },
+  { value: 'diagnostics', labelKey: 'diagnosticsPanel', icon: 'i-ph-activity' },
+]
+
+const colorSectionCommands: { value: SitePainterColorSectionId, labelKey: 'colorPalettePanel' | 'colorWheelPanel' | 'rgbSlidersPanel', icon: string }[] = [
+  { value: 'wheel', labelKey: 'colorWheelPanel', icon: 'i-ph-circle-half-tilt' },
+  { value: 'palette', labelKey: 'colorPalettePanel', icon: 'i-ph-squares-four' },
+  { value: 'rgbSliders', labelKey: 'rgbSlidersPanel', icon: 'i-ph-sliders-horizontal' },
+]
+
+const filterEnabled = computed(() => !props.disabled && props.canApplyFilter)
+
+const visiblePanelCommands = computed(() =>
+  panelCommands.filter(panel => props.availablePanels.includes(panel.value)),
+)
+
 function onLayerVisibleChange(value: boolean | 'indeterminate'): void {
   emit('setActiveLayerVisible', value === true)
+}
+
+function onColorSectionVisibleChange(sectionId: SitePainterColorSectionId, value: boolean | 'indeterminate'): void {
+  emit('setColorSectionVisible', sectionId, value === true)
+}
+
+function onPanelVisibleChange(panelId: SitePainterPanelId, value: boolean | 'indeterminate'): void {
+  emit('setPanelVisible', panelId, value === true)
+}
+
+function shortcutLabel(command: SitePainterCommand): string {
+  return props.shortcuts[command] ?? ''
 }
 </script>
 
@@ -95,17 +157,26 @@ function onLayerVisibleChange(value: boolean | 'indeterminate'): void {
               <span class="i-ph-file-plus" />
               <span>{{ labels.newCanvas }}</span>
             </span>
+            <span v-if="shortcutLabel('file:new')" class="site-menubar__shortcut">{{ shortcutLabel('file:new') }}</span>
           </MenubarItem>
           <MenubarItem class="site-menubar__item" :disabled="disabled" @select="emit('command', 'file:open-project')">
             <span class="site-menubar__item-main">
               <span class="i-ph-folder-open" />
               <span>{{ labels.openProject }}</span>
             </span>
+            <span v-if="shortcutLabel('file:open-project')" class="site-menubar__shortcut">{{ shortcutLabel('file:open-project') }}</span>
           </MenubarItem>
           <MenubarItem class="site-menubar__item" :disabled="disabled" @select="emit('command', 'file:save-project')">
             <span class="site-menubar__item-main">
               <span class="i-ph-floppy-disk" />
               <span>{{ labels.saveProject }}</span>
+            </span>
+            <span v-if="shortcutLabel('file:save-project')" class="site-menubar__shortcut">{{ shortcutLabel('file:save-project') }}</span>
+          </MenubarItem>
+          <MenubarItem class="site-menubar__item" :disabled="disabled" @select="emit('command', 'file:cloud-sync')">
+            <span class="site-menubar__item-main">
+              <span class="i-ph-cloud-arrow-up" />
+              <span>{{ labels.cloudSync }}</span>
             </span>
           </MenubarItem>
           <MenubarSeparator class="site-menubar__separator" />
@@ -142,12 +213,14 @@ function onLayerVisibleChange(value: boolean | 'indeterminate'): void {
               <span class="i-ph-arrow-arc-left" />
               <span>{{ labels.undo }}</span>
             </span>
+            <span v-if="shortcutLabel('edit:undo')" class="site-menubar__shortcut">{{ shortcutLabel('edit:undo') }}</span>
           </MenubarItem>
           <MenubarItem class="site-menubar__item" :disabled="disabled || !canRedo" @select="emit('command', 'edit:redo')">
             <span class="site-menubar__item-main">
               <span class="i-ph-arrow-arc-right" />
               <span>{{ labels.redo }}</span>
             </span>
+            <span v-if="shortcutLabel('edit:redo')" class="site-menubar__shortcut">{{ shortcutLabel('edit:redo') }}</span>
           </MenubarItem>
         </MenubarContent>
       </MenubarPortal>
@@ -164,12 +237,14 @@ function onLayerVisibleChange(value: boolean | 'indeterminate'): void {
               <span class="i-ph-magnifying-glass-plus" />
               <span>{{ labels.zoomIn }}</span>
             </span>
+            <span v-if="shortcutLabel('view:zoom-in')" class="site-menubar__shortcut">{{ shortcutLabel('view:zoom-in') }}</span>
           </MenubarItem>
           <MenubarItem class="site-menubar__item" :disabled="disabled" @select="emit('command', 'view:zoom-out')">
             <span class="site-menubar__item-main">
               <span class="i-ph-magnifying-glass-minus" />
               <span>{{ labels.zoomOut }}</span>
             </span>
+            <span v-if="shortcutLabel('view:zoom-out')" class="site-menubar__shortcut">{{ shortcutLabel('view:zoom-out') }}</span>
           </MenubarItem>
           <MenubarSeparator class="site-menubar__separator" />
           <MenubarSub>
@@ -185,17 +260,21 @@ function onLayerVisibleChange(value: boolean | 'indeterminate'): void {
                 <MenubarRadioGroup :model-value="locale">
                   <MenubarRadioItem class="site-menubar__item" value="en" @select="emit('setLocale', 'en')">
                     <span class="site-menubar__item-main">
-                      <MenubarItemIndicator class="site-menubar__indicator">
-                        <span class="i-ph-check" />
-                      </MenubarItemIndicator>
+                      <span class="site-menubar__indicator-slot">
+                        <MenubarItemIndicator class="site-menubar__indicator">
+                          <span class="i-ph-check" />
+                        </MenubarItemIndicator>
+                      </span>
                       <span>{{ labels.english }}</span>
                     </span>
                   </MenubarRadioItem>
                   <MenubarRadioItem class="site-menubar__item" value="zh" @select="emit('setLocale', 'zh')">
                     <span class="site-menubar__item-main">
-                      <MenubarItemIndicator class="site-menubar__indicator">
-                        <span class="i-ph-check" />
-                      </MenubarItemIndicator>
+                      <span class="site-menubar__indicator-slot">
+                        <MenubarItemIndicator class="site-menubar__indicator">
+                          <span class="i-ph-check" />
+                        </MenubarItemIndicator>
+                      </span>
                       <span>{{ labels.chinese }}</span>
                     </span>
                   </MenubarRadioItem>
@@ -203,6 +282,163 @@ function onLayerVisibleChange(value: boolean | 'indeterminate'): void {
               </MenubarSubContent>
             </MenubarPortal>
           </MenubarSub>
+        </MenubarContent>
+      </MenubarPortal>
+    </MenubarMenu>
+
+    <MenubarMenu value="filter">
+      <MenubarTrigger class="site-menubar__trigger">
+        {{ labels.filter }}
+      </MenubarTrigger>
+      <MenubarPortal>
+        <MenubarContent class="site-menubar__content" align="start" :side-offset="7">
+          <MenubarItem class="site-menubar__item" :disabled="!filterEnabled || !canRepeatFilter" @select="emit('command', 'filter:repeat')">
+            <span class="site-menubar__item-main">
+              <span class="i-ph-clock-counter-clockwise" />
+              <span>{{ labels.repeatFilter }}</span>
+            </span>
+            <span v-if="shortcutLabel('filter:repeat')" class="site-menubar__shortcut">{{ shortcutLabel('filter:repeat') }}</span>
+          </MenubarItem>
+          <MenubarSeparator class="site-menubar__separator" />
+          <MenubarSub>
+            <MenubarSubTrigger class="site-menubar__item" :disabled="!filterEnabled">
+              <span class="site-menubar__item-main">
+                <span class="i-ph-sliders" />
+                <span>{{ labels.adjustments }}</span>
+              </span>
+              <span class="i-ph-caret-right site-menubar__sub-caret" />
+            </MenubarSubTrigger>
+            <MenubarPortal>
+              <MenubarSubContent class="site-menubar__content site-menubar__content--sub site-menubar__content--filter" :side-offset="8" :align-offset="-4">
+                <MenubarItem class="site-menubar__item" :disabled="!filterEnabled" @select="emit('command', 'filter:invert')">
+                  <span class="site-menubar__item-main">
+                    <span class="i-ph-circle-half" />
+                    <span>{{ labels.invert }}</span>
+                  </span>
+                </MenubarItem>
+                <MenubarItem class="site-menubar__item" :disabled="!filterEnabled" @select="emit('command', 'filter:grayscale')">
+                  <span class="site-menubar__item-main">
+                    <span class="i-ph-drop-half" />
+                    <span>{{ labels.grayscale }}</span>
+                  </span>
+                </MenubarItem>
+              </MenubarSubContent>
+            </MenubarPortal>
+          </MenubarSub>
+          <MenubarSub>
+            <MenubarSubTrigger class="site-menubar__item" :disabled="true">
+              <span class="site-menubar__item-main">
+                <span class="i-ph-aperture" />
+                <span>{{ labels.blur }}</span>
+              </span>
+              <span class="i-ph-caret-right site-menubar__sub-caret" />
+            </MenubarSubTrigger>
+            <MenubarPortal>
+              <MenubarSubContent class="site-menubar__content site-menubar__content--sub site-menubar__content--filter" :side-offset="8" :align-offset="-4">
+                <MenubarItem class="site-menubar__item" :disabled="true">
+                  <span class="site-menubar__item-main">
+                    <span class="i-ph-dots-three-circle" />
+                    <span>{{ labels.gaussianBlur }}</span>
+                  </span>
+                </MenubarItem>
+              </MenubarSubContent>
+            </MenubarPortal>
+          </MenubarSub>
+          <MenubarItem class="site-menubar__item" :disabled="true">
+            <span class="site-menubar__item-main">
+              <span class="i-ph-grid-four" />
+              <span>{{ labels.pixelate }}</span>
+            </span>
+          </MenubarItem>
+        </MenubarContent>
+      </MenubarPortal>
+    </MenubarMenu>
+
+    <MenubarMenu value="window">
+      <MenubarTrigger class="site-menubar__trigger">
+        {{ labels.window }}
+      </MenubarTrigger>
+      <MenubarPortal>
+        <MenubarContent class="site-menubar__content" align="start" :side-offset="7">
+          <MenubarSub>
+            <MenubarSubTrigger class="site-menubar__item" :disabled="disabled">
+              <span class="site-menubar__item-main">
+                <span class="i-ph-layout" />
+                <span>{{ labels.showPanels }}</span>
+              </span>
+              <span class="i-ph-caret-right site-menubar__sub-caret" />
+            </MenubarSubTrigger>
+            <MenubarPortal>
+              <MenubarSubContent class="site-menubar__content site-menubar__content--sub site-menubar__content--panels" :side-offset="8" :align-offset="-4">
+                <MenubarCheckboxItem
+                  v-for="panel in visiblePanelCommands"
+                  :key="panel.value"
+                  class="site-menubar__item"
+                  :disabled="disabled"
+                  :model-value="panelVisibility[panel.value]"
+                  @update:model-value="onPanelVisibleChange(panel.value, $event)"
+                >
+                  <span class="site-menubar__item-main">
+                    <span class="site-menubar__indicator-slot">
+                      <MenubarItemIndicator class="site-menubar__indicator">
+                        <span class="i-ph-check" />
+                      </MenubarItemIndicator>
+                    </span>
+                    <span :class="panel.icon" />
+                    <span>{{ labels[panel.labelKey] }}</span>
+                  </span>
+                </MenubarCheckboxItem>
+              </MenubarSubContent>
+            </MenubarPortal>
+          </MenubarSub>
+          <MenubarSub>
+            <MenubarSubTrigger class="site-menubar__item" :disabled="disabled">
+              <span class="site-menubar__item-main">
+                <span class="i-ph-palette" />
+                <span>{{ labels.showColorPanels }}</span>
+              </span>
+              <span class="i-ph-caret-right site-menubar__sub-caret" />
+            </MenubarSubTrigger>
+            <MenubarPortal>
+              <MenubarSubContent class="site-menubar__content site-menubar__content--sub site-menubar__content--panels" :side-offset="8" :align-offset="-4">
+                <MenubarCheckboxItem
+                  v-for="section in colorSectionCommands"
+                  :key="section.value"
+                  class="site-menubar__item"
+                  :disabled="disabled"
+                  :model-value="colorSectionVisibility[section.value]"
+                  @update:model-value="onColorSectionVisibleChange(section.value, $event)"
+                >
+                  <span class="site-menubar__item-main">
+                    <span class="site-menubar__indicator-slot">
+                      <MenubarItemIndicator class="site-menubar__indicator">
+                        <span class="i-ph-check" />
+                      </MenubarItemIndicator>
+                    </span>
+                    <span :class="section.icon" />
+                    <span>{{ labels[section.labelKey] }}</span>
+                  </span>
+                </MenubarCheckboxItem>
+              </MenubarSubContent>
+            </MenubarPortal>
+          </MenubarSub>
+        </MenubarContent>
+      </MenubarPortal>
+    </MenubarMenu>
+
+    <MenubarMenu value="others">
+      <MenubarTrigger class="site-menubar__trigger">
+        {{ labels.others }}
+      </MenubarTrigger>
+      <MenubarPortal>
+        <MenubarContent class="site-menubar__content" align="start" :side-offset="7">
+          <MenubarItem class="site-menubar__item" @select="emit('command', 'app:keyboard-shortcuts')">
+            <span class="site-menubar__item-main">
+              <span class="i-ph-keyboard" />
+              <span>{{ labels.keyboardShortcuts }}</span>
+            </span>
+            <span v-if="shortcutLabel('app:keyboard-shortcuts')" class="site-menubar__shortcut">{{ shortcutLabel('app:keyboard-shortcuts') }}</span>
+          </MenubarItem>
         </MenubarContent>
       </MenubarPortal>
     </MenubarMenu>
@@ -223,12 +459,15 @@ function onLayerVisibleChange(value: boolean | 'indeterminate'): void {
               @select="emit('command', `tool:${tool.value}`)"
             >
               <span class="site-menubar__item-main">
-                <MenubarItemIndicator class="site-menubar__indicator">
-                  <span class="i-ph-check" />
-                </MenubarItemIndicator>
+                <span class="site-menubar__indicator-slot">
+                  <MenubarItemIndicator class="site-menubar__indicator">
+                    <span class="i-ph-check" />
+                  </MenubarItemIndicator>
+                </span>
                 <span :class="tool.icon" />
                 <span>{{ labels[tool.labelKey] }}</span>
               </span>
+              <span v-if="shortcutLabel(`tool:${tool.value}`)" class="site-menubar__shortcut">{{ shortcutLabel(`tool:${tool.value}`) }}</span>
             </MenubarRadioItem>
           </MenubarRadioGroup>
         </MenubarContent>
@@ -246,6 +485,14 @@ function onLayerVisibleChange(value: boolean | 'indeterminate'): void {
               <span class="i-ph-plus" />
               <span>{{ labels.addLayer }}</span>
             </span>
+            <span v-if="shortcutLabel('layer:add')" class="site-menubar__shortcut">{{ shortcutLabel('layer:add') }}</span>
+          </MenubarItem>
+          <MenubarItem class="site-menubar__item" :disabled="disabled" @select="emit('command', 'layer:add-group')">
+            <span class="site-menubar__item-main">
+              <span class="i-ph-folder-plus" />
+              <span>{{ labels.addGroup }}</span>
+            </span>
+            <span v-if="shortcutLabel('layer:add-group')" class="site-menubar__shortcut">{{ shortcutLabel('layer:add-group') }}</span>
           </MenubarItem>
           <MenubarSeparator class="site-menubar__separator" />
           <MenubarCheckboxItem
@@ -255,9 +502,11 @@ function onLayerVisibleChange(value: boolean | 'indeterminate'): void {
             @update:model-value="onLayerVisibleChange"
           >
             <span class="site-menubar__item-main">
-              <MenubarItemIndicator class="site-menubar__indicator">
-                <span class="i-ph-check" />
-              </MenubarItemIndicator>
+              <span class="site-menubar__indicator-slot">
+                <MenubarItemIndicator class="site-menubar__indicator">
+                  <span class="i-ph-check" />
+                </MenubarItemIndicator>
+              </span>
               <span>{{ labels.showActiveLayer }}</span>
             </span>
           </MenubarCheckboxItem>
@@ -335,6 +584,14 @@ function onLayerVisibleChange(value: boolean | 'indeterminate'): void {
   min-width: 148px;
 }
 
+:global(.site-menubar__content--panels) {
+  min-width: 174px;
+}
+
+:global(.site-menubar__content--filter) {
+  min-width: 154px;
+}
+
 :global(.site-menubar__item) {
   display: flex;
   min-height: 32px;
@@ -369,6 +626,20 @@ function onLayerVisibleChange(value: boolean | 'indeterminate'): void {
   min-width: 0;
   align-items: center;
   gap: 8px;
+}
+
+:global(.site-menubar__shortcut) {
+  flex: 0 0 auto;
+  color: rgb(255 255 255 / 42%);
+  font-size: 12px;
+}
+
+:global(.site-menubar__indicator-slot) {
+  display: inline-grid;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  place-items: center;
 }
 
 :global(.site-menubar__indicator) {

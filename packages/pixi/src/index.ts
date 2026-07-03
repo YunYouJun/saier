@@ -51,6 +51,7 @@ export type {
 } from './RenderTextureBackend'
 
 export {
+  DEFAULT_PINCH_ZOOM_SENSITIVITY,
   TouchGestureRouter,
 } from './TouchGestureRouter'
 

@@ -9,6 +9,8 @@ interface SiteNewCanvasDialogLabels {
   height: string
   preset: string
   custom: string
+  preview: string
+  aspectRatio: string
   create: string
   cancel: string
   invalidSize: string
@@ -54,6 +56,38 @@ const name = shallowRef('')
 const width = shallowRef(1024)
 const height = shallowRef(1024)
 
+const canvasPreview = computed(() => {
+  const previewWidth = positiveDimension(width.value)
+  const previewHeight = positiveDimension(height.value)
+  const frameMaxWidth = 140
+  const frameMaxHeight = 104
+
+  if (!previewWidth || !previewHeight) {
+    return {
+      frameHeight: frameMaxHeight,
+      frameWidth: frameMaxWidth,
+      ratio: '-',
+      size: '-',
+    }
+  }
+
+  const scale = Math.min(frameMaxWidth / previewWidth, frameMaxHeight / previewHeight)
+  const frameWidth = Math.max(18, Math.round(previewWidth * scale))
+  const frameHeight = Math.max(18, Math.round(previewHeight * scale))
+
+  return {
+    frameHeight,
+    frameWidth,
+    ratio: aspectRatioLabel(previewWidth, previewHeight),
+    size: `${Math.round(previewWidth)} x ${Math.round(previewHeight)} px`,
+  }
+})
+
+const canvasPreviewStyle = computed(() => ({
+  height: `${canvasPreview.value.frameHeight}px`,
+  width: `${canvasPreview.value.frameWidth}px`,
+}))
+
 const isValidSize = computed(() =>
   isValidDimension(width.value) && isValidDimension(height.value),
 )
@@ -93,6 +127,30 @@ function submit(): void {
 
 function isValidDimension(value: number): boolean {
   return Number.isInteger(value) && value >= 64 && value <= 8192
+}
+
+function positiveDimension(value: number): number | undefined {
+  return Number.isFinite(value) && value > 0 ? value : undefined
+}
+
+function aspectRatioLabel(width: number, height: number): string {
+  const roundedWidth = Math.round(width)
+  const roundedHeight = Math.round(height)
+  const divisor = greatestCommonDivisor(roundedWidth, roundedHeight)
+  return `${roundedWidth / divisor}:${roundedHeight / divisor}`
+}
+
+function greatestCommonDivisor(a: number, b: number): number {
+  let left = Math.abs(a)
+  let right = Math.abs(b)
+
+  while (right !== 0) {
+    const next = left % right
+    left = right
+    right = next
+  }
+
+  return left || 1
 }
 </script>
 
@@ -138,6 +196,21 @@ function isValidDimension(value: number): boolean {
         </label>
       </div>
 
+      <section class="site-new-canvas__preview" :aria-label="labels.preview">
+        <div class="site-new-canvas__preview-stage">
+          <div
+            class="site-new-canvas__preview-frame"
+            :class="{ 'is-invalid': !isValidSize }"
+            :style="canvasPreviewStyle"
+          />
+        </div>
+        <div class="site-new-canvas__preview-meta">
+          <span>{{ labels.preview }}</span>
+          <strong>{{ canvasPreview.size }}</strong>
+          <small>{{ labels.aspectRatio }} {{ canvasPreview.ratio }}</small>
+        </div>
+      </section>
+
       <p v-if="!isValidSize" class="site-new-canvas__error">
         {{ labels.invalidSize }}
       </p>
@@ -156,15 +229,19 @@ function isValidDimension(value: number): boolean {
 
 <style scoped>
 .site-new-canvas {
+  box-sizing: border-box;
   position: absolute;
   z-index: 40;
   inset: 0;
   display: grid;
   place-items: center;
+  overflow: auto;
+  padding: 14px;
   background: rgb(0 0 0 / 42%);
 }
 
 .site-new-canvas__panel {
+  box-sizing: border-box;
   width: min(420px, calc(100vw - 28px));
   border: 1px solid rgb(255 255 255 / 13%);
   border-radius: 8px;
@@ -213,6 +290,7 @@ function isValidDimension(value: number): boolean {
 }
 
 .site-new-canvas__input {
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
   height: 34px;
@@ -238,6 +316,7 @@ function isValidDimension(value: number): boolean {
 }
 
 .site-new-canvas__preset {
+  box-sizing: border-box;
   display: grid;
   min-width: 0;
   gap: 2px;
@@ -262,6 +341,73 @@ function isValidDimension(value: number): boolean {
 
 .site-new-canvas__size > * {
   flex: 1 1 0;
+}
+
+.site-new-canvas__preview {
+  display: grid;
+  grid-template-columns: 156px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 7px;
+  background: rgb(255 255 255 / 5%);
+  padding: 8px;
+}
+
+.site-new-canvas__preview-stage {
+  display: grid;
+  height: 112px;
+  min-width: 0;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 6px;
+  background:
+    linear-gradient(45deg, rgb(255 255 255 / 5%) 25%, transparent 25%),
+    linear-gradient(-45deg, rgb(255 255 255 / 5%) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgb(255 255 255 / 5%) 75%),
+    linear-gradient(-45deg, transparent 75%, rgb(255 255 255 / 5%) 75%);
+  background-position:
+    0 0,
+    0 8px,
+    8px -8px,
+    -8px 0;
+  background-size: 16px 16px;
+}
+
+.site-new-canvas__preview-frame {
+  border: 1px solid rgb(96 165 250 / 72%);
+  border-radius: 3px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgb(0 0 0 / 28%);
+}
+
+.site-new-canvas__preview-frame.is-invalid {
+  border-color: rgb(252 165 165 / 70%);
+  background: rgb(255 255 255 / 52%);
+}
+
+.site-new-canvas__preview-meta {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  color: rgb(255 255 255 / 54%);
+  font-size: 11px;
+}
+
+.site-new-canvas__preview-meta strong {
+  overflow: hidden;
+  color: white;
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.site-new-canvas__preview-meta small {
+  color: rgb(255 255 255 / 46%);
+  font-size: 11px;
 }
 
 .site-new-canvas__error {
@@ -293,5 +439,11 @@ function isValidDimension(value: number): boolean {
 .site-new-canvas__button:disabled {
   color: rgb(255 255 255 / 28%);
   pointer-events: none;
+}
+
+@media (max-width: 420px) {
+  .site-new-canvas__preview {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

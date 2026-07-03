@@ -29,6 +29,7 @@ export interface LayerMaskRef {
  * `Document.layers`, opacity, visibility, blend mode).
  */
 export interface RasterLayer {
+  readonly type: 'raster'
   readonly id: string
   label: string
   visible: boolean
@@ -45,6 +46,21 @@ export interface RasterLayer {
   mask?: LayerMaskRef
 }
 
+/**
+ * A pass-through grouping node. Groups do not own pixels in v1; they only
+ * organize raster layers and contribute effective visibility for rendering.
+ */
+export interface LayerGroup {
+  readonly type: 'group'
+  readonly id: string
+  label: string
+  visible: boolean
+  collapsed: boolean
+  children: LayerNode[]
+}
+
+export type LayerNode = RasterLayer | LayerGroup
+
 export interface CreateLayerOptions {
   id?: string
   label?: string
@@ -54,10 +70,22 @@ export interface CreateLayerOptions {
   lockAlpha?: boolean
   clip?: boolean
   transform?: LayerTransform
+  parentId?: string | null
+  index?: number
+}
+
+export interface CreateLayerGroupOptions {
+  id?: string
+  label?: string
+  visible?: boolean
+  collapsed?: boolean
+  parentId?: string | null
+  index?: number
 }
 
 export function createRasterLayer(id: string, options: CreateLayerOptions = {}): RasterLayer {
   return {
+    type: 'raster',
     id,
     label: options.label ?? id,
     visible: options.visible ?? true,
@@ -66,6 +94,17 @@ export function createRasterLayer(id: string, options: CreateLayerOptions = {}):
     lockAlpha: options.lockAlpha ?? false,
     clip: options.clip ?? false,
     ...(options.transform ? { transform: options.transform } : {}),
+  }
+}
+
+export function createLayerGroup(id: string, options: CreateLayerGroupOptions = {}): LayerGroup {
+  return {
+    type: 'group',
+    id,
+    label: options.label ?? id,
+    visible: options.visible ?? true,
+    collapsed: options.collapsed ?? false,
+    children: [],
   }
 }
 

@@ -31,6 +31,7 @@ export {
   createDefaultBrushPresetRegistry,
   DEFAULT_BRUSH_PRESET_ID,
   DEFAULT_BRUSH_PRESETS,
+  isSyncableBrushPreset,
   toBrushPresetSummary,
 } from './BrushPreset'
 

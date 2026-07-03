@@ -1,56 +1,83 @@
 <script lang="ts" setup>
 import type { BrushPresetId, BrushPresetSummary } from '@saier/core'
+import type { CSSProperties } from 'vue'
 import { computed, shallowRef, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
   addTitle?: string
+  addGroupTitle?: string
+  activeGroupLabel?: string
+  brushHardness?: number
+  brushOpacity?: number
+  brushSize?: number
   canCreateCustom?: boolean
   canRemoveActive?: boolean
+  customGroups?: string[]
+  disabledPresetIds?: BrushPresetId[]
+  disabledTitle?: string
   presetLabels?: Partial<Record<BrushPresetId, string>>
   presets: BrushPresetSummary[]
   activePresetId: BrushPresetId
-  disabledPresetIds?: BrushPresetId[]
-  disabledTitle?: string
+  removeGroupTitle?: string
   removeTitle?: string
 }>(), {
   addTitle: 'Save current brush',
+  addGroupTitle: 'New brush group',
+  brushHardness: 0,
+  brushOpacity: 1,
+  brushSize: 10,
   canCreateCustom: true,
   canRemoveActive: false,
+  customGroups: () => [],
   disabledPresetIds: () => [],
   disabledTitle: '',
   presetLabels: () => ({}),
+  removeGroupTitle: 'Remove brush group',
   removeTitle: 'Remove brush',
 })
 
 const emit = defineEmits<{
-  createCustom: []
-  removeActive: []
-  select: [id: BrushPresetId]
+  'createCustom': [groupLabel: string]
+  'createGroup': []
+  'removeActive': []
+  'removeGroup': [groupLabel: string]
+  'select': [id: BrushPresetId]
+  'update:activeGroupLabel': [groupLabel: string]
 }>()
 
 interface PresetGroup {
   id: string
   label: string
   presets: BrushPresetSummary[]
+  custom: boolean
 }
 
 const groups = computed<PresetGroup[]>(() => {
   const byId = new Map<string, PresetGroup>()
   for (const preset of props.presets) {
     const label = preset.group ?? preset.engineLabel ?? String(preset.engine)
-    const id = label.toLowerCase()
-    const group = byId.get(id) ?? { id, label, presets: [] }
+    const group = ensureGroup(byId, label, Boolean(preset.custom))
     group.presets.push(preset)
-    byId.set(id, group)
+  }
+
+  for (const label of props.customGroups) {
+    ensureGroup(byId, label, true)
   }
   return [...byId.values()]
 })
 
 const activeGroupId = shallowRef(groupIdForPreset(props.presets.find(preset => preset.id === props.activePresetId)))
+const previewPresetId = shallowRef<BrushPresetId>()
 
-watch(() => [props.activePresetId, groups.value] as const, () => {
-  const activePreset = props.presets.find(preset => preset.id === props.activePresetId)
-  const activeGroup = groupIdForPreset(activePreset)
+watch(() => [props.activePresetId, props.activeGroupLabel, groups.value] as const, () => {
+  const requestedGroupId = props.activeGroupLabel ? groupIdForLabel(props.activeGroupLabel) : undefined
+  if (requestedGroupId && groups.value.some(group => group.id === requestedGroupId)) {
+    activeGroupId.value = requestedGroupId
+    return
+  }
+
+  const currentActivePreset = props.presets.find(preset => preset.id === props.activePresetId)
+  const activeGroup = groupIdForPreset(currentActivePreset)
   if (activeGroup)
     activeGroupId.value = activeGroup
   else if (!groups.value.some(group => group.id === activeGroupId.value))
@@ -60,6 +87,46 @@ watch(() => [props.activePresetId, groups.value] as const, () => {
 const activeGroup = computed(() => groups.value.find(group => group.id === activeGroupId.value) ?? groups.value[0])
 const visiblePresets = computed(() => activeGroup.value?.presets ?? [])
 const activePreset = computed(() => props.presets.find(preset => preset.id === props.activePresetId))
+const canRemoveActiveGroup = computed(() => Boolean(activeGroup.value?.custom))
+const previewPreset = computed(() => {
+  return props.presets.find(preset => preset.id === previewPresetId.value)
+    ?? activePreset.value
+    ?? visiblePresets.value[0]
+})
+const previewLabel = computed(() => previewPreset.value ? presetLabel(previewPreset.value) : '')
+const previewMetrics = computed(() => {
+  const preset = previewPreset.value
+  if (!preset)
+    return []
+
+  return [
+    formatSize(sizeForPreset(preset)),
+    formatPercent(opacityForPreset(preset)),
+  ]
+})
+const previewDotStyle = computed<CSSProperties>(() => {
+  const preset = previewPreset.value
+  const diameter = diameterForSize(preset ? sizeForPreset(preset) : props.brushSize)
+  const opacity = preset ? opacityForPreset(preset) : props.brushOpacity
+  const hardness = preset ? hardnessForPreset(preset) : props.brushHardness
+
+  return {
+    filter: `blur(${Math.round((1 - clamp(hardness, 0, 1)) * 1.5)}px)`,
+    width: `${diameter}px`,
+    height: `${diameter}px`,
+    opacity: String(clamp(opacity, 0.18, 1)),
+  }
+})
+const previewStrokeStyle = computed<CSSProperties>(() => {
+  const preset = previewPreset.value
+  const diameter = diameterForSize(preset ? sizeForPreset(preset) : props.brushSize)
+  const opacity = preset ? opacityForPreset(preset) : props.brushOpacity
+
+  return {
+    height: `${Math.max(3, Math.round(diameter / 7))}px`,
+    opacity: String(clamp(opacity, 0.24, 1)),
+  }
+})
 
 function presetLabel(preset: BrushPresetSummary): string {
   return props.presetLabels[preset.id] ?? preset.name
@@ -70,75 +137,238 @@ function isDisabled(preset: BrushPresetSummary): boolean {
 }
 
 function handleSelect(preset: BrushPresetSummary): void {
-  if (!isDisabled(preset))
+  if (!isDisabled(preset)) {
+    const groupLabel = groupLabelForPreset(preset)
+    if (groupLabel)
+      emit('update:activeGroupLabel', groupLabel)
     emit('select', preset.id)
+  }
+}
+
+function handleSelectGroup(group: PresetGroup): void {
+  activeGroupId.value = group.id
+  emit('update:activeGroupLabel', group.label)
+}
+
+function handleCreateCustom(): void {
+  const label = activeGroup.value?.label ?? 'Custom'
+  emit('createCustom', label)
+}
+
+function handleRemoveGroup(): void {
+  const group = activeGroup.value
+  if (group?.custom)
+    emit('removeGroup', group.label)
+}
+
+function handlePreviewLeave(id: BrushPresetId): void {
+  if (previewPresetId.value === id)
+    previewPresetId.value = undefined
 }
 
 function groupIdForPreset(preset: BrushPresetSummary | undefined): string | undefined {
-  const label = preset?.group ?? preset?.engineLabel ?? (preset ? String(preset.engine) : undefined)
-  return label?.toLowerCase()
+  const label = groupLabelForPreset(preset)
+  return label ? groupIdForLabel(label) : undefined
+}
+
+function groupLabelForPreset(preset: BrushPresetSummary | undefined): string | undefined {
+  return preset?.group ?? preset?.engineLabel ?? (preset ? String(preset.engine) : undefined)
+}
+
+function groupIdForLabel(label: string): string {
+  return label.trim().toLowerCase()
+}
+
+function ensureGroup(groupsById: Map<string, PresetGroup>, label: string, custom: boolean): PresetGroup {
+  const normalizedLabel = label.trim() || 'Custom'
+  const id = groupIdForLabel(normalizedLabel)
+  const group = groupsById.get(id)
+  if (group) {
+    group.custom = group.custom && custom
+    return group
+  }
+
+  const next = {
+    id,
+    label: normalizedLabel,
+    presets: [],
+    custom,
+  }
+  groupsById.set(id, next)
+  return next
+}
+
+function sizeForPreset(preset: BrushPresetSummary): number {
+  if (preset.id === props.activePresetId)
+    return props.brushSize
+  return preset.size ?? props.brushSize
+}
+
+function opacityForPreset(preset: BrushPresetSummary): number {
+  if (preset.id === props.activePresetId)
+    return props.brushOpacity
+  return preset.opacity ?? props.brushOpacity
+}
+
+function hardnessForPreset(preset: BrushPresetSummary): number {
+  if (preset.id === props.activePresetId)
+    return props.brushHardness
+  return preset.hardness ?? props.brushHardness
+}
+
+function diameterForSize(size: number): number {
+  return Math.round(clamp(size * 0.72, 10, 54))
+}
+
+function iconStyle(preset: BrushPresetSummary): CSSProperties {
+  const iconSize = Math.round(clamp(sizeForPreset(preset) * 0.45 + 9, 12, 30))
+  return {
+    '--brush-icon-size': `${iconSize}px`,
+    '--brush-icon-opacity': String(clamp(opacityForPreset(preset), 0.36, 1)),
+  } as CSSProperties
+}
+
+function presetIconClass(preset: BrushPresetSummary): Record<string, boolean> {
+  const id = String(preset.id)
+  return {
+    'brush-preset-icon--round': preset.tipId === 'round-hard' || preset.tipId === 'round-soft',
+    'brush-preset-icon--pencil': preset.tipId === 'pencil-grain',
+    'brush-preset-icon--marker': preset.tipId === 'marker-chisel',
+    'brush-preset-icon--airbrush': preset.tipId === 'airbrush-soft',
+    'brush-preset-icon--calligraphy': preset.tipId === 'calligraphy-round' || preset.engine === 'calligraphy',
+    'brush-preset-icon--smudge': preset.engine === 'smudge' && id !== 'watercolor' && id !== 'blender',
+    'brush-preset-icon--blender': id === 'blender',
+    'brush-preset-icon--watercolor': id === 'watercolor',
+    'brush-preset-icon--custom': Boolean(preset.custom),
+  }
+}
+
+function formatSize(value: number): string {
+  return `${Math.round(value)} px`
+}
+
+function formatPercent(value: number): string {
+  return `${Math.round(clamp(value, 0, 1) * 100)}%`
+}
+
+function clamp(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value))
+    return min
+  return Math.max(min, Math.min(max, value))
 }
 </script>
 
 <template>
   <div class="brush-preset-picker">
-    <div class="brush-preset-groups" role="tablist" aria-label="Brush groups">
-      <button
-        v-for="group in groups"
-        :key="group.id"
-        type="button"
-        class="brush-preset-group"
-        :class="{ 'is-active': group.id === activeGroup?.id }"
-        :aria-selected="group.id === activeGroup?.id"
-        role="tab"
-        @click="activeGroupId = group.id"
-      >
-        <span class="brush-preset-group__label">{{ group.label }}</span>
-        <span class="brush-preset-group__count">{{ group.presets.length }}</span>
-      </button>
+    <div class="brush-preset-header">
+      <div class="brush-preset-groups" role="tablist" aria-label="Brush groups">
+        <button
+          v-for="group in groups"
+          :key="group.id"
+          type="button"
+          class="brush-preset-group"
+          :class="{ 'is-active': group.id === activeGroup?.id }"
+          :aria-selected="group.id === activeGroup?.id"
+          role="tab"
+          @click="handleSelectGroup(group)"
+        >
+          <span class="brush-preset-group__label">{{ group.label }}</span>
+          <span class="brush-preset-group__count">{{ group.presets.length }}</span>
+        </button>
+      </div>
+
+      <div class="brush-preset-actions">
+        <button
+          type="button"
+          class="brush-preset-action brush-preset-action--group"
+          :title="props.addGroupTitle"
+          :aria-label="props.addGroupTitle"
+          @click="emit('createGroup')"
+        >
+          <span class="i-ph-folder-plus" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          class="brush-preset-action brush-preset-action--group"
+          :disabled="!canRemoveActiveGroup"
+          :title="props.removeGroupTitle"
+          :aria-label="props.removeGroupTitle"
+          @click="handleRemoveGroup"
+        >
+          <span class="i-ph-folder-minus" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          class="brush-preset-action"
+          :disabled="!props.canCreateCustom"
+          :title="props.addTitle"
+          :aria-label="props.addTitle"
+          @click="handleCreateCustom"
+        >
+          <span class="i-ph-plus" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          class="brush-preset-action"
+          :disabled="!props.canRemoveActive || !activePreset?.custom"
+          :title="props.removeTitle"
+          :aria-label="props.removeTitle"
+          @click="emit('removeActive')"
+        >
+          <span class="i-ph-trash" aria-hidden="true" />
+        </button>
+      </div>
     </div>
 
-    <div class="brush-preset-list" role="listbox" aria-label="Brush presets">
-      <button
-        v-for="preset in visiblePresets"
-        :key="preset.id"
-        type="button"
-        class="brush-preset-button"
-        :class="{ 'is-active': preset.id === props.activePresetId }"
-        :aria-label="presetLabel(preset)"
-        :aria-selected="preset.id === props.activePresetId"
-        :disabled="isDisabled(preset)"
-        role="option"
-        :title="isDisabled(preset) ? props.disabledTitle : presetLabel(preset)"
-        @click="handleSelect(preset)"
-      >
-        <span class="brush-preset-swatch" :data-tip="preset.tipId" />
-        <span class="brush-preset-name">{{ presetLabel(preset) }}</span>
-        <span v-if="preset.custom" class="brush-preset-badge">Custom</span>
-      </button>
-    </div>
+    <div class="brush-preset-body">
+      <div class="brush-preset-list brush-preset-grid" role="listbox" aria-label="Brush presets">
+        <button
+          v-for="preset in visiblePresets"
+          :key="preset.id"
+          type="button"
+          class="brush-preset-card"
+          :class="{ 'is-active': preset.id === props.activePresetId }"
+          :aria-label="presetLabel(preset)"
+          :aria-selected="preset.id === props.activePresetId"
+          :disabled="isDisabled(preset)"
+          role="option"
+          :title="isDisabled(preset) ? props.disabledTitle : presetLabel(preset)"
+          @blur="handlePreviewLeave(preset.id)"
+          @click="handleSelect(preset)"
+          @focus="previewPresetId = preset.id"
+          @pointerenter="previewPresetId = preset.id"
+          @pointerleave="handlePreviewLeave(preset.id)"
+        >
+          <span
+            class="brush-preset-card__icon"
+            :class="presetIconClass(preset)"
+            :style="iconStyle(preset)"
+            aria-hidden="true"
+          />
+          <span class="brush-preset-card__name">{{ presetLabel(preset) }}</span>
+          <span class="brush-preset-card__meta">{{ formatSize(sizeForPreset(preset)) }}</span>
+          <span v-if="preset.custom" class="brush-preset-card__badge">Custom</span>
+        </button>
+      </div>
 
-    <div class="brush-preset-actions">
-      <button
-        type="button"
-        class="brush-preset-action"
-        :disabled="!props.canCreateCustom"
-        :title="props.addTitle"
-        :aria-label="props.addTitle"
-        @click="emit('createCustom')"
-      >
-        <span class="i-ph-plus" aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        class="brush-preset-action"
-        :disabled="!props.canRemoveActive || !activePreset?.custom"
-        :title="props.removeTitle"
-        :aria-label="props.removeTitle"
-        @click="emit('removeActive')"
-      >
-        <span class="i-ph-trash" aria-hidden="true" />
-      </button>
+      <aside v-if="previewPreset" class="brush-preset-preview" :aria-label="previewLabel">
+        <div class="brush-preset-preview__surface" aria-hidden="true">
+          <span class="brush-preset-preview__dot" :style="previewDotStyle" />
+          <span class="brush-preset-preview__stroke" :style="previewStrokeStyle" />
+        </div>
+        <div class="brush-preset-preview__text">
+          <span class="brush-preset-preview__name">{{ previewLabel }}</span>
+          <span class="brush-preset-preview__metrics">
+            <span
+              v-for="metric in previewMetrics"
+              :key="metric"
+              class="brush-preset-preview__metric"
+            >
+              {{ metric }}
+            </span>
+          </span>
+        </div>
+      </aside>
     </div>
   </div>
 </template>
@@ -147,46 +377,60 @@ function groupIdForPreset(preset: BrushPresetSummary | undefined): string | unde
 .brush-preset-picker {
   display: grid;
   min-width: 0;
-  grid-template-columns: minmax(88px, 112px) minmax(0, 1fr) auto;
-  gap: 4px;
-  align-items: stretch;
-  padding: 3px;
+  gap: 5px;
+  padding: 4px;
   border: 1px solid rgb(255 255 255 / 10%);
   border-radius: 6px;
-  background: rgb(0 0 0 / 18%);
+  background: linear-gradient(180deg, rgb(255 255 255 / 5%), transparent 42%), rgb(0 0 0 / 20%);
+}
+
+.brush-preset-header {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px;
+  align-items: stretch;
 }
 
 .brush-preset-groups {
   display: flex;
   min-width: 0;
-  max-height: 142px;
-  flex-direction: column;
-  gap: 2px;
-  overflow-y: auto;
-  padding-right: 2px;
+  gap: 3px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 1px;
   scrollbar-width: thin;
 }
 
 .brush-preset-group {
   display: grid;
-  height: 26px;
-  min-width: 0;
+  height: 28px;
+  min-width: 74px;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 6px;
-  border: 0;
+  gap: 5px;
+  flex: 0 0 auto;
+  border: 1px solid transparent;
   border-radius: 4px;
-  background: transparent;
+  background: rgb(255 255 255 / 5%);
   color: rgb(255 255 255 / 62%);
   font-size: 11px;
   line-height: 1;
-  padding: 0 6px;
+  padding: 0 7px;
   text-align: left;
 }
 
 .brush-preset-group.is-active {
+  border-color: rgb(96 165 250 / 38%);
   background: rgb(96 165 250 / 16%);
   color: white;
+}
+
+.brush-preset-group:focus-visible,
+.brush-preset-action:focus-visible,
+.brush-preset-card:focus-visible {
+  outline: 2px solid rgb(147 197 253 / 78%);
+  outline-offset: 1px;
 }
 
 .brush-preset-group__label {
@@ -201,110 +445,15 @@ function groupIdForPreset(preset: BrushPresetSummary | undefined): string | unde
   font-variant-numeric: tabular-nums;
 }
 
-.brush-preset-list {
-  display: grid;
-  min-width: 0;
-  max-height: 142px;
-  gap: 2px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-}
-
-.brush-preset-button {
-  display: grid;
-  min-width: 0;
-  height: 28px;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 6px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: rgb(255 255 255 / 82%);
-  font-size: 12px;
-  line-height: 1.1;
-  padding: 0 7px;
-  text-align: left;
-}
-
-.brush-preset-button.is-active {
-  background: rgb(96 165 250 / 17%);
-  color: white;
-  box-shadow: inset 2px 0 0 rgb(96 165 250);
-}
-
-.brush-preset-button:hover {
-  background: rgb(255 255 255 / 10%);
-}
-
-.brush-preset-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.42;
-}
-
-.brush-preset-badge {
-  color: rgb(255 255 255 / 42%);
-  font-size: 10px;
-  text-transform: uppercase;
-}
-
-.brush-preset-swatch {
-  position: relative;
-  width: 34px;
-  height: 16px;
-  flex: 0 0 auto;
-}
-
-.brush-preset-swatch::before {
-  position: absolute;
-  top: 7px;
-  left: 2px;
-  width: 30px;
-  height: 3px;
-  border-radius: 999px;
-  background: currentColor;
-  content: '';
-}
-
-.brush-preset-swatch[data-tip='pencil-grain']::before {
-  opacity: 0.58;
-  box-shadow:
-    4px -3px 0 -1px currentColor,
-    13px 2px 0 -1px currentColor;
-}
-
-.brush-preset-swatch[data-tip='marker-chisel']::before {
-  height: 7px;
-  border-radius: 2px;
-  transform: rotate(-12deg);
-}
-
-.brush-preset-swatch[data-tip='airbrush-soft']::before {
-  top: 2px;
-  left: 9px;
-  width: 16px;
-  height: 16px;
-  opacity: 0.55;
-  filter: blur(2px);
-}
-
-.brush-preset-name {
-  overflow: hidden;
-  min-width: 0;
-  max-width: 100%;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .brush-preset-actions {
-  display: grid;
-  grid-auto-rows: 28px;
+  display: flex;
   gap: 3px;
 }
 
 .brush-preset-action {
   display: grid;
   width: 28px;
+  height: 28px;
   place-items: center;
   border: 1px solid rgb(255 255 255 / 10%);
   border-radius: 4px;
@@ -322,22 +471,324 @@ function groupIdForPreset(preset: BrushPresetSummary | undefined): string | unde
   opacity: 0.38;
 }
 
+.brush-preset-body {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(92px, 112px);
+  gap: 5px;
+  align-items: stretch;
+}
+
+.brush-preset-grid {
+  display: grid;
+  min-width: 0;
+  max-height: 178px;
+  grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+  grid-auto-rows: 72px;
+  align-content: start;
+  gap: 4px;
+  overflow-y: auto;
+  padding-right: 1px;
+  scrollbar-width: thin;
+}
+
+.brush-preset-card {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  height: 72px;
+  grid-template-rows: 32px minmax(14px, auto) 12px;
+  align-items: center;
+  justify-items: center;
+  gap: 2px;
+  border: 1px solid rgb(255 255 255 / 7%);
+  border-radius: 5px;
+  background: rgb(255 255 255 / 4%);
+  color: rgb(255 255 255 / 82%);
+  font-size: 11px;
+  line-height: 1.05;
+  padding: 6px 5px 5px;
+  text-align: center;
+}
+
+.brush-preset-card.is-active {
+  border-color: rgb(96 165 250 / 62%);
+  background: linear-gradient(180deg, rgb(96 165 250 / 20%), rgb(96 165 250 / 8%)), rgb(255 255 255 / 4%);
+  color: white;
+  box-shadow: inset 0 0 0 1px rgb(96 165 250 / 25%);
+}
+
+.brush-preset-card:hover {
+  border-color: rgb(255 255 255 / 20%);
+  background: rgb(255 255 255 / 8%);
+}
+
+.brush-preset-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.brush-preset-card__icon {
+  position: relative;
+  display: block;
+  width: 42px;
+  height: 32px;
+  color: currentColor;
+  opacity: var(--brush-icon-opacity);
+}
+
+.brush-preset-card__icon::before,
+.brush-preset-card__icon::after {
+  position: absolute;
+  content: '';
+}
+
+.brush-preset-card__icon::before {
+  top: 50%;
+  left: 50%;
+  width: calc(var(--brush-icon-size) + 15px);
+  height: clamp(3px, calc(var(--brush-icon-size) / 5), 8px);
+  border-radius: 999px;
+  background: currentColor;
+  transform: translate(-50%, -50%);
+}
+
+.brush-preset-icon--round::before {
+  width: var(--brush-icon-size);
+  height: var(--brush-icon-size);
+}
+
+.brush-preset-icon--pencil::before {
+  width: calc(var(--brush-icon-size) + 16px);
+  height: 3px;
+  opacity: 0.68;
+  transform: translate(-50%, -50%) rotate(-7deg);
+}
+
+.brush-preset-icon--pencil::after {
+  top: 9px;
+  left: 9px;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow:
+    9px 5px 0 -1px currentColor,
+    18px -2px 0 -1px currentColor,
+    25px 4px 0 -1px currentColor;
+  opacity: 0.48;
+}
+
+.brush-preset-icon--marker::before {
+  width: calc(var(--brush-icon-size) + 16px);
+  height: clamp(7px, calc(var(--brush-icon-size) / 3), 11px);
+  border-radius: 2px;
+  transform: translate(-50%, -50%) rotate(-13deg);
+}
+
+.brush-preset-icon--airbrush::before {
+  width: var(--brush-icon-size);
+  height: var(--brush-icon-size);
+  background: radial-gradient(circle, currentColor 0 24%, transparent 68%);
+  filter: blur(2px);
+}
+
+.brush-preset-icon--calligraphy::before {
+  width: calc(var(--brush-icon-size) + 10px);
+  height: clamp(9px, calc(var(--brush-icon-size) / 2), 16px);
+  border-radius: 999px 42% 999px 42%;
+  transform: translate(-50%, -50%) rotate(-28deg);
+}
+
+.brush-preset-icon--calligraphy::after {
+  right: 6px;
+  bottom: 4px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.44;
+}
+
+.brush-preset-icon--smudge::before,
+.brush-preset-icon--blender::before {
+  width: var(--brush-icon-size);
+  height: var(--brush-icon-size);
+  background: radial-gradient(circle, currentColor 0 48%, transparent 72%);
+  opacity: 0.56;
+}
+
+.brush-preset-icon--smudge::after,
+.brush-preset-icon--blender::after {
+  right: 4px;
+  bottom: 5px;
+  width: calc(var(--brush-icon-size) + 8px);
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.36;
+  transform: rotate(-18deg);
+}
+
+.brush-preset-icon--blender {
+  color: rgb(167 243 208);
+}
+
+.brush-preset-icon--watercolor {
+  color: rgb(125 211 252);
+}
+
+.brush-preset-icon--watercolor::before {
+  width: calc(var(--brush-icon-size) + 8px);
+  height: var(--brush-icon-size);
+  border-radius: 46% 54% 58% 42%;
+  background: radial-gradient(circle at 34% 32%, rgb(255 255 255 / 45%), transparent 16%), currentColor;
+  opacity: 0.58;
+}
+
+.brush-preset-icon--watercolor::after {
+  right: 7px;
+  bottom: 5px;
+  width: 14px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.32;
+  transform: rotate(-14deg);
+}
+
+.brush-preset-icon--custom::after {
+  inset: 4px 3px;
+  border: 1px dashed rgb(255 255 255 / 54%);
+  border-radius: 5px;
+}
+
+.brush-preset-card__name {
+  overflow: hidden;
+  width: 100%;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.brush-preset-card__meta {
+  color: rgb(255 255 255 / 42%);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.brush-preset-card__badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  max-width: calc(100% - 8px);
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgb(0 0 0 / 36%);
+  color: rgb(255 255 255 / 62%);
+  font-size: 8px;
+  line-height: 1;
+  padding: 2px 3px;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.brush-preset-preview {
+  display: grid;
+  min-width: 0;
+  grid-template-rows: 1fr auto;
+  gap: 6px;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 5px;
+  background:
+    linear-gradient(90deg, rgb(255 255 255 / 5%) 1px, transparent 1px) 0 0 / 12px 12px,
+    linear-gradient(0deg, rgb(255 255 255 / 5%) 1px, transparent 1px) 0 0 / 12px 12px,
+    rgb(0 0 0 / 18%);
+  padding: 7px;
+}
+
+.brush-preset-preview__surface {
+  position: relative;
+  display: grid;
+  min-height: 74px;
+  place-items: center;
+  overflow: hidden;
+}
+
+.brush-preset-preview__dot {
+  display: block;
+  border: 1px solid rgb(255 255 255 / 52%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 78%);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 24%),
+    0 6px 18px rgb(0 0 0 / 30%);
+}
+
+.brush-preset-preview__stroke {
+  position: absolute;
+  right: 7px;
+  bottom: 8px;
+  left: 7px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 78%), transparent);
+}
+
+.brush-preset-preview__text {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.brush-preset-preview__name {
+  overflow: hidden;
+  color: white;
+  font-size: 12px;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.brush-preset-preview__metrics {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.brush-preset-preview__metric {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 7%);
+  color: rgb(255 255 255 / 58%);
+  font-size: 10px;
+  line-height: 1;
+  padding: 3px 4px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 640px) {
-  .brush-preset-picker {
-    grid-template-columns: minmax(0, 1fr) auto;
+  .brush-preset-body {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .brush-preset-groups {
-    grid-column: 1 / -1;
-    max-height: none;
-    flex-direction: row;
-    overflow-x: auto;
-    overflow-y: hidden;
+  .brush-preset-grid {
+    max-height: 168px;
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
   }
 
-  .brush-preset-group {
-    width: 94px;
-    flex: 0 0 auto;
+  .brush-preset-preview {
+    grid-template-columns: 72px minmax(0, 1fr);
+    grid-template-rows: auto;
+    align-items: center;
+  }
+
+  .brush-preset-preview__surface {
+    min-height: 62px;
   }
 }
 </style>

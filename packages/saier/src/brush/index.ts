@@ -364,6 +364,10 @@ export class PainterBrush {
     return this.painter.controller.getState().brush.presets
   }
 
+  listPresets(): BrushPreset[] {
+    return this.painter.controller.brush.listPresets()
+  }
+
   redrawCircle(size: number) {
     this.circle.clear()
     this.circle

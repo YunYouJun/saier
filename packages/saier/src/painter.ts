@@ -4,6 +4,7 @@ import type {
   BrushEngineRegistry,
   BrushPreset,
   BrushPresetRegistry,
+  DocumentLayersChangeEvent,
   MemoryEstimateEntry,
   MemoryRiskLevel,
   PainterMemorySnapshot,
@@ -361,6 +362,7 @@ export class Painter {
         panBy: (dx, dy) => this.panViewportBy(dx, dy),
         zoomAt: (point, scaleFactor) => this.zoomViewportAt(point, scaleFactor),
       },
+      pinchZoomSensitivity: this.options.input?.pinchZoomSensitivity,
       onStrokeCancel: () => {
         this.brush.cancelStroke()
         this.eraser.cancelStroke()
@@ -931,8 +933,8 @@ export class Painter {
       viewport: this.defaultViewport(),
       removeDocumentListener: () => {},
     }
-    const handleLayersChange = (event: { layers: RasterLayer[] }) => {
-      this.syncSurfaceLayers(event.layers, session)
+    const handleLayersChange = (event: DocumentLayersChangeEvent) => {
+      this.syncSurfaceLayers(event.effectiveLayers, session)
     }
     document.on('layers:change', handleLayersChange)
     session.removeDocumentListener = () => {
@@ -940,7 +942,7 @@ export class Painter {
     }
 
     if (options.document) {
-      this.syncSurfaceLayers(document.layers, session)
+      this.syncSurfaceLayers(document.effectiveLayers, session)
     }
     else {
       const layer = document.addLayer({

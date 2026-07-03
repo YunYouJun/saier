@@ -1,23 +1,38 @@
 <script lang="ts" setup>
-import type { BlendMode, PainterLayerState } from '@saier/core'
+import type { BlendMode, LayerNodeMoveTarget, PainterLayerNodeState, PainterLayerState } from '@saier/core'
 import { computed } from 'vue'
+import LayerTreeRow from './LayerTreeRow.vue'
 
 interface PainterLayerPanelLabels {
   title: string
   addLayer: string
+  addGroup: string
   hideLayer: string
   showLayer: string
   moveUp: string
   moveDown: string
+  moveIn: string
+  moveOut: string
   removeLayer: string
+  ungroup: string
+  collapseGroup: string
+  expandGroup: string
   lockAlpha: string
   clip: string
   blendModes: Record<BlendMode, string>
 }
 
+interface DisplayNode {
+  node: PainterLayerNodeState
+  index: number
+  lowerGroupId: string | null
+  lowerGroupChildCount: number
+}
+
 const props = defineProps<{
   activeLayerId: string | null
   layers: PainterLayerState[]
+  layerTree?: PainterLayerNodeState[]
   thumbnails?: Record<string, string>
   labels?: Partial<Omit<PainterLayerPanelLabels, 'blendModes'>> & {
     blendModes?: Partial<Record<BlendMode, string>>
@@ -25,26 +40,36 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'add': []
+  'add': [options?: { parentId?: string | null, index?: number }]
+  'addGroup': [options?: { parentId?: string | null, index?: number }]
   'remove': [id: string]
   'select': [id: string]
   'move': [id: string, toIndex: number]
+  'moveNode': [id: string, target: LayerNodeMoveTarget]
+  'ungroup': [id: string]
   'update:visible': [id: string, visible: boolean]
   'update:opacity': [id: string, opacity: number]
   'update:blendMode': [id: string, blendMode: BlendMode]
   'update:label': [id: string, label: string]
   'update:lockAlpha': [id: string, lockAlpha: boolean]
   'update:clip': [id: string, clip: boolean]
+  'update:groupCollapsed': [id: string, collapsed: boolean]
 }>()
 
 const DEFAULT_LABELS: PainterLayerPanelLabels = {
   title: 'Layers',
   addLayer: 'Add layer',
+  addGroup: 'Add group',
   hideLayer: 'Hide layer',
   showLayer: 'Show layer',
   moveUp: 'Move up',
   moveDown: 'Move down',
+  moveIn: 'Move into group below',
+  moveOut: 'Move out of group',
   removeLayer: 'Remove layer',
+  ungroup: 'Ungroup',
+  collapseGroup: 'Collapse group',
+  expandGroup: 'Expand group',
   lockAlpha: 'Lock transparency',
   clip: 'Clip to layer below',
   blendModes: {
@@ -67,27 +92,51 @@ const text = computed<PainterLayerPanelLabels>(() => ({
   },
 }))
 
-const blendModes = computed(() =>
-  (Object.keys(DEFAULT_LABELS.blendModes) as BlendMode[]).map(value => ({
-    label: text.value.blendModes[value],
-    value,
-  })),
+const tree = computed<PainterLayerNodeState[]>(() =>
+  props.layerTree?.length
+    ? props.layerTree
+    : props.layers,
 )
 
-const displayLayers = computed(() =>
-  props.layers.map((layer, index) => ({ index, layer })).reverse(),
+const displayNodes = computed(() => displayEntries(tree.value))
+
+const rasterLayerCount = computed(() =>
+  tree.value.reduce((sum, node) => sum + countRasterLayers(node), 0),
 )
 
-function opacityFromEvent(event: Event): number {
-  return Number((event.target as HTMLInputElement).value)
+function displayEntries(nodes: readonly PainterLayerNodeState[]): DisplayNode[] {
+  return nodes
+    .map((node, index) => {
+      const lower = nodes[index - 1]
+      return {
+        node,
+        index,
+        lowerGroupId: lower?.type === 'group' ? lower.id : null,
+        lowerGroupChildCount: lower?.type === 'group' ? lower.children.length : 0,
+      }
+    })
+    .reverse()
 }
 
-function valueFromEvent(event: Event): string {
-  return (event.target as HTMLInputElement | HTMLSelectElement).value
+function countRasterLayers(node: PainterLayerNodeState): number {
+  if (node.type === 'raster')
+    return 1
+  return node.children.reduce((sum, child) => sum + countRasterLayers(child), 0)
 }
 
-function blendModeFromEvent(event: Event): BlendMode {
-  return valueFromEvent(event) as BlendMode
+function moveNode(id: string, target: LayerNodeMoveTarget): void {
+  emit('moveNode', id, target)
+}
+
+function dragIdFromEvent(event: DragEvent): string | undefined {
+  return event.dataTransfer?.getData('application/x-saier-layer-node') || undefined
+}
+
+function dropOnRootTop(event: DragEvent): void {
+  const id = dragIdFromEvent(event)
+  if (!id)
+    return
+  emit('moveNode', id, { parentId: null, index: tree.value.length })
 }
 </script>
 
@@ -95,119 +144,60 @@ function blendModeFromEvent(event: Event): BlendMode {
   <section class="painter-layer-panel">
     <header class="painter-layer-panel__header">
       <span class="painter-layer-panel__title">{{ text.title }}</span>
-      <button type="button" class="painter-layer-panel__icon" :title="text.addLayer" @click="emit('add')">
-        <span class="i-ph-plus" />
-      </button>
+      <div class="painter-layer-panel__header-actions">
+        <button type="button" class="painter-layer-panel__icon" :title="text.addGroup" @click="emit('addGroup')">
+          <span class="i-ph-folder-plus" />
+        </button>
+        <button type="button" class="painter-layer-panel__icon" :title="text.addLayer" @click="emit('add')">
+          <span class="i-ph-plus" />
+        </button>
+      </div>
     </header>
 
     <div class="painter-layer-panel__list">
-      <article
-        v-for="{ layer, index } in displayLayers"
-        :key="layer.id"
-        class="painter-layer-row"
-        :class="{ 'is-active': layer.id === activeLayerId }"
-        @click="emit('select', layer.id)"
-      >
-        <button
-          type="button"
-          class="painter-layer-panel__icon"
-          :title="layer.visible ? text.hideLayer : text.showLayer"
-          @click.stop="emit('update:visible', layer.id, !layer.visible)"
-        >
-          <span :class="layer.visible ? 'i-ph-eye' : 'i-ph-eye-slash'" />
-        </button>
+      <LayerTreeRow
+        v-for="{ node, index, lowerGroupId, lowerGroupChildCount } in displayNodes"
+        :key="node.id"
+        :node="node"
+        :index="index"
+        :sibling-count="tree.length"
+        :parent-id="null"
+        :parent-index="0"
+        :grand-parent-id="null"
+        :depth="0"
+        :lower-group-id="lowerGroupId"
+        :lower-group-child-count="lowerGroupChildCount"
+        :active-layer-id="activeLayerId"
+        :thumbnails="thumbnails"
+        :labels="text"
+        :raster-layer-count="rasterLayerCount"
+        @add="emit('add', $event)"
+        @add-group="emit('addGroup', $event)"
+        @remove="emit('remove', $event)"
+        @select="emit('select', $event)"
+        @move-node="(id, target) => moveNode(id, target)"
+        @ungroup="emit('ungroup', $event)"
+        @update:visible="(id, visible) => emit('update:visible', id, visible)"
+        @update:opacity="(id, opacity) => emit('update:opacity', id, opacity)"
+        @update:blend-mode="(id, blendMode) => emit('update:blendMode', id, blendMode)"
+        @update:label="(id, label) => emit('update:label', id, label)"
+        @update:lock-alpha="(id, lockAlpha) => emit('update:lockAlpha', id, lockAlpha)"
+        @update:clip="(id, clip) => emit('update:clip', id, clip)"
+        @update:group-collapsed="(id, collapsed) => emit('update:groupCollapsed', id, collapsed)"
+      />
 
-        <div class="painter-layer-row__thumb">
-          <img v-if="thumbnails?.[layer.id]" :src="thumbnails[layer.id]" alt="">
-        </div>
-
-        <input
-          class="painter-layer-row__name"
-          :value="layer.label"
-          @change="emit('update:label', layer.id, valueFromEvent($event))"
-          @click.stop
-        >
-
-        <div class="painter-layer-row__controls" @click.stop>
-          <select
-            class="painter-layer-row__blend"
-            :value="layer.blendMode"
-            @change="emit('update:blendMode', layer.id, blendModeFromEvent($event))"
-          >
-            <option v-for="mode in blendModes" :key="mode.value" :value="mode.value">
-              {{ mode.label }}
-            </option>
-          </select>
-
-          <input
-            class="painter-layer-row__opacity"
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            :value="layer.opacity"
-            @input="emit('update:opacity', layer.id, opacityFromEvent($event))"
-          >
-        </div>
-
-        <div class="painter-layer-row__actions" @click.stop>
-          <button
-            type="button"
-            class="painter-layer-panel__icon"
-            :class="{ 'is-on': layer.lockAlpha }"
-            :title="text.lockAlpha"
-            :aria-pressed="layer.lockAlpha"
-            @click="emit('update:lockAlpha', layer.id, !layer.lockAlpha)"
-          >
-            <span :class="layer.lockAlpha ? 'i-ph-lock' : 'i-ph-lock-open'" />
-          </button>
-          <button
-            type="button"
-            class="painter-layer-panel__icon"
-            :class="{ 'is-on': layer.clip }"
-            :title="text.clip"
-            :aria-pressed="layer.clip"
-            :disabled="index <= 0"
-            @click="emit('update:clip', layer.id, !layer.clip)"
-          >
-            <span class="i-ph-arrow-elbow-down-left" />
-          </button>
-          <button
-            type="button"
-            class="painter-layer-panel__icon"
-            :title="text.moveUp"
-            :disabled="index >= layers.length - 1"
-            @click="emit('move', layer.id, index + 1)"
-          >
-            <span class="i-ph-arrow-up" />
-          </button>
-          <button
-            type="button"
-            class="painter-layer-panel__icon"
-            :title="text.moveDown"
-            :disabled="index <= 0"
-            @click="emit('move', layer.id, index - 1)"
-          >
-            <span class="i-ph-arrow-down" />
-          </button>
-          <button
-            type="button"
-            class="painter-layer-panel__icon"
-            :title="text.removeLayer"
-            :disabled="layers.length <= 1"
-            @click="emit('remove', layer.id)"
-          >
-            <span class="i-ph-trash" />
-          </button>
-        </div>
-      </article>
+      <div
+        class="painter-layer-panel__root-drop"
+        @dragover.prevent
+        @drop.prevent="dropOnRootTop"
+      />
     </div>
   </section>
 </template>
 
 <style scoped>
 .painter-layer-panel {
-  width: min(320px, calc(100vw - 16px));
+  width: min(336px, calc(100vw - 16px));
   border: 1px solid rgb(255 255 255 / 10%);
   border-radius: 8px;
   background: rgb(18 18 22 / 92%);
@@ -227,6 +217,11 @@ function blendModeFromEvent(event: Event): BlendMode {
   font-weight: 600;
 }
 
+.painter-layer-panel__header-actions {
+  display: flex;
+  gap: 4px;
+}
+
 .painter-layer-panel__icon {
   display: inline-grid;
   width: 28px;
@@ -239,98 +234,20 @@ function blendModeFromEvent(event: Event): BlendMode {
   color: white;
 }
 
-.painter-layer-panel__icon:disabled {
-  cursor: not-allowed;
-  opacity: 0.36;
-}
-
-.painter-layer-panel__icon.is-on {
-  border-color: rgb(120 170 255 / 80%);
-  background: rgb(80 120 190 / 40%);
-}
-
 .painter-layer-panel__list {
   display: grid;
-  max-height: min(440px, calc(100vh - 160px));
+  max-height: min(480px, calc(100vh - 160px));
   overflow: auto;
   padding: 6px;
   gap: 6px;
 }
 
-.painter-layer-row {
-  display: grid;
-  grid-template-columns: 28px 40px minmax(0, 1fr) auto;
-  gap: 6px;
-  align-items: center;
-  padding: 6px;
-  border: 1px solid rgb(255 255 255 / 10%);
-  border-radius: 8px;
-  background: rgb(255 255 255 / 6%);
-}
-
-.painter-layer-row.is-active {
-  border-color: rgb(120 170 255 / 80%);
-  background: rgb(80 120 190 / 26%);
-}
-
-.painter-layer-row__thumb {
-  width: 40px;
-  height: 40px;
-  overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 12%);
+.painter-layer-panel__root-drop {
+  height: 10px;
   border-radius: 6px;
-  background:
-    linear-gradient(45deg, rgb(255 255 255 / 18%) 25%, transparent 25%),
-    linear-gradient(-45deg, rgb(255 255 255 / 18%) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, rgb(255 255 255 / 18%) 75%),
-    linear-gradient(-45deg, transparent 75%, rgb(255 255 255 / 18%) 75%);
-  background-color: rgb(30 30 36);
-  background-position:
-    0 0,
-    0 4px,
-    4px -4px,
-    -4px 0;
-  background-size: 8px 8px;
 }
 
-.painter-layer-row__thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.painter-layer-row__name {
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  color: white;
-  font: inherit;
-  outline: 0;
-}
-
-.painter-layer-row__controls {
-  display: grid;
-  width: 112px;
-  gap: 4px;
-}
-
-.painter-layer-row__blend,
-.painter-layer-row__opacity {
-  min-width: 0;
-  width: 100%;
-}
-
-.painter-layer-row__blend {
-  border: 1px solid rgb(255 255 255 / 12%);
-  border-radius: 6px;
-  background: rgb(255 255 255 / 8%);
-  color: white;
-}
-
-.painter-layer-row__actions {
-  display: flex;
-  grid-column: 1 / -1;
-  justify-content: flex-end;
-  gap: 4px;
+.painter-layer-panel__root-drop:hover {
+  background: rgb(120 170 255 / 22%);
 }
 </style>

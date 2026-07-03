@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { SitePainterMenuCommand, SitePainterTool } from '~/types/painter-app'
+import PainterSlider from '@saier/vue/components/PainterSlider.vue'
 import {
   ToolbarButton,
   ToolbarRoot,
@@ -7,11 +8,13 @@ import {
   ToolbarToggleGroup,
   ToolbarToggleItem,
 } from 'reka-ui'
+import { computed } from 'vue'
 
 interface SitePainterToolbarLabels {
   newCanvas: string
   openProject: string
   saveProject: string
+  cloudSync: string
   importImage: string
   exportPreview: string
   download: string
@@ -28,7 +31,7 @@ interface SitePainterToolbarLabels {
   stabilizer: string
 }
 
-defineProps<{
+const props = defineProps<{
   activeTool: SitePainterTool
   canRedo: boolean
   canUndo: boolean
@@ -45,10 +48,20 @@ const emit = defineEmits<{
 const STABILIZER_MIN = 0
 const STABILIZER_MAX = 15
 
-const fileActions: { command: SitePainterMenuCommand, labelKey: 'newCanvas' | 'openProject' | 'saveProject' | 'importImage', icon: string }[] = [
+const stabilizerStrengthModel = computed({
+  get(): number {
+    return normalizeStabilizerStrength(props.stabilizerStrength)
+  },
+  set(strength: number): void {
+    emit('update:stabilizerStrength', normalizeStabilizerStrength(strength))
+  },
+})
+
+const fileActions: { command: SitePainterMenuCommand, labelKey: 'newCanvas' | 'openProject' | 'saveProject' | 'cloudSync' | 'importImage', icon: string }[] = [
   { command: 'file:new', labelKey: 'newCanvas', icon: 'i-ph-file-plus' },
   { command: 'file:open-project', labelKey: 'openProject', icon: 'i-ph-folder-open' },
   { command: 'file:save-project', labelKey: 'saveProject', icon: 'i-ph-floppy-disk' },
+  { command: 'file:cloud-sync', labelKey: 'cloudSync', icon: 'i-ph-cloud-arrow-up' },
   { command: 'file:import-image', labelKey: 'importImage', icon: 'i-ph-image' },
 ]
 
@@ -73,14 +86,6 @@ const toolItems: { value: SitePainterTool, labelKey: 'brush' | 'eraser' | 'pan' 
 function onToolChange(value: unknown): void {
   if (isSitePainterTool(value))
     emit('command', `tool:${value}`)
-}
-
-function onStabilizerInput(event: Event): void {
-  const input = event.target
-  if (!(input instanceof HTMLInputElement))
-    return
-
-  emit('update:stabilizerStrength', normalizeStabilizerStrength(Number(input.value)))
 }
 
 function isSitePainterTool(value: unknown): value is SitePainterTool {
@@ -165,22 +170,18 @@ function normalizeStabilizerStrength(strength: number): number {
 
     <ToolbarSeparator class="site-toolbar__separator" />
 
-    <label class="site-toolbar__stabilizer" :title="labels.stabilizer">
-      <span class="site-toolbar__stabilizer-icon i-ph-wave-sine" aria-hidden="true" />
-      <span class="site-toolbar__stabilizer-label">{{ labels.stabilizer }}</span>
-      <input
-        class="site-toolbar__stabilizer-range"
-        type="range"
-        :aria-label="labels.stabilizer"
-        :disabled="disabled"
-        :max="STABILIZER_MAX"
-        :min="STABILIZER_MIN"
-        :value="stabilizerStrength"
-        step="1"
-        @input="onStabilizerInput"
-      >
-      <output class="site-toolbar__stabilizer-value">{{ stabilizerStrength }}</output>
-    </label>
+    <PainterSlider
+      v-model="stabilizerStrengthModel"
+      class="site-toolbar__stabilizer"
+      :disabled="disabled"
+      icon="i-ph-wave-sine"
+      :label="labels.stabilizer"
+      :max="STABILIZER_MAX"
+      :min="STABILIZER_MIN"
+      :step="1"
+      :title="labels.stabilizer"
+      variant="compact"
+    />
 
     <ToolbarSeparator class="site-toolbar__separator" />
 
@@ -268,61 +269,8 @@ function normalizeStabilizerStrength(strength: number): number {
 }
 
 .site-toolbar__stabilizer {
-  display: inline-grid;
-  height: 28px;
   flex: 0 0 auto;
-  grid-template-columns: auto minmax(0, max-content) 88px 2ch;
-  align-items: center;
-  gap: 6px;
-  padding: 0 7px;
-  border: 1px solid rgb(255 255 255 / 10%);
-  border-radius: 5px;
-  color: rgb(255 255 255 / 76%);
-  font-size: 12px;
-}
-
-.site-toolbar__stabilizer-icon {
-  font-size: 16px;
-}
-
-.site-toolbar__stabilizer-label {
-  overflow: hidden;
-  max-width: 78px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.site-toolbar__stabilizer-range {
-  width: 88px;
-  accent-color: #60a5fa;
-}
-
-.site-toolbar__stabilizer-range:focus-visible {
-  outline: 2px solid rgb(96 165 250 / 72%);
-  outline-offset: 2px;
-}
-
-.site-toolbar__stabilizer-range:disabled {
-  opacity: 0.45;
-}
-
-.site-toolbar__stabilizer-value {
-  color: rgb(255 255 255 / 58%);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-@media (max-width: 640px) {
-  .site-toolbar__stabilizer {
-    grid-template-columns: auto 74px 2ch;
-  }
-
-  .site-toolbar__stabilizer-label {
-    display: none;
-  }
-
-  .site-toolbar__stabilizer-range {
-    width: 74px;
-  }
+  --painter-slider-compact-track-size: 88px;
+  --painter-slider-compact-track-size-mobile: 74px;
 }
 </style>

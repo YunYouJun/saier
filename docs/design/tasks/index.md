@@ -214,3 +214,13 @@ title: Tasks
 | [P9-06](./P9-06-custom-brushes-and-compact-ui) | 自定义笔刷与紧凑笔刷 UI        | core+vue   | P9-01,P9-04    | M      |
 
 **P9 出口目标**：外部 engine 可注册、可创建、可被 UI 安全暴露；未加载 / 不支持 backend 的 preset 不会误选；首次用户发布的 blocking / experimental 功能边界清晰。
+
+## P10 — Beta 运营 / 云端笔刷库 / 持久化加固
+
+> 目标：P9 public beta 之后，把账号级持久化和 YunLeFun 云同步补成可长期使用的闭环。P10 首先交付自定义笔刷云同步；项目库增强、autosave、兼容矩阵和发布流程作为后续卡片继续拆。
+
+| ID                                  | 卡片             | 包        | Depends on                   | Effort |
+| ----------------------------------- | ---------------- | --------- | ---------------------------- | ------ |
+| [P10-01](./P10-01-brush-cloud-sync) | 自定义笔刷云同步 | core+site | P9-06, YunLeFun storage gate | M      |
+
+**P10-01 出口目标**：账号 A 保存 / 删除自定义笔刷后跨刷新、跨浏览器同步；账号 B 不可见；笔刷库文件占用 shared quota 但不混入项目文件列表。

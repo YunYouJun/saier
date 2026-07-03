@@ -5,6 +5,8 @@ packages:
   - examples/*
   - packages/*
   - site
+overrides:
+  typescript: 5.9.3
 catalog:
   '@iconify-json/svg-spinners': ^1.2.4
   '@shikijs/vitepress-twoslash': ^4.2.0

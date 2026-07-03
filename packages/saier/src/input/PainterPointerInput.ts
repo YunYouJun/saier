@@ -4,9 +4,22 @@ import { PointerSampler } from '@saier/core'
 import { TouchGestureRouter } from '@saier/pixi'
 
 export type PainterPointerSource = 'dom' | 'pixi'
+export type PainterWheelMode = 'figma' | 'zoom'
 
 export interface PainterInputOptions {
   pointerSource?: PainterPointerSource
+  /**
+   * Wheel / trackpad navigation mode.
+   * Defaults to `zoom`, which is usually better for painting workflows.
+   * `figma`: plain wheel pans; modified wheel or trackpad pinch zooms.
+   * `zoom`: every wheel event zooms, matching the previous behavior.
+   */
+  wheelMode?: PainterWheelMode
+  /**
+   * Pinch zoom gain for two-finger touch gestures.
+   * `1` is physical one-to-one scaling; values above `1` zoom faster.
+   */
+  pinchZoomSensitivity?: number
   diagnostics?: boolean
 }
 
@@ -67,6 +80,7 @@ export class PainterPointerInput {
         panBy: (dx, dy) => this.painter.panViewportBy(dx, dy),
         zoomAt: (point, scaleFactor) => this.painter.zoomViewportAt(point, scaleFactor),
       },
+      pinchZoomSensitivity: options.painter.options.input?.pinchZoomSensitivity,
       onStrokeStart: () => this.withCurrentEvent(event => this.beginStroke(event)),
       onStrokeMove: () => this.withCurrentEvent(event => this.moveStroke(event)),
       onStrokeEnd: () => this.withCurrentEvent(event => this.endStroke(event)),

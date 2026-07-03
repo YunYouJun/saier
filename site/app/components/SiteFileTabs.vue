@@ -82,6 +82,7 @@ function sizeLabel(document: PainterDocumentState): string {
 }
 
 .site-file-tab {
+  box-sizing: border-box;
   display: grid;
   width: clamp(128px, 16vw, 188px);
   height: 34px;
@@ -135,6 +136,7 @@ function sizeLabel(document: PainterDocumentState): string {
 
 .site-file-tab__close,
 .site-file-tabs__new {
+  box-sizing: border-box;
   display: grid;
   place-items: center;
   border: 1px solid transparent;

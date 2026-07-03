@@ -1,6 +1,6 @@
 import type { BrushPreset, StrokePatch } from '../src'
 import { describe, expect, it, vi } from 'vitest'
-import { Document, PainterController, UndoManager } from '../src'
+import { Document, isSyncableBrushPreset, PainterController, UndoManager } from '../src'
 
 const PATCH: StrokePatch = {
   layerId: 'layer-1',
@@ -146,6 +146,44 @@ describe('painterController', () => {
     expect(controller.getState().brush.presets.some(preset => preset.id === custom.id)).toBe(false)
   })
 
+  it('lists brush presets defensively for cloud sync', () => {
+    const document = new Document({ width: 100, height: 100 })
+    const controller = new PainterController({ document })
+
+    const mypaint = controller.brush.registerPreset({
+      ...PEN_PRESET,
+      id: 'custom-myb-wash',
+      name: 'MyPaint Wash',
+      group: 'Imported',
+      source: 'mypaint',
+      custom: true,
+      size: 18,
+    })
+    controller.brush.createCustomPreset({
+      name: 'Line Wash',
+      group: 'Custom',
+      select: true,
+    })
+
+    const presets = controller.brush.listPresets()
+    const syncable = presets.filter(isSyncableBrushPreset)
+
+    expect(syncable.map(preset => preset.id)).toEqual([
+      mypaint.id,
+      'custom-line-wash',
+    ])
+    expect(syncable.every(preset => preset.custom)).toBe(true)
+    expect(syncable.some(preset => preset.source === 'builtin')).toBe(false)
+
+    const listedCustom = presets.find(preset => preset.id === 'custom-line-wash')
+    if (!listedCustom)
+      throw new Error('expected custom preset')
+    listedCustom.size = 999
+
+    expect(controller.brush.listPresets().find(preset => preset.id === 'custom-line-wash')?.size)
+      .toBe(10)
+  })
+
   it('updates P7 brush parameters and emits brush:change snapshots', () => {
     const document = new Document({ width: 100, height: 100 })
     const controller = new PainterController({
@@ -209,7 +247,8 @@ describe('painterController', () => {
 
   it('returns defensive snapshots for brush and layer state', () => {
     const document = new Document({ width: 100, height: 100 })
-    document.addLayer({ id: 'ink', label: 'Ink' })
+    const group = document.addGroup({ id: 'group', label: 'Group' })
+    document.addLayer({ id: 'ink', label: 'Ink', parentId: group.id })
     const controller = new PainterController({ document })
 
     const state = controller.getState()
@@ -219,6 +258,9 @@ describe('painterController', () => {
     state.brush.paperTextureStrength = 1
     state.brush.presets[0].name = 'Mutated'
     state.layers[0].label = 'Mutated'
+    state.layerTree[0].label = 'Mutated Group'
+    if (state.layerTree[0].type === 'group')
+      state.layerTree[0].children[0].label = 'Mutated Child'
 
     expect(controller.getState().brush.color.r).toBe(0)
     expect(controller.getState().brush.smudge).toBe(0)
@@ -226,6 +268,11 @@ describe('painterController', () => {
     expect(controller.getState().brush.paperTextureStrength).toBe(0)
     expect(controller.getState().brush.presets[0].name).toBe('Pen')
     expect(controller.getState().layers[0].label).toBe('Ink')
+    expect(controller.getState().layerTree[0]).toMatchObject({
+      type: 'group',
+      label: 'Group',
+      children: [expect.objectContaining({ label: 'Ink' })],
+    })
   })
 
   it('emits tool and layer changes from core setters', () => {
@@ -246,13 +293,17 @@ describe('painterController', () => {
       activeLayerId: 'first',
     })
     expect(toolSpy).toHaveBeenCalledWith('eraser')
-    expect(layersSpy).toHaveBeenCalledWith({
+    expect(layersSpy).toHaveBeenCalledWith(expect.objectContaining({
       activeLayerId: 'first',
       layers: expect.arrayContaining([
         expect.objectContaining({ id: 'first' }),
         expect.objectContaining({ id: 'second' }),
       ]),
-    })
+      layerTree: expect.arrayContaining([
+        expect.objectContaining({ id: 'first' }),
+        expect.objectContaining({ id: 'second' }),
+      ]),
+    }))
   })
 
   it('updates layer stack through the controller surface', () => {
@@ -285,6 +336,24 @@ describe('painterController', () => {
     })
     expect(ink.opacity).toBe(1)
     expect(layersSpy).toHaveBeenCalled()
+  })
+
+  it('updates layer groups through the controller surface', () => {
+    const document = new Document({ width: 100, height: 100 })
+    const controller = new PainterController({ document })
+    const group = controller.layer.addGroup({ id: 'group', label: 'Group' })
+    const ink = controller.layer.add({ id: 'ink', parentId: group.id, label: 'Ink' })
+
+    controller.layer.setVisible(group.id, false)
+    controller.layer.setGroupCollapsed(group.id, true)
+    controller.layer.moveNode(ink.id, { parentId: null, index: 0 })
+    controller.layer.ungroup(group.id)
+
+    expect(controller.getState()).toMatchObject({
+      activeLayerId: 'ink',
+      layers: [expect.objectContaining({ id: 'ink' })],
+      layerTree: [expect.objectContaining({ id: 'ink' })],
+    })
   })
 
   it('mirrors history changes from UndoManager', () => {

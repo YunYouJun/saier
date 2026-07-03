@@ -1,0 +1,6 @@
+{
+  "read": "auth.uid != null && doc.app == 'saier' && doc.userId == auth.uid",
+  "create": false,
+  "update": false,
+  "delete": "auth.uid != null && doc.app == 'saier' && doc.userId == auth.uid"
+}

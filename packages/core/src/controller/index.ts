@@ -6,6 +6,8 @@ export {
   type PainterControllerOptions,
   type PainterControllerState,
   type PainterHistoryState,
+  type PainterLayerGroupState,
+  type PainterLayerNodeState,
   type PainterLayerState,
   type PainterTool,
   type RegisterBrushPresetOptions,

@@ -22,12 +22,14 @@ afterEach(() => {
 async function createFixture(options: {
   pointerSource?: 'dom' | 'pixi'
   diagnostics?: boolean
+  wheelMode?: 'figma' | 'zoom'
 } = {}): Promise<Painter> {
   const canvas = document.createElement('canvas')
   const painter = createPainter({
     input: {
       pointerSource: options.pointerSource ?? 'dom',
       diagnostics: options.diagnostics ?? true,
+      wheelMode: options.wheelMode,
     },
     view: canvas,
     size: { width: 64, height: 64 },
@@ -145,8 +147,38 @@ describe('dom pointer input adapter', () => {
     expect(painter.history.undoStack).toHaveLength(1)
   })
 
-  it('zooms the viewport from trackpad wheel gestures without browser page zoom', async () => {
+  it('zooms the viewport from wheel gestures by default', async () => {
     const painter = await createFixture({ diagnostics: false })
+    const board = painter.board.container
+    const initialScale = board.scale.x
+
+    const zoomIn = dispatchWheel(painter, { ctrlKey: false, deltaY: -50 })
+
+    expect(zoomIn.defaultPrevented).toBe(true)
+    expect(board.scale.x).toBeGreaterThan(initialScale)
+  })
+
+  it('pans the viewport from plain wheel gestures in figma mode', async () => {
+    const painter = await createFixture({ diagnostics: false, wheelMode: 'figma' })
+    const board = painter.board.container
+    const initialScale = board.scale.x
+    const initialX = board.position.x
+    const initialY = board.position.y
+
+    const event = dispatchWheel(painter, {
+      ctrlKey: false,
+      deltaX: 12,
+      deltaY: 18,
+    })
+
+    expect(event.defaultPrevented).toBe(true)
+    expect(board.scale.x).toBe(initialScale)
+    expect(board.position.x).toBe(initialX - 12)
+    expect(board.position.y).toBe(initialY - 18)
+  })
+
+  it('zooms the viewport from modified wheel gestures in figma mode', async () => {
+    const painter = await createFixture({ diagnostics: false, wheelMode: 'figma' })
     const board = painter.board.container
     const initialScale = board.scale.x
 

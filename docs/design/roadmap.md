@@ -1,8 +1,8 @@
 ---
-title: Roadmap (P0–P9)
+title: Roadmap (P0–P10)
 ---
 
-# Roadmap：P0–P9 执行计划
+# Roadmap：P0–P10 执行计划
 
 > 按阶段推进，逐阶段提交。每阶段给出：目标 / 范围 / 产出文件 / 验收标准（尽量可自动化）/ 明确不做的事。
 > 阅读前请先读 [Overview](./) 与 [Decisions](./decisions)；接口契约见 [Interfaces](./interfaces)；验收方法见 [Testing](./testing)。
@@ -103,6 +103,18 @@ title: Roadmap (P0–P9)
 
 面向用户发布前的必要功能详见 [P9-00](./tasks/P9-00-public-beta-release-gate)。
 
+## P10 — Beta 运营 / 云端笔刷库 / 持久化加固
+
+- **目标**：P9 public beta 之后，把 YunLeFun 账号级体验补成可长期使用的云同步闭环，优先支持自定义笔刷跨设备同步。
+- **范围（优先级）**：
+  - [P10-01](./tasks/P10-01-brush-cloud-sync)：自定义笔刷库云同步。笔刷库以 `saier.brush-library.v1` 小型 JSON 文件存入共享云空间，与项目文件共用普通用户 100MiB / 会员 1GiB 配额；单个笔刷库额外限制 256KiB。
+  - P10-02：云端项目库增强（最近文件、重命名、删除确认、导入失败提示）。
+  - P10-03：autosave / crash recovery（本地草稿优先，云同步失败不丢数据）。
+  - P10-04：浏览器兼容矩阵与性能基线（Chrome / Edge / Safari，1024² / 4096²）。
+  - P10-05：发布流程收口（`saier` 主包、`pixi-painter` deprecated alias、changelog）。
+- **验收**：账号 A 保存自定义笔刷后刷新 / 新浏览器登录仍可见；删除后云端和本地都消失；账号 B 不可见；笔刷库文件不出现在项目文件列表；笔刷库上传占用共享 quota 且替换旧库不持续增长。
+- **不做**：真实 `MyPaintBrushEngineWasm`、完整 `.myb` parity、笔尖纹理二进制同步、完整 Brush Studio。
+
 ## 里程碑节奏（建议）
 
 ```
@@ -111,6 +123,7 @@ M2 = P1 (+P3 部分) // RenderTexture 图层 + 真橡皮 + 基础 stabilizer —
 M3 = P2 + P4 + P5  // tile + 笔刷家族 + 图层栈 —— “像绘画软件”
 M4 = P6 + P7       // 锁透明 / 蒙版 + 混色 —— “有专业绘画手感”
 M5 = P8 + P9 gate  // 文件 / 回放 + 外部引擎插槽 + 发布前收口
+M6 = P10           // 云同步 / 持久化 / 发布运营 —— “能长期使用”
 ```
 
 每个 M 结束：demo 可用 + 验收标准全过 + 一次提交 / 发版。

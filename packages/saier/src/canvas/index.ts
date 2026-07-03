@@ -94,6 +94,12 @@ export class PainterCanvas {
       x: event.clientX - rect.left,
       y: event.clientY - rect.top,
     }
+    if (!shouldZoomWheel(event, this.painter.options.input?.wheelMode)) {
+      const delta = normalizeWheelPanDelta(event)
+      this.painter.panViewportBy(-delta.x, -delta.y)
+      return
+    }
+
     const scaleFactor = Math.exp(-normalizeWheelDelta(event) / 500)
     this.painter.zoomViewportAt(point, scaleFactor)
   }
@@ -129,13 +135,35 @@ export class PainterCanvas {
 }
 
 function normalizeWheelDelta(event: WheelEvent): number {
+  return clamp(event.deltaY * wheelDeltaUnit(event), -100, 100)
+}
+
+function normalizeWheelPanDelta(event: WheelEvent): { x: number, y: number } {
+  const unit = wheelDeltaUnit(event)
+  const deltaX = event.deltaX * unit
+  const deltaY = event.deltaY * unit
+
+  if (event.shiftKey && deltaX === 0)
+    return { x: deltaY, y: 0 }
+
+  return { x: deltaX, y: deltaY }
+}
+
+function shouldZoomWheel(event: WheelEvent, mode: 'figma' | 'zoom' | undefined): boolean {
+  if (mode === 'figma')
+    return event.ctrlKey || event.metaKey
+
+  return true
+}
+
+function wheelDeltaUnit(event: WheelEvent): number {
   const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE
     ? 16
     : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
       ? window.innerHeight
       : 1
 
-  return clamp(event.deltaY * unit, -100, 100)
+  return unit
 }
 
 function clamp(value: number, min: number, max: number): number {

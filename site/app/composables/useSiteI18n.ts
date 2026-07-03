@@ -1,4 +1,5 @@
 import type { BlendMode, BuiltinBrushPresetId, MemoryRiskLevel } from '@saier/core'
+import type { SitePainterCommand, SitePainterCommandCategory } from '~/types/painter-app'
 import { computed, shallowRef } from 'vue'
 
 export type SiteLocale = 'en' | 'zh'
@@ -10,11 +11,61 @@ interface SiteMessages {
   exportPreview: string
   closePreview: string
   loading: string
+  account: {
+    checking: string
+    error: string
+    nativeApp: string
+    openSettings: string
+    signIn: string
+    signedIn: string
+    signingIn: string
+  }
+  cloudFiles: {
+    brushLibrary: string
+    brushLibraryCount: string
+    brushLibraryEmpty: string
+    brushLibrarySync: string
+    brushLibrarySynced: string
+    brushLibrarySyncing: string
+    checkingQuota: string
+    close: string
+    confirmRemove: string
+    deleting: string
+    downloadFailed: string
+    downloading: string
+    empty: string
+    finalizing: string
+    invalidLibrary: string
+    invalidProject: string
+    load: string
+    loading: string
+    maxFileSize: string
+    memberPlan: string
+    missingDatabase: string
+    missingStorage: string
+    normalPlan: string
+    notAuthenticated: string
+    quotaAvailable: string
+    quotaExceeded: string
+    quotaUsed: string
+    refresh: string
+    remove: string
+    reservationExpired: string
+    signIn: string
+    signInRequired: string
+    size: string
+    title: string
+    tooLarge: string
+    updated: string
+    uploadCurrent: string
+    uploading: string
+  }
   menu: {
     file: string
     newCanvas: string
     openProject: string
     saveProject: string
+    cloudSync: string
     importImage: string
     exportPreview: string
     download: string
@@ -25,6 +76,26 @@ interface SiteMessages {
     zoomIn: string
     zoomOut: string
     language: string
+    others: string
+    keyboardShortcuts: string
+    filter: string
+    repeatFilter: string
+    adjustments: string
+    invert: string
+    grayscale: string
+    blur: string
+    gaussianBlur: string
+    pixelate: string
+    window: string
+    showPanels: string
+    showColorPanels: string
+    brushOptionsPanel: string
+    operationPanel: string
+    layerPanel: string
+    diagnosticsPanel: string
+    colorWheelPanel: string
+    colorPalettePanel: string
+    rgbSlidersPanel: string
     tools: string
     brush: string
     eraser: string
@@ -33,12 +104,27 @@ interface SiteMessages {
     selection: string
     layers: string
     addLayer: string
+    addGroup: string
     showActiveLayer: string
     moveActiveLayerUp: string
     moveActiveLayerDown: string
     removeActiveLayer: string
     english: string
     chinese: string
+  }
+  shortcuts: {
+    title: string
+    search: string
+    searchPlaceholder: string
+    resetDefaults: string
+    close: string
+    category: string
+    command: string
+    shortcut: string
+    noResults: string
+    unassigned: string
+    categories: Record<SitePainterCommandCategory, string>
+    commands: Record<SitePainterCommand, string>
   }
   status: {
     ready: string
@@ -48,14 +134,17 @@ interface SiteMessages {
   }
   controls: {
     backgroundColor: string
+    blue: string
     brush: string
     colorPicker: string
     eraser: string
     foregroundColor: string
+    green: string
     hex: string
     hue: string
     image: string
     palette: string
+    red: string
     selection: string
     saturation: string
     value: string
@@ -84,6 +173,9 @@ interface SiteMessages {
     paperTexture: string
     paperTextureStrength: string
     requiresTileBackend: string
+    addGroup: string
+    customGroupName: string
+    removeGroup: string
     presetLabels: Record<BuiltinBrushPresetId, string>
   }
   memory: {
@@ -116,6 +208,8 @@ interface SiteMessages {
     height: string
     preset: string
     custom: string
+    preview: string
+    aspectRatio: string
     create: string
     cancel: string
     size: string
@@ -133,12 +227,19 @@ interface SiteMessages {
   layers: {
     title: string
     addLayer: string
+    addGroup: string
     hideLayer: string
     showLayer: string
     moveUp: string
     moveDown: string
+    moveIn: string
+    moveOut: string
     removeLayer: string
+    ungroup: string
+    collapseGroup: string
+    expandGroup: string
     defaultLayerName: string
+    defaultGroupName: string
     blendModes: Record<BlendMode, string>
   }
 }
@@ -153,11 +254,61 @@ const messages: Record<SiteLocale, SiteMessages> = {
     exportPreview: 'Export preview',
     closePreview: 'Close preview',
     loading: 'Loading painter...',
+    account: {
+      checking: 'Syncing',
+      error: 'Account error',
+      nativeApp: 'YunLeFun app',
+      openSettings: 'Open YunLeFun account settings',
+      signIn: 'Sign in',
+      signedIn: 'Signed in',
+      signingIn: 'Signing in',
+    },
+    cloudFiles: {
+      brushLibrary: 'Brush library',
+      brushLibraryCount: 'Brushes',
+      brushLibraryEmpty: 'No synced custom brushes',
+      brushLibrarySync: 'Sync brushes',
+      brushLibrarySynced: 'Last synced',
+      brushLibrarySyncing: 'Syncing brushes...',
+      checkingQuota: 'Checking storage...',
+      close: 'Close',
+      confirmRemove: 'Delete this cloud file?',
+      deleting: 'Deleting...',
+      downloadFailed: 'Failed to download cloud file.',
+      downloading: 'Loading...',
+      empty: 'No cloud files yet',
+      finalizing: 'Finalizing...',
+      invalidLibrary: 'This cloud file is not a valid Saier brush library.',
+      invalidProject: 'This cloud file is not a valid Saier project.',
+      load: 'Load',
+      loading: 'Loading files...',
+      maxFileSize: 'File limit',
+      memberPlan: 'Member storage',
+      missingDatabase: 'Cloud file index is not available. Check the CloudBase collection and permissions.',
+      missingStorage: 'Cloud storage is not available. Check the CloudBase storage security domain.',
+      normalPlan: 'Free storage',
+      notAuthenticated: 'Sign in with YunLeFun to sync files.',
+      quotaAvailable: 'Available',
+      quotaExceeded: 'Not enough YunLeFun cloud storage for this upload.',
+      quotaUsed: 'Used',
+      refresh: 'Refresh',
+      remove: 'Delete',
+      reservationExpired: 'The upload reservation expired. Please try again.',
+      signIn: 'Sign in',
+      signInRequired: 'Sign in with YunLeFun to use shared cloud storage.',
+      size: 'Size',
+      title: 'Cloud sync',
+      tooLarge: 'The project is larger than 200 MB.',
+      updated: 'Updated',
+      uploadCurrent: 'Upload current',
+      uploading: 'Uploading...',
+    },
     menu: {
       file: 'File',
       newCanvas: 'New canvas',
       openProject: 'Open project',
       saveProject: 'Save project',
+      cloudSync: 'Cloud sync...',
       importImage: 'Import image',
       exportPreview: 'Preview export',
       download: 'Download PNG',
@@ -168,6 +319,26 @@ const messages: Record<SiteLocale, SiteMessages> = {
       zoomIn: 'Zoom in',
       zoomOut: 'Zoom out',
       language: 'Language',
+      others: 'Others',
+      keyboardShortcuts: 'Keyboard Shortcuts...',
+      filter: 'Filter',
+      repeatFilter: 'Repeat filter',
+      adjustments: 'Adjustments',
+      invert: 'Invert',
+      grayscale: 'Grayscale',
+      blur: 'Blur',
+      gaussianBlur: 'Gaussian blur...',
+      pixelate: 'Pixelate...',
+      window: 'Window',
+      showPanels: 'Show panels',
+      showColorPanels: 'Show color panels',
+      brushOptionsPanel: 'Brush options',
+      operationPanel: 'Controls',
+      layerPanel: 'Layers',
+      diagnosticsPanel: 'Diagnostics',
+      colorWheelPanel: 'Color wheel',
+      colorPalettePanel: 'Palette',
+      rgbSlidersPanel: 'RGB sliders',
       tools: 'Tools',
       brush: 'Brush',
       eraser: 'Eraser',
@@ -176,12 +347,67 @@ const messages: Record<SiteLocale, SiteMessages> = {
       selection: 'Selection',
       layers: 'Layers',
       addLayer: 'New layer',
+      addGroup: 'New group',
       showActiveLayer: 'Show active layer',
       moveActiveLayerUp: 'Move active layer up',
       moveActiveLayerDown: 'Move active layer down',
       removeActiveLayer: 'Delete active layer',
       english: 'English',
       chinese: 'Chinese',
+    },
+    shortcuts: {
+      title: 'Keyboard Shortcuts',
+      search: 'Search',
+      searchPlaceholder: 'Search commands',
+      resetDefaults: 'Reset defaults',
+      close: 'Close',
+      category: 'Category',
+      command: 'Command',
+      shortcut: 'Shortcut',
+      noResults: 'No shortcuts found',
+      unassigned: 'Unassigned',
+      categories: {
+        app: 'App',
+        brush: 'Brush',
+        edit: 'Edit',
+        file: 'File',
+        filter: 'Filter',
+        layers: 'Layers',
+        selection: 'Selection',
+        tools: 'Tools',
+        view: 'View',
+      },
+      commands: {
+        'app:keyboard-shortcuts': 'Keyboard Shortcuts',
+        'brush:size-down': 'Decrease brush size',
+        'brush:size-up': 'Increase brush size',
+        'edit:redo': 'Redo',
+        'edit:undo': 'Undo',
+        'file:download': 'Download PNG',
+        'file:cloud-sync': 'Cloud sync',
+        'file:export-preview': 'Preview export',
+        'file:import-image': 'Import image',
+        'file:new': 'New canvas',
+        'file:open-project': 'Open project',
+        'file:save-project': 'Save project',
+        'filter:grayscale': 'Grayscale',
+        'filter:invert': 'Invert',
+        'filter:repeat': 'Repeat filter',
+        'layer:add': 'New layer',
+        'layer:add-group': 'New layer group',
+        'layer:move-down': 'Move active layer down',
+        'layer:move-up': 'Move active layer up',
+        'layer:remove': 'Delete active layer',
+        'selection:cancel': 'Cancel selection',
+        'tool:brush': 'Brush',
+        'tool:drag': 'Pan',
+        'tool:eraser': 'Eraser',
+        'tool:image': 'Image',
+        'tool:selection': 'Selection',
+        'view:reset': 'Reset view',
+        'view:zoom-in': 'Zoom in',
+        'view:zoom-out': 'Zoom out',
+      },
     },
     status: {
       ready: 'Ready',
@@ -191,14 +417,17 @@ const messages: Record<SiteLocale, SiteMessages> = {
     },
     controls: {
       backgroundColor: 'Background color',
+      blue: 'Blue',
       brush: 'Brush',
       colorPicker: 'Color picker',
       eraser: 'Eraser',
       foregroundColor: 'Brush color',
+      green: 'Green',
       hex: 'Hex',
       hue: 'Hue',
       image: 'Import image',
       palette: 'Palette',
+      red: 'Red',
       selection: 'Selection',
       saturation: 'Saturation',
       value: 'Value',
@@ -227,6 +456,9 @@ const messages: Record<SiteLocale, SiteMessages> = {
       paperTexture: 'Paper',
       paperTextureStrength: 'Grain',
       requiresTileBackend: 'Requires tiled backend',
+      addGroup: 'New brush group',
+      customGroupName: 'Custom Group',
+      removeGroup: 'Remove brush group',
       presetLabels: {
         pen: 'Pen',
         pencil: 'Pencil',
@@ -272,6 +504,8 @@ const messages: Record<SiteLocale, SiteMessages> = {
       height: 'Height',
       preset: 'Preset',
       custom: 'Custom',
+      preview: 'Canvas preview',
+      aspectRatio: 'Ratio',
       create: 'Create',
       cancel: 'Cancel',
       size: 'Size',
@@ -289,12 +523,19 @@ const messages: Record<SiteLocale, SiteMessages> = {
     layers: {
       title: 'Layers',
       addLayer: 'Add layer',
+      addGroup: 'Add group',
       hideLayer: 'Hide layer',
       showLayer: 'Show layer',
       moveUp: 'Move up',
       moveDown: 'Move down',
+      moveIn: 'Move into group below',
+      moveOut: 'Move out of group',
       removeLayer: 'Remove layer',
+      ungroup: 'Ungroup',
+      collapseGroup: 'Collapse group',
+      expandGroup: 'Expand group',
       defaultLayerName: 'Layer',
+      defaultGroupName: 'Group',
       blendModes: {
         normal: 'Normal',
         multiply: 'Multiply',
@@ -313,11 +554,61 @@ const messages: Record<SiteLocale, SiteMessages> = {
     exportPreview: '导出预览',
     closePreview: '关闭预览',
     loading: '画板加载中...',
+    account: {
+      checking: '同步中',
+      error: '账户异常',
+      nativeApp: '云乐坊 App',
+      openSettings: '打开云乐坊账户设置',
+      signIn: '登录',
+      signedIn: '已登录',
+      signingIn: '登录中',
+    },
+    cloudFiles: {
+      brushLibrary: '笔刷库',
+      brushLibraryCount: '笔刷数',
+      brushLibraryEmpty: '暂无已同步的自定义笔刷',
+      brushLibrarySync: '同步笔刷',
+      brushLibrarySynced: '上次同步',
+      brushLibrarySyncing: '正在同步笔刷...',
+      checkingQuota: '正在检查云空间...',
+      close: '关闭',
+      confirmRemove: '删除这个云端文件？',
+      deleting: '删除中...',
+      downloadFailed: '云端文件下载失败。',
+      downloading: '读取中...',
+      empty: '暂无云端文件',
+      finalizing: '正在确认上传...',
+      invalidLibrary: '这个云端文件不是有效的赛尔笔刷库。',
+      invalidProject: '这个云端文件不是有效的赛尔工程。',
+      load: '载入',
+      loading: '正在加载文件...',
+      maxFileSize: '文件上限',
+      memberPlan: '会员云空间',
+      missingDatabase: '云端文件索引不可用，请检查 CloudBase 集合与权限。',
+      missingStorage: '云存储不可用，请检查 CloudBase 存储安全域名。',
+      normalPlan: '普通云空间',
+      notAuthenticated: '登录云乐坊后可同步文件。',
+      quotaAvailable: '可用',
+      quotaExceeded: '云乐坊云空间不足，无法上传这个文件。',
+      quotaUsed: '已用',
+      refresh: '刷新',
+      remove: '删除',
+      reservationExpired: '上传预留已过期，请重试。',
+      signIn: '登录',
+      signInRequired: '登录云乐坊后可使用共享云空间。',
+      size: '大小',
+      title: '云同步',
+      tooLarge: '工程文件超过 200 MB。',
+      updated: '更新时间',
+      uploadCurrent: '上传当前文件',
+      uploading: '上传中...',
+    },
     menu: {
       file: '文件',
       newCanvas: '新建画布',
       openProject: '打开工程',
       saveProject: '保存工程',
+      cloudSync: '云同步...',
       importImage: '导入图片',
       exportPreview: '预览导出',
       download: '下载 PNG',
@@ -328,6 +619,26 @@ const messages: Record<SiteLocale, SiteMessages> = {
       zoomIn: '放大',
       zoomOut: '缩小',
       language: '语言',
+      others: '其他',
+      keyboardShortcuts: '快捷键设置...',
+      filter: '滤镜',
+      repeatFilter: '上次滤镜',
+      adjustments: '调整',
+      invert: '反相',
+      grayscale: '灰度',
+      blur: '模糊',
+      gaussianBlur: '高斯模糊...',
+      pixelate: '像素化...',
+      window: '窗口',
+      showPanels: '显示操作面板',
+      showColorPanels: '显示颜色面板',
+      brushOptionsPanel: '画笔参数',
+      operationPanel: '操作面板',
+      layerPanel: '图层面板',
+      diagnosticsPanel: '诊断面板',
+      colorWheelPanel: '色轮',
+      colorPalettePanel: '色板',
+      rgbSlidersPanel: 'RGB 滑块',
       tools: '工具',
       brush: '画笔',
       eraser: '橡皮擦',
@@ -336,12 +647,67 @@ const messages: Record<SiteLocale, SiteMessages> = {
       selection: '选择',
       layers: '图层',
       addLayer: '新建图层',
+      addGroup: '新建图层组',
       showActiveLayer: '显示当前图层',
       moveActiveLayerUp: '当前图层上移',
       moveActiveLayerDown: '当前图层下移',
       removeActiveLayer: '删除当前图层',
       english: 'English',
       chinese: '中文',
+    },
+    shortcuts: {
+      title: '快捷键设置',
+      search: '搜索',
+      searchPlaceholder: '搜索命令',
+      resetDefaults: '恢复默认',
+      close: '关闭',
+      category: '分类',
+      command: '命令',
+      shortcut: '快捷键',
+      noResults: '没有匹配的快捷键',
+      unassigned: '未分配',
+      categories: {
+        app: '应用',
+        brush: '画笔',
+        edit: '编辑',
+        file: '文件',
+        filter: '滤镜',
+        layers: '图层',
+        selection: '选择',
+        tools: '工具',
+        view: '视图',
+      },
+      commands: {
+        'app:keyboard-shortcuts': '快捷键设置',
+        'brush:size-down': '减小画笔大小',
+        'brush:size-up': '增大画笔大小',
+        'edit:redo': '重做',
+        'edit:undo': '撤销',
+        'file:download': '下载 PNG',
+        'file:cloud-sync': '云同步',
+        'file:export-preview': '预览导出',
+        'file:import-image': '导入图片',
+        'file:new': '新建画布',
+        'file:open-project': '打开工程',
+        'file:save-project': '保存工程',
+        'filter:grayscale': '灰度',
+        'filter:invert': '反相',
+        'filter:repeat': '上次滤镜',
+        'layer:add': '新建图层',
+        'layer:add-group': '新建图层组',
+        'layer:move-down': '当前图层下移',
+        'layer:move-up': '当前图层上移',
+        'layer:remove': '删除当前图层',
+        'selection:cancel': '取消选择',
+        'tool:brush': '画笔',
+        'tool:drag': '平移',
+        'tool:eraser': '橡皮擦',
+        'tool:image': '图片',
+        'tool:selection': '选择',
+        'view:reset': '重置视图',
+        'view:zoom-in': '放大',
+        'view:zoom-out': '缩小',
+      },
     },
     status: {
       ready: '就绪',
@@ -351,14 +717,17 @@ const messages: Record<SiteLocale, SiteMessages> = {
     },
     controls: {
       backgroundColor: '背景色',
+      blue: '蓝',
       brush: '画笔',
       colorPicker: '颜色选择器',
       eraser: '橡皮擦',
       foregroundColor: '画笔颜色',
+      green: '绿',
       hex: 'Hex',
       hue: '色相',
       image: '导入图片',
       palette: '色板',
+      red: '红',
       selection: '选择',
       saturation: '饱和度',
       value: '明度',
@@ -387,6 +756,9 @@ const messages: Record<SiteLocale, SiteMessages> = {
       paperTexture: '纸纹',
       paperTextureStrength: '颗粒',
       requiresTileBackend: '需要 tile 后端',
+      addGroup: '新建画笔分组',
+      customGroupName: '自定义分组',
+      removeGroup: '删除画笔分组',
       presetLabels: {
         pen: '钢笔',
         pencil: '铅笔',
@@ -432,6 +804,8 @@ const messages: Record<SiteLocale, SiteMessages> = {
       height: '高度',
       preset: '预设',
       custom: '自定义',
+      preview: '画布预览',
+      aspectRatio: '比例',
       create: '创建',
       cancel: '取消',
       size: '尺寸',
@@ -449,12 +823,19 @@ const messages: Record<SiteLocale, SiteMessages> = {
     layers: {
       title: '图层',
       addLayer: '新建图层',
+      addGroup: '新建图层组',
       hideLayer: '隐藏图层',
       showLayer: '显示图层',
       moveUp: '上移',
       moveDown: '下移',
+      moveIn: '移入下方图层组',
+      moveOut: '移出图层组',
       removeLayer: '删除图层',
+      ungroup: '解散图层组',
+      collapseGroup: '折叠图层组',
+      expandGroup: '展开图层组',
       defaultLayerName: '图层',
+      defaultGroupName: '图层组',
       blendModes: {
         normal: '正常',
         multiply: '正片叠底',

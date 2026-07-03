@@ -1,8 +1,13 @@
 <script setup lang="ts">
-import type { SaierProjectFile } from '@saier/core'
-import type { SiteNewCanvasRequest, SitePainterMenuCommand, SitePainterTool } from '~/types/painter-app'
+import type { PainterLayerNodeState, SaierProjectFile, StrokePatch, TiledSurface, TilePatch } from '@saier/core'
+import type { YunlefunCloudFile } from '~/composables/useYunlefunCloudFiles'
+import type { SiteKeyboardShortcutRow, SiteNewCanvasRequest, SitePainterColorSectionId, SitePainterCommand, SitePainterFilterCommand, SitePainterMenuCommand, SitePainterPanelId, SitePainterTool } from '~/types/painter-app'
 import { usePainter } from '@saier/vue/composables/usePainter'
-import { computed, shallowRef, watch } from 'vue'
+import { computed, onMounted, reactive, shallowRef, watch } from 'vue'
+import { useSitePainterShortcuts } from '~/composables/useSitePainterShortcuts'
+import { useYunlefunBrushLibrary } from '~/composables/useYunlefunBrushLibrary'
+import { useYunlefunCloudFiles } from '~/composables/useYunlefunCloudFiles'
+import { SITE_PAINTER_COMMANDS } from '~/constants/painterCommands'
 
 const {
   htmlLang,
@@ -14,8 +19,22 @@ const {
 } = useSiteI18n()
 
 const exportPreview = shallowRef<string>()
+const cloudSyncDialogOpen = shallowRef(false)
+const lastFilterCommand = shallowRef<SitePainterFilterCommand>()
+const keyboardShortcutsDialogOpen = shallowRef(false)
 const newCanvasDialogOpen = shallowRef(false)
 const stabilizerStrength = shallowRef(1)
+const colorSectionVisibility = reactive<Record<SitePainterColorSectionId, boolean>>({
+  palette: true,
+  rgbSliders: true,
+  wheel: true,
+})
+const panelVisibility = reactive<Record<SitePainterPanelId, boolean>>({
+  controls: true,
+  diagnostics: true,
+  layers: true,
+  options: true,
+})
 
 const {
   activeLayerId,
@@ -25,18 +44,59 @@ const {
   input,
   layerActions,
   layerThumbnails,
+  layerTree,
   layers,
   memory,
   painter,
+  refreshLayerThumbnails,
+  refreshMemory,
   state,
 } = usePainter({
   debug: import.meta.env.DEV,
 })
+const {
+  displayName: yunlefunDisplayName,
+  errorMessage: yunlefunErrorMessage,
+  inNativeApp: isInYunlefunApp,
+  isAuthenticated: isYunlefunAuthenticated,
+  signIn: signInWithYunlefun,
+  status: yunlefunStatus,
+  syncSilently: syncYunlefunSilently,
+} = useYunlefunAuth()
+const {
+  downloadProject: downloadCloudProject,
+  failureMessage: cloudFileFailureMessage,
+  files: cloudFiles,
+  isMember: isYunlefunMember,
+  maxBytes: cloudFileMaxBytes,
+  quota: cloudFileQuota,
+  refreshFiles: refreshCloudFiles,
+  removeFile: removeCloudFile,
+  status: cloudFileStatus,
+  uploadProgress: cloudFileUploadProgress,
+  uploadProject: uploadCloudProject,
+} = useYunlefunCloudFiles()
+const {
+  bindPainter: bindBrushLibraryPainter,
+  brushCount: brushLibraryCount,
+  failureMessage: brushLibraryFailureMessage,
+  lastSyncedAt: brushLibraryLastSyncedAt,
+  loadLocal: loadLocalBrushLibrary,
+  saveNow: saveBrushLibraryNow,
+  status: brushLibraryStatus,
+  syncFromCloud: syncBrushLibraryFromCloud,
+} = useYunlefunBrushLibrary()
 
 const showDiagnostics = import.meta.env.DEV
+const availablePanels = computed<SitePainterPanelId[]>(() =>
+  showDiagnostics
+    ? ['options', 'controls', 'layers', 'diagnostics']
+    : ['options', 'controls', 'layers'],
+)
 const pageTitle = computed(() => `${text.value.appName} - ${text.value.tagline}`)
 const activeLayer = computed(() => layers.value.find(layer => layer.id === activeLayerId.value))
 const activeLayerIndex = computed(() => layers.value.findIndex(layer => layer.id === activeLayerId.value))
+const canApplyFilter = computed(() => Boolean(activeLayer.value && painter.value && isTiledSurfaceAccessBackend(painter.value.surface)))
 const activeTool = computed<SitePainterTool>(() => {
   const tool = state.value?.tool
   return isSitePainterTool(tool) ? tool : 'brush'
@@ -55,6 +115,37 @@ const toolbarLabels = computed(() => ({
 const canMoveLayerUp = computed(() => activeLayerIndex.value >= 0 && activeLayerIndex.value < layers.value.length - 1)
 const canMoveLayerDown = computed(() => activeLayerIndex.value > 0)
 const canRemoveLayer = computed(() => layers.value.length > 1 && Boolean(activeLayer.value))
+const shortcutsDisabled = computed(() =>
+  cloudSyncDialogOpen.value || keyboardShortcutsDialogOpen.value || newCanvasDialogOpen.value,
+)
+const {
+  formatCommandShortcuts,
+  resetShortcuts,
+} = useSitePainterShortcuts({
+  disabled: shortcutsDisabled,
+  canRunCommand,
+  runCommand: handleMenuCommand,
+})
+const menuShortcutLabels = computed<Partial<Record<SitePainterCommand, string>>>(() => {
+  const labels: Partial<Record<SitePainterCommand, string>> = {}
+
+  for (const definition of SITE_PAINTER_COMMANDS) {
+    const shortcut = formatCommandShortcuts(definition.id)
+    if (shortcut)
+      labels[definition.id] = shortcut
+  }
+
+  return labels
+})
+const shortcutRows = computed<SiteKeyboardShortcutRow[]>(() =>
+  SITE_PAINTER_COMMANDS.map(definition => ({
+    id: definition.id,
+    category: definition.category,
+    categoryLabel: text.value.shortcuts.categories[definition.category],
+    label: text.value.shortcuts.commands[definition.id],
+    shortcutLabel: formatCommandShortcuts(definition.id, text.value.shortcuts.unassigned),
+  })),
+)
 const memoryStatusLabel = computed(() => {
   const snapshot = memory.value
   if (!snapshot || snapshot.riskLevel === 'normal')
@@ -62,6 +153,11 @@ const memoryStatusLabel = computed(() => {
 
   return `${text.value.memory.status}: ~${formatBytes(snapshot.totalEstimatedBytes)}`
 })
+const yunlefunAccountLoading = computed(() =>
+  yunlefunStatus.value === 'checking' || yunlefunStatus.value === 'signing-in',
+)
+const cloudFileErrorMessage = computed(() => cloudFileFailureMessage(text.value.cloudFiles))
+const brushLibraryErrorMessage = computed(() => brushLibraryFailureMessage(text.value.cloudFiles))
 const statusLabel = computed(() => {
   if (!painter.value)
     return text.value.loading
@@ -86,11 +182,21 @@ useHead(() => ({
 }))
 
 watch(painter, (current) => {
+  bindBrushLibraryPainter(current)
   if (!current)
     return
 
   setStabilizerStrength(current.brush.getStabilizerStrength())
+  syncBrushLibraryForCurrentAccount(current)
 }, { immediate: true })
+
+watch(isYunlefunAuthenticated, () => {
+  syncBrushLibraryForCurrentAccount()
+})
+
+onMounted(() => {
+  void syncYunlefunSilently()
+})
 
 async function handleMenuCommand(command: SitePainterMenuCommand): Promise<void> {
   if (command.startsWith('tool:')) {
@@ -99,6 +205,15 @@ async function handleMenuCommand(command: SitePainterMenuCommand): Promise<void>
   }
 
   switch (command) {
+    case 'app:keyboard-shortcuts':
+      openKeyboardShortcutsDialog()
+      break
+    case 'brush:size-down':
+      painter.value?.brushSizeDown()
+      break
+    case 'brush:size-up':
+      painter.value?.brushSizeUp()
+      break
     case 'file:new':
       createNewCanvas()
       break
@@ -107,6 +222,9 @@ async function handleMenuCommand(command: SitePainterMenuCommand): Promise<void>
       break
     case 'file:save-project':
       saveProject()
+      break
+    case 'file:cloud-sync':
+      openCloudSyncDialog()
       break
     case 'file:import-image':
       painter.value?.useTool('image')
@@ -129,8 +247,24 @@ async function handleMenuCommand(command: SitePainterMenuCommand): Promise<void>
     case 'view:zoom-out':
       painter.value?.canvas.scaleDown()
       break
+    case 'view:reset':
+      painter.value?.board.resetToCenter()
+      break
+    case 'selection:cancel':
+      painter.value?.cancelSelection()
+      break
+    case 'filter:repeat':
+      await repeatFilter()
+      break
+    case 'filter:grayscale':
+    case 'filter:invert':
+      await applyLayerFilter(command)
+      break
     case 'layer:add':
       addLayer()
+      break
+    case 'layer:add-group':
+      addGroup()
       break
     case 'layer:move-up':
       moveActiveLayer(1)
@@ -144,12 +278,43 @@ async function handleMenuCommand(command: SitePainterMenuCommand): Promise<void>
   }
 }
 
-function addLayer(): void {
+async function loginWithYunlefun(): Promise<void> {
+  await signInWithYunlefun('interactive')
+}
+
+async function loginWithYunlefunForCloudSync(): Promise<void> {
+  const ok = await signInWithYunlefun('interactive')
+  if (ok) {
+    await refreshCloudFiles()
+    await syncBrushLibraryForCurrentAccount()
+  }
+}
+
+interface LayerCreateTarget {
+  parentId?: string | null
+  index?: number
+}
+
+function addLayer(options: LayerCreateTarget = {}): void {
   const p = painter.value
   if (!p)
     return
 
-  p.controller.layer.add({ label: layerLabel(layers.value.length + 1) })
+  p.controller.layer.add({
+    ...options,
+    label: layerLabel(layers.value.length + 1),
+  })
+}
+
+function addGroup(options: LayerCreateTarget = {}): void {
+  const p = painter.value
+  if (!p)
+    return
+
+  p.controller.layer.addGroup({
+    ...options,
+    label: `${text.value.layers.defaultGroupName} ${countGroups(layerTree.value) + 1}`,
+  })
 }
 
 function closePreview(): void {
@@ -163,6 +328,53 @@ function createNewCanvas(): void {
 
 function closeNewCanvasDialog(): void {
   newCanvasDialogOpen.value = false
+}
+
+function openCloudSyncDialog(): void {
+  cloudSyncDialogOpen.value = true
+  if (isYunlefunAuthenticated.value)
+    void refreshCloudFiles()
+}
+
+function closeCloudSyncDialog(): void {
+  cloudSyncDialogOpen.value = false
+}
+
+async function syncBrushLibraryForCurrentAccount(current = painter.value): Promise<void> {
+  if (!current)
+    return
+  if (isYunlefunAuthenticated.value) {
+    const result = await syncBrushLibraryFromCloud(current)
+    if (result.ok)
+      await refreshCloudFiles()
+  }
+  else {
+    loadLocalBrushLibrary(current)
+  }
+}
+
+async function syncBrushLibraryNow(): Promise<void> {
+  const current = painter.value
+  if (!current)
+    return
+  if (!isYunlefunAuthenticated.value) {
+    await loginWithYunlefunForCloudSync()
+    return
+  }
+  await saveBrushLibraryNow(current)
+  await syncBrushLibraryForCurrentAccount(current)
+}
+
+function openKeyboardShortcutsDialog(): void {
+  keyboardShortcutsDialogOpen.value = true
+}
+
+function closeKeyboardShortcutsDialog(): void {
+  keyboardShortcutsDialogOpen.value = false
+}
+
+function resetKeyboardShortcuts(): void {
+  resetShortcuts()
 }
 
 function createCanvasDocument(request: SiteNewCanvasRequest): void {
@@ -219,9 +431,37 @@ function saveProject(): void {
   const blob = new Blob([JSON.stringify(project)], { type: 'application/json' })
   const link = document.createElement('a')
   link.href = URL.createObjectURL(blob)
-  link.download = `${safeFileName(project.metadata.name || 'saier')}.saier.project.json`
+  link.download = `${safeFileName(projectFileName(project))}.saier.project.json`
   link.click()
   URL.revokeObjectURL(link.href)
+}
+
+async function uploadCurrentProjectToCloud(): Promise<void> {
+  const p = painter.value
+  if (!p)
+    return
+
+  const project = p.exportProject()
+  await uploadCloudProject(project, {
+    name: projectFileName(project),
+  })
+}
+
+async function loadCloudProject(file: YunlefunCloudFile): Promise<void> {
+  const p = painter.value
+  if (!p)
+    return
+
+  const result = await downloadCloudProject(file)
+  if (!result.ok || !result.project)
+    return
+
+  p.importProject(result.project, { activate: true })
+  closeCloudSyncDialog()
+}
+
+async function deleteCloudProject(file: YunlefunCloudFile): Promise<void> {
+  await removeCloudFile(file)
 }
 
 async function extractBase64(): Promise<string | undefined> {
@@ -231,6 +471,16 @@ async function extractBase64(): Promise<string | undefined> {
 
 function layerLabel(index: number): string {
   return `${text.value.layers.defaultLayerName} ${index}`
+}
+
+function countGroups(nodes: readonly PainterLayerNodeState[]): number {
+  let count = 0
+  for (const node of nodes) {
+    if (node.type !== 'group')
+      continue
+    count += 1 + countGroups(node.children)
+  }
+  return count
 }
 
 function moveActiveLayer(offset: 1 | -1): void {
@@ -249,10 +499,36 @@ function onExtract(dataUrl: string): void {
   exportPreview.value = dataUrl
 }
 
+async function applyLayerFilter(command: SitePainterFilterCommand): Promise<void> {
+  const p = painter.value
+  const layerId = activeLayerId.value
+  if (!p || !layerId || !isTiledSurfaceAccessBackend(p.surface))
+    return
+
+  const surface = p.surface.getSurface(layerId)
+  const patch = createLayerFilterPatch(layerId, surface, command)
+  if (!patch)
+    return
+
+  p.recordStrokePatch(patch)
+  p.flushSurfaceUploads()
+  lastFilterCommand.value = command
+  await Promise.all([
+    refreshLayerThumbnails(),
+    refreshMemory(),
+  ])
+}
+
 async function previewExport(): Promise<void> {
   const dataUrl = await extractBase64()
   if (dataUrl)
     onExtract(dataUrl)
+}
+
+async function repeatFilter(): Promise<void> {
+  const command = lastFilterCommand.value
+  if (command)
+    await applyLayerFilter(command)
 }
 
 function removeActiveLayer(): void {
@@ -269,6 +545,14 @@ function setActiveLayerVisible(visible: boolean): void {
     layerActions.setVisible(layer.id, visible)
 }
 
+function setColorSectionVisible(sectionId: SitePainterColorSectionId, visible: boolean): void {
+  colorSectionVisibility[sectionId] = visible
+}
+
+function setPanelVisible(panelId: SitePainterPanelId, visible: boolean): void {
+  panelVisibility[panelId] = visible
+}
+
 function setStabilizerStrength(strength: number): void {
   const next = normalizeStabilizerStrength(strength)
   stabilizerStrength.value = next
@@ -282,6 +566,122 @@ function switchDocument(id: string): void {
 
 function closeDocument(id: string): void {
   documentActions.close(id)
+}
+
+function canRunCommand(command: SitePainterCommand): boolean {
+  if (command === 'app:keyboard-shortcuts')
+    return true
+  if (!painter.value)
+    return false
+  if (command.startsWith('tool:'))
+    return true
+
+  switch (command) {
+    case 'edit:undo':
+      return state.value?.history.canUndo ?? false
+    case 'edit:redo':
+      return state.value?.history.canRedo ?? false
+    case 'filter:repeat':
+      return canApplyFilter.value && Boolean(lastFilterCommand.value)
+    case 'filter:grayscale':
+    case 'filter:invert':
+      return canApplyFilter.value
+    case 'layer:move-up':
+      return canMoveLayerUp.value
+    case 'layer:move-down':
+      return canMoveLayerDown.value
+    case 'layer:remove':
+      return canRemoveLayer.value
+    default:
+      return true
+  }
+}
+
+function createLayerFilterPatch(layerId: string, surface: TiledSurface, command: SitePainterFilterCommand): StrokePatch | undefined {
+  const tilePatches: TilePatch[] = []
+  let rect = emptyRect()
+
+  for (const tile of surface.allocatedTiles) {
+    const before = tile.cloneData()
+    const after = new Uint8ClampedArray(before)
+    const changed = command === 'filter:invert'
+      ? invertPixels(after)
+      : grayscalePixels(after)
+
+    if (!changed || samePixels(before, after))
+      continue
+
+    surface.writeTileData(tile.tileX, tile.tileY, after)
+    rect = unionRects(rect, surface.tileRect(tile.tileX, tile.tileY))
+    tilePatches.push({
+      layerId,
+      tileX: tile.tileX,
+      tileY: tile.tileY,
+      before: new Uint8Array(before),
+      after: new Uint8Array(after),
+    })
+  }
+
+  if (tilePatches.length === 0)
+    return undefined
+
+  return {
+    layerId,
+    rect,
+    before: tilePatches,
+    after: tilePatches,
+  }
+}
+
+function emptyRect(): StrokePatch['rect'] {
+  return { x: 0, y: 0, width: 0, height: 0 }
+}
+
+function grayscalePixels(pixels: Uint8ClampedArray): boolean {
+  let changed = false
+  for (let offset = 0; offset < pixels.length; offset += 4) {
+    if (pixels[offset + 3] === 0)
+      continue
+
+    const gray = Math.round(
+      pixels[offset]! * 0.299
+      + pixels[offset + 1]! * 0.587
+      + pixels[offset + 2]! * 0.114,
+    )
+    if (pixels[offset] === gray && pixels[offset + 1] === gray && pixels[offset + 2] === gray)
+      continue
+
+    pixels[offset] = gray
+    pixels[offset + 1] = gray
+    pixels[offset + 2] = gray
+    changed = true
+  }
+  return changed
+}
+
+function invertPixels(pixels: Uint8ClampedArray): boolean {
+  let changed = false
+  for (let offset = 0; offset < pixels.length; offset += 4) {
+    if (pixels[offset + 3] === 0)
+      continue
+
+    pixels[offset] = 255 - pixels[offset]!
+    pixels[offset + 1] = 255 - pixels[offset + 1]!
+    pixels[offset + 2] = 255 - pixels[offset + 2]!
+    changed = true
+  }
+  return changed
+}
+
+function isEmptyRect(rect: StrokePatch['rect']): boolean {
+  return rect.width <= 0 || rect.height <= 0
+}
+
+function isTiledSurfaceAccessBackend(surface: unknown): surface is { getSurface: (layerId: string) => TiledSurface } {
+  return typeof surface === 'object'
+    && surface !== null
+    && 'getSurface' in surface
+    && typeof surface.getSurface === 'function'
 }
 
 function isSitePainterTool(tool: unknown): tool is SitePainterTool {
@@ -312,6 +712,36 @@ function normalizeStabilizerStrength(strength: number): number {
   return Number.isFinite(strength) ? Math.max(0, Math.min(15, Math.round(strength))) : 0
 }
 
+function samePixels(a: Uint8ClampedArray, b: Uint8ClampedArray): boolean {
+  if (a.length !== b.length)
+    return false
+
+  for (let index = 0; index < a.length; index++) {
+    if (a[index] !== b[index])
+      return false
+  }
+  return true
+}
+
+function unionRects(a: StrokePatch['rect'], b: StrokePatch['rect']): StrokePatch['rect'] {
+  if (isEmptyRect(a))
+    return isEmptyRect(b) ? emptyRect() : { ...b }
+  if (isEmptyRect(b))
+    return { ...a }
+
+  const x = Math.min(a.x, b.x)
+  const y = Math.min(a.y, b.y)
+  const right = Math.max(a.x + a.width, b.x + b.width)
+  const bottom = Math.max(a.y + a.height, b.y + b.height)
+  return { x, y, width: right - x, height: bottom - y }
+}
+
+function projectFileName(project: SaierProjectFile): string {
+  return typeof project.metadata?.name === 'string' && project.metadata.name.trim()
+    ? project.metadata.name
+    : 'saier'
+}
+
 function safeFileName(name: string): string {
   return name
     .trim()
@@ -336,22 +766,43 @@ function safeFileName(name: string): string {
     @close-preview="closePreview"
     @toggle-locale="toggleLocale"
   >
+    <template #account>
+      <SiteAccountButton
+        :display-name="yunlefunDisplayName"
+        :error-message="yunlefunErrorMessage"
+        :is-authenticated="isYunlefunAuthenticated"
+        :is-in-native-app="isInYunlefunApp"
+        :labels="text.account"
+        :loading="yunlefunAccountLoading"
+        settings-href="https://yunle.fun/settings"
+        @login="loginWithYunlefun"
+      />
+    </template>
+
     <template #menubar>
       <SitePainterMenubar
         :active-layer-visible="activeLayer?.visible ?? false"
         :active-tool="activeTool"
+        :available-panels="availablePanels"
+        :can-apply-filter="canApplyFilter"
         :can-move-layer-down="canMoveLayerDown"
         :can-move-layer-up="canMoveLayerUp"
         :can-redo="state?.history.canRedo ?? false"
         :can-remove-layer="canRemoveLayer"
+        :can-repeat-filter="Boolean(lastFilterCommand)"
         :can-undo="state?.history.canUndo ?? false"
+        :color-section-visibility="colorSectionVisibility"
         :disabled="!painter"
         :has-active-layer="Boolean(activeLayer)"
         :labels="text.menu"
         :locale="locale"
+        :panel-visibility="panelVisibility"
+        :shortcuts="menuShortcutLabels"
         @command="handleMenuCommand"
         @set-active-layer-visible="setActiveLayerVisible"
+        @set-color-section-visible="setColorSectionVisible"
         @set-locale="setLocale"
+        @set-panel-visible="setPanelVisible"
       />
     </template>
 
@@ -385,7 +836,7 @@ function safeFileName(name: string): string {
 
     <template #options>
       <PainterOptionsBar
-        v-if="painter"
+        v-if="painter && panelVisibility.options"
         :painter="painter"
         :labels="text.brushOptions"
         :stabilizer-strength="stabilizerStrength"
@@ -395,7 +846,9 @@ function safeFileName(name: string): string {
 
     <template #controls>
       <PainterControls
-        v-if="painter"
+        v-if="painter && panelVisibility.controls"
+        color-panel-mode="inline"
+        :color-sections="colorSectionVisibility"
         :painter="painter"
         :labels="text.controls"
         mode="palette"
@@ -405,27 +858,32 @@ function safeFileName(name: string): string {
 
     <template #layers>
       <PainterLayerPanel
-        v-if="painter"
+        v-if="painter && panelVisibility.layers"
         :layers="layers"
+        :layer-tree="layerTree"
         :active-layer-id="activeLayerId"
         :thumbnails="layerThumbnails"
         :labels="text.layers"
         @add="addLayer"
+        @add-group="addGroup"
         @remove="layerActions.remove"
         @move="layerActions.move"
+        @move-node="layerActions.moveNode"
         @select="layerActions.setActive"
+        @ungroup="layerActions.ungroup"
         @update:visible="layerActions.setVisible"
         @update:opacity="layerActions.setOpacity"
         @update:blend-mode="layerActions.setBlendMode"
         @update:label="layerActions.setLabel"
         @update:lock-alpha="layerActions.setLockAlpha"
         @update:clip="layerActions.setClip"
+        @update:group-collapsed="layerActions.setGroupCollapsed"
       />
     </template>
 
     <template #diagnostics>
       <SitePainterDiagnostics
-        v-if="showDiagnostics && (memory || input)"
+        v-if="showDiagnostics && panelVisibility.diagnostics && (memory || input)"
         :memory="memory"
         :input="input"
         :labels="text.memory"
@@ -439,5 +897,37 @@ function safeFileName(name: string): string {
     :labels="text.documents"
     @close="closeNewCanvasDialog"
     @create="createCanvasDocument"
+  />
+
+  <SiteKeyboardShortcutsDialog
+    :open="keyboardShortcutsDialogOpen"
+    :labels="text.shortcuts"
+    :rows="shortcutRows"
+    @close="closeKeyboardShortcutsDialog"
+    @reset-defaults="resetKeyboardShortcuts"
+  />
+
+  <SiteCloudSyncDialog
+    :brush-library-count="brushLibraryCount"
+    :brush-library-error-message="brushLibraryErrorMessage"
+    :brush-library-last-synced-at="brushLibraryLastSyncedAt"
+    :brush-library-status="brushLibraryStatus"
+    :error-message="cloudFileErrorMessage"
+    :files="cloudFiles"
+    :is-authenticated="isYunlefunAuthenticated"
+    :is-member="isYunlefunMember"
+    :labels="text.cloudFiles"
+    :max-bytes="cloudFileMaxBytes"
+    :open="cloudSyncDialogOpen"
+    :quota="cloudFileQuota"
+    :status="cloudFileStatus"
+    :upload-progress="cloudFileUploadProgress"
+    @close="closeCloudSyncDialog"
+    @load-file="loadCloudProject"
+    @login="loginWithYunlefunForCloudSync"
+    @refresh="refreshCloudFiles"
+    @remove-file="deleteCloudProject"
+    @sync-brush-library="syncBrushLibraryNow"
+    @upload-current="uploadCurrentProjectToCloud"
   />
 </template>

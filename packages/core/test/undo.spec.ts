@@ -202,6 +202,7 @@ describe('document', () => {
     const doc = new Document({ width: 10, height: 10 })
     expect(doc.addLayer().id).toBe('layer-1')
     expect(doc.addLayer().id).toBe('layer-2')
+    expect(doc.addGroup().id).toBe('group-1')
   })
 
   it('skips explicit ids when generating deterministic ids', () => {
@@ -244,5 +245,68 @@ describe('document', () => {
 
     doc.setOpacity(layer.id, -1)
     expect(layer.opacity).toBe(0)
+  })
+
+  it('supports nested pass-through groups while preserving flat raster order', () => {
+    const doc = new Document({ width: 100, height: 100 })
+    doc.addLayer({ id: 'paper', label: 'Paper' })
+    const group = doc.addGroup({ id: 'inks', label: 'Inks' })
+    doc.addLayer({ id: 'line', label: 'Line', parentId: group.id })
+    doc.addLayer({ id: 'shade', label: 'Shade', parentId: group.id })
+
+    expect(doc.layers.map(layer => layer.id)).toEqual(['paper', 'line', 'shade'])
+    expect(doc.layerTree).toEqual([
+      expect.objectContaining({ type: 'raster', id: 'paper' }),
+      expect.objectContaining({
+        type: 'group',
+        id: 'inks',
+        children: [
+          expect.objectContaining({ type: 'raster', id: 'line' }),
+          expect.objectContaining({ type: 'raster', id: 'shade' }),
+        ],
+      }),
+    ])
+
+    doc.moveNode('paper', { parentId: 'inks', index: 1 })
+    expect(doc.layers.map(layer => layer.id)).toEqual(['line', 'paper', 'shade'])
+
+    doc.ungroup('inks')
+    expect(doc.layerTree.map(node => node.id)).toEqual(['line', 'paper', 'shade'])
+    expect(doc.layers.map(layer => layer.id)).toEqual(['line', 'paper', 'shade'])
+  })
+
+  it('applies group visibility only to effective layers', () => {
+    const doc = new Document({ width: 100, height: 100 })
+    const group = doc.addGroup({ id: 'group', visible: true })
+    doc.addLayer({ id: 'ink', parentId: group.id, visible: true })
+
+    doc.setVisible(group.id, false)
+
+    expect(doc.getLayer('ink')?.visible).toBe(true)
+    expect(doc.layers.find(layer => layer.id === 'ink')?.visible).toBe(true)
+    expect(doc.effectiveLayers.find(layer => layer.id === 'ink')?.visible).toBe(false)
+  })
+
+  it('removes groups recursively and falls back to the top remaining raster layer', () => {
+    const doc = new Document({ width: 100, height: 100 })
+    doc.addLayer({ id: 'paper' })
+    const group = doc.addGroup({ id: 'group' })
+    doc.addLayer({ id: 'ink', parentId: group.id })
+    doc.addLayer({ id: 'paint', parentId: group.id })
+    expect(doc.activeLayerId).toBe('paint')
+
+    doc.removeLayer('group')
+
+    expect(doc.layers.map(layer => layer.id)).toEqual(['paper'])
+    expect(doc.activeLayerId).toBe('paper')
+  })
+
+  it('rejects moving a group into itself or a descendant', () => {
+    const doc = new Document({ width: 100, height: 100 })
+    const parent = doc.addGroup({ id: 'parent' })
+    const child = doc.addGroup({ id: 'child', parentId: parent.id })
+
+    expect(() => doc.moveNode(parent.id, { parentId: child.id, index: 0 }))
+      .toThrow(/Cannot move group/)
   })
 })

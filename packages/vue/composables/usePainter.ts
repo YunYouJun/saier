@@ -1,6 +1,10 @@
 import type {
   BlendMode,
+  CreateLayerGroupOptions,
+  CreateLayerOptions,
+  LayerNodeMoveTarget,
   PainterControllerState,
+  PainterLayerNodeState,
   PainterLayerState,
   PainterMemorySnapshot,
 } from '@saier/core'
@@ -33,12 +37,16 @@ export interface UsePainterReturn {
   documents: ShallowRef<PainterDocumentState[]>
   activeDocumentId: ComputedRef<string | null>
   layers: ComputedRef<PainterLayerState[]>
+  layerTree: ComputedRef<PainterLayerNodeState[]>
   activeLayerId: ComputedRef<string | null>
   layerThumbnails: ShallowRef<Record<string, string>>
   layerActions: {
-    add: () => void
+    add: (options?: CreateLayerOptions) => void
+    addGroup: (options?: CreateLayerGroupOptions) => void
     remove: (id: string) => void
     move: (id: string, toIndex: number) => void
+    moveNode: (id: string, target: LayerNodeMoveTarget) => void
+    ungroup: (id: string) => void
     setActive: (id: string) => void
     setVisible: (id: string, visible: boolean) => void
     setOpacity: (id: string, opacity: number) => void
@@ -46,6 +54,7 @@ export interface UsePainterReturn {
     setLabel: (id: string, label: string) => void
     setLockAlpha: (id: string, lockAlpha: boolean) => void
     setClip: (id: string, clip: boolean) => void
+    setGroupCollapsed: (id: string, collapsed: boolean) => void
   }
   documentActions: {
     create: (options: CreatePainterDocumentOptions) => void
@@ -67,6 +76,7 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
   const layerThumbnails = shallowRef<Record<string, string>>({})
 
   const layers = computed(() => state.value?.layers ?? [])
+  const layerTree = computed(() => state.value?.layerTree ?? [])
   const activeLayerId = computed(() => state.value?.activeLayerId ?? null)
   const activeDocumentId = computed(() => documents.value.find(document => document.active)?.id ?? null)
 
@@ -200,20 +210,39 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
   }
 
   const layerActions = {
-    add: () => {
+    add: (addOptions: CreateLayerOptions = {}) => {
       const p = requirePainter()
       if (!p)
         return
-      p.controller.layer.add({ label: `Layer ${layers.value.length + 1}` })
+      p.controller.layer.add({
+        ...addOptions,
+        label: addOptions.label ?? `Layer ${layers.value.length + 1}`,
+      })
+    },
+    addGroup: (addOptions: CreateLayerGroupOptions = {}) => {
+      const p = requirePainter()
+      if (!p)
+        return
+      p.controller.layer.addGroup({
+        ...addOptions,
+        label: addOptions.label ?? `Group ${countGroups(layerTree.value) + 1}`,
+      })
     },
     remove: (id: string) => {
       const p = requirePainter()
-      if (!p || layers.value.length <= 1)
+      const node = findLayerNode(layerTree.value, id)
+      if (!p || !node || layers.value.length - countRasterLayers(node) < 1)
         return
       p.controller.layer.remove(id)
     },
     move: (id: string, toIndex: number) => {
       requirePainter()?.controller.layer.move(id, toIndex)
+    },
+    moveNode: (id: string, target: LayerNodeMoveTarget) => {
+      requirePainter()?.controller.layer.moveNode(id, target)
+    },
+    ungroup: (id: string) => {
+      requirePainter()?.controller.layer.ungroup(id)
     },
     setActive: (id: string) => {
       requirePainter()?.controller.layer.setActive(id)
@@ -235,6 +264,9 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     },
     setClip: (id: string, clip: boolean) => {
       requirePainter()?.controller.layer.setClip(id, clip)
+    },
+    setGroupCollapsed: (id: string, collapsed: boolean) => {
+      requirePainter()?.controller.layer.setGroupCollapsed(id, collapsed)
     },
   }
 
@@ -307,6 +339,7 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     documents,
     activeDocumentId,
     layers,
+    layerTree,
     activeLayerId,
     layerThumbnails,
     layerActions,
@@ -329,4 +362,33 @@ function sizeFromCanvas(canvas: HTMLCanvasElement): PainterOptions['size'] | und
     width: Math.round(box.width),
     height: Math.round(box.height),
   }
+}
+
+function findLayerNode(nodes: readonly PainterLayerNodeState[], id: string): PainterLayerNodeState | undefined {
+  for (const node of nodes) {
+    if (node.id === id)
+      return node
+    if (node.type === 'group') {
+      const found = findLayerNode(node.children, id)
+      if (found)
+        return found
+    }
+  }
+  return undefined
+}
+
+function countRasterLayers(node: PainterLayerNodeState): number {
+  if (node.type === 'raster')
+    return 1
+  return node.children.reduce((sum, child) => sum + countRasterLayers(child), 0)
+}
+
+function countGroups(nodes: readonly PainterLayerNodeState[]): number {
+  let count = 0
+  for (const node of nodes) {
+    if (node.type !== 'group')
+      continue
+    count += 1 + countGroups(node.children)
+  }
+  return count
 }

@@ -1,7 +1,15 @@
 import type { Emitter } from 'mitt'
 import type { BrushEngineRegistry, BrushPreset, BrushPresetId, BrushPresetSummary } from '../brush'
-import type { CreateLayerOptions, Document, UndoManager } from '../document'
-import type { BlendMode, LayerMaskRef, RasterLayer } from '../document/RasterLayer'
+import type {
+  CreateLayerGroupOptions,
+  CreateLayerOptions,
+  Document,
+  DocumentLayersChangeEvent,
+  LayerNode,
+  LayerNodeMoveTarget,
+  UndoManager,
+} from '../document'
+import type { BlendMode, LayerGroup, LayerMaskRef, RasterLayer } from '../document/RasterLayer'
 import type { LayerTransform } from '../math'
 import type { RGBA } from '../types'
 import mitt from 'mitt'
@@ -56,6 +64,7 @@ export interface CreateCustomBrushPresetOptions {
 }
 
 export interface PainterLayerState {
+  type: 'raster'
   id: string
   label: string
   visible: boolean
@@ -68,6 +77,17 @@ export interface PainterLayerState {
   mask?: LayerMaskRef
 }
 
+export interface PainterLayerGroupState {
+  type: 'group'
+  id: string
+  label: string
+  visible: boolean
+  collapsed: boolean
+  children: PainterLayerNodeState[]
+}
+
+export type PainterLayerNodeState = PainterLayerState | PainterLayerGroupState
+
 export interface PainterHistoryState {
   canUndo: boolean
   canRedo: boolean
@@ -77,6 +97,7 @@ export interface PainterControllerState {
   tool: PainterTool
   brush: PainterBrushState
   layers: PainterLayerState[]
+  layerTree: PainterLayerNodeState[]
   activeLayerId: string | null
   history: PainterHistoryState
 }
@@ -84,7 +105,7 @@ export interface PainterControllerState {
 export interface PainterControllerEvents {
   'tool:change': PainterTool
   'brush:change': PainterBrushState
-  'layers:change': { layers: PainterLayerState[], activeLayerId: string | null }
+  'layers:change': { layers: PainterLayerState[], layerTree: PainterLayerNodeState[], activeLayerId: string | null }
   'history:change': PainterHistoryState
   [key: string]: unknown
   [key: symbol]: unknown
@@ -136,12 +157,16 @@ export class PainterController {
     registerPreset: (preset: BrushPreset, options?: RegisterBrushPresetOptions) => this.registerBrushPreset(preset, options),
     createCustomPreset: (options: CreateCustomBrushPresetOptions) => this.createCustomBrushPreset(options),
     removePreset: (id: BrushPresetId) => this.removeBrushPreset(id),
+    listPresets: () => this.listBrushPresets(),
   }
 
   readonly layer = {
     add: (options?: CreateLayerOptions) => this.addLayer(options),
+    addGroup: (options?: CreateLayerGroupOptions) => this.addLayerGroup(options),
     remove: (id: string) => this.removeLayer(id),
     move: (id: string, toIndex: number) => this.moveLayer(id, toIndex),
+    moveNode: (id: string, target: LayerNodeMoveTarget) => this.moveLayerNode(id, target),
+    ungroup: (id: string) => this.ungroupLayer(id),
     setActive: (id: string) => this.setActiveLayer(id),
     setVisible: (id: string, visible: boolean) => this.setLayerVisible(id, visible),
     setOpacity: (id: string, opacity: number) => this.setLayerOpacity(id, opacity),
@@ -149,6 +174,7 @@ export class PainterController {
     setLabel: (id: string, label: string) => this.setLayerLabel(id, label),
     setLockAlpha: (id: string, lockAlpha: boolean) => this.setLayerLockAlpha(id, lockAlpha),
     setClip: (id: string, clip: boolean) => this.setLayerClip(id, clip),
+    setGroupCollapsed: (id: string, collapsed: boolean) => this.setLayerGroupCollapsed(id, collapsed),
     setTransform: (id: string, transform: LayerTransform | undefined) => this.setLayerTransform(id, transform),
     addMask: (id: string, maskId?: string) => this.addLayerMask(id, maskId),
     removeMask: (id: string) => this.removeLayerMask(id),
@@ -164,6 +190,7 @@ export class PainterController {
   private tool: PainterTool
   private brushState: PainterBrushState
   private layers: PainterLayerState[]
+  private layerTree: PainterLayerNodeState[]
   private activeLayerId: string | null
   private historyState: PainterHistoryState
 
@@ -175,6 +202,7 @@ export class PainterController {
     this.tool = options.tool ?? 'brush'
     this.brushState = normalizeBrushState(options.brush, this.brushPresets, this.brushEngineRegistry)
     this.layers = snapshotLayers(this.document.layers)
+    this.layerTree = snapshotLayerTree(this.document.layerTree)
     this.activeLayerId = this.document.activeLayerId
     this.historyState = options.history
       ? {
@@ -197,6 +225,7 @@ export class PainterController {
       tool: this.tool,
       brush: cloneBrushState(this.brushState),
       layers: cloneLayerStates(this.layers),
+      layerTree: cloneLayerNodeStates(this.layerTree),
       activeLayerId: this.activeLayerId,
       history: { ...this.historyState },
     }
@@ -214,6 +243,7 @@ export class PainterController {
     this.document = binding.document
     this.history = binding.history ?? null
     this.layers = snapshotLayers(this.document.layers)
+    this.layerTree = snapshotLayerTree(this.document.layerTree)
     this.activeLayerId = this.document.activeLayerId
     this.historyState = this.history
       ? {
@@ -224,6 +254,7 @@ export class PainterController {
     this.bindSources()
     this.emitter.emit('layers:change', {
       layers: cloneLayerStates(this.layers),
+      layerTree: cloneLayerNodeStates(this.layerTree),
       activeLayerId: this.activeLayerId,
     })
     this.emitter.emit('history:change', { ...this.historyState })
@@ -237,12 +268,24 @@ export class PainterController {
     return snapshotLayer(this.document.addLayer(options))
   }
 
+  addLayerGroup(options?: CreateLayerGroupOptions): PainterLayerGroupState {
+    return snapshotLayerGroup(this.document.addGroup(options))
+  }
+
   removeLayer(id: string): void {
     this.document.removeLayer(id)
   }
 
   moveLayer(id: string, toIndex: number): void {
     this.document.moveLayer(id, toIndex)
+  }
+
+  moveLayerNode(id: string, target: LayerNodeMoveTarget): void {
+    this.document.moveNode(id, target)
+  }
+
+  ungroupLayer(id: string): void {
+    this.document.ungroup(id)
   }
 
   setLayerVisible(id: string, visible: boolean): void {
@@ -267,6 +310,10 @@ export class PainterController {
 
   setLayerClip(id: string, clip: boolean): void {
     this.document.setClip(id, clip)
+  }
+
+  setLayerGroupCollapsed(id: string, collapsed: boolean): void {
+    this.document.setGroupCollapsed(id, collapsed)
   }
 
   setLayerTransform(id: string, transform: LayerTransform | undefined): void {
@@ -401,6 +448,10 @@ export class PainterController {
     return true
   }
 
+  private listBrushPresets(): BrushPreset[] {
+    return this.brushPresets.map(clonePreset)
+  }
+
   private setBrushSize(size: number): void {
     const next = Math.max(1, size)
     if (this.brushState.size === next)
@@ -521,13 +572,13 @@ export class PainterController {
     return this.brushPresets.map(preset => toBrushPresetSummary(preset, this.brushEngineRegistry))
   }
 
-  private handleLayersChange = (
-    event: { layers: RasterLayer[], activeLayerId: string | null },
-  ): void => {
+  private handleLayersChange = (event: DocumentLayersChangeEvent): void => {
     this.layers = snapshotLayers(event.layers)
+    this.layerTree = snapshotLayerTree(event.layerTree)
     this.activeLayerId = event.activeLayerId
     this.emitter.emit('layers:change', {
       layers: cloneLayerStates(this.layers),
+      layerTree: cloneLayerNodeStates(this.layerTree),
       activeLayerId: this.activeLayerId,
     })
   }
@@ -573,6 +624,7 @@ function snapshotLayers(layers: RasterLayer[]): PainterLayerState[] {
 
 function snapshotLayer(layer: RasterLayer): PainterLayerState {
   return {
+    type: 'raster',
     id: layer.id,
     label: layer.label,
     visible: layer.visible,
@@ -585,12 +637,50 @@ function snapshotLayer(layer: RasterLayer): PainterLayerState {
   }
 }
 
+function snapshotLayerTree(nodes: LayerNode[]): PainterLayerNodeState[] {
+  return nodes.map(snapshotLayerNode)
+}
+
+function snapshotLayerNode(node: LayerNode): PainterLayerNodeState {
+  if (node.type === 'raster')
+    return snapshotLayer(node)
+  return snapshotLayerGroup(node)
+}
+
+function snapshotLayerGroup(group: LayerGroup): PainterLayerGroupState {
+  return {
+    type: 'group',
+    id: group.id,
+    label: group.label,
+    visible: group.visible,
+    collapsed: group.collapsed,
+    children: group.children.map(snapshotLayerNode),
+  }
+}
+
 function cloneLayerStates(layers: PainterLayerState[]): PainterLayerState[] {
   return layers.map(layer => ({
     ...layer,
     ...(layer.transform ? { transform: { ...layer.transform } } : {}),
     ...(layer.mask ? { mask: { ...layer.mask } } : {}),
   }))
+}
+
+function cloneLayerNodeStates(nodes: PainterLayerNodeState[]): PainterLayerNodeState[] {
+  return nodes.map((node): PainterLayerNodeState => {
+    if (node.type === 'raster') {
+      return {
+        ...node,
+        ...(node.transform ? { transform: { ...node.transform } } : {}),
+        ...(node.mask ? { mask: { ...node.mask } } : {}),
+      }
+    }
+
+    return {
+      ...node,
+      children: cloneLayerNodeStates(node.children),
+    }
+  })
 }
 
 function cloneBrushState(brush: PainterBrushState): PainterBrushState {

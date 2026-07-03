@@ -57,12 +57,14 @@ describe('saier project save/load (P8)', () => {
     painter.controller.layer.setLabel(paperId, 'Paper')
     backend(painter).getSurface(paperId).writeRegion({ x: 3, y: 4, width: 1, height: 1 }, pixel([255, 0, 0, 255]))
 
+    painter.controller.layer.addGroup({ id: 'inks', label: 'Inks', collapsed: true })
     painter.controller.layer.add({
       id: 'ink',
       label: 'Ink',
       opacity: 0.5,
       blendMode: 'multiply',
       clip: true,
+      parentId: 'inks',
     })
     backend(painter).getSurface('ink').writeRegion({ x: 12, y: 5, width: 1, height: 1 }, pixel([0, 0, 160, 200]))
     painter.controller.layer.addMask('ink', 'ink-mask')
@@ -73,7 +75,7 @@ describe('saier project save/load (P8)', () => {
     const project = painter.exportProject({ metadata: { name: 'Saved File' } })
     expect(project).toMatchObject({
       format: 'saier.project',
-      version: 1,
+      version: 2,
       width: 32,
       height: 32,
       metadata: { name: 'Saved File' },
@@ -89,6 +91,16 @@ describe('saier project save/load (P8)', () => {
         }),
       ],
     })
+    expect(project.layerTree).toEqual([
+      expect.objectContaining({ type: 'raster', id: paperId, label: 'Paper' }),
+      expect.objectContaining({
+        type: 'group',
+        id: 'inks',
+        label: 'Inks',
+        collapsed: true,
+        children: [expect.objectContaining({ type: 'raster', id: 'ink' })],
+      }),
+    ])
 
     const imported = painter.importProject(project, { id: 'loaded' })
     expect(imported).toMatchObject({
@@ -109,6 +121,16 @@ describe('saier project save/load (P8)', () => {
         blendMode: 'multiply',
         clip: true,
         mask: { id: 'ink-mask', enabled: true },
+      }),
+    ])
+    expect(painter.document.layerTree).toEqual([
+      expect.objectContaining({ type: 'raster', id: paperId, label: 'Paper' }),
+      expect.objectContaining({
+        type: 'group',
+        id: 'inks',
+        label: 'Inks',
+        collapsed: true,
+        children: [expect.objectContaining({ type: 'raster', id: 'ink' })],
       }),
     ])
     expect(readPixel(painter, paperId, 3, 4)).toEqual(pixel([255, 0, 0, 255]))

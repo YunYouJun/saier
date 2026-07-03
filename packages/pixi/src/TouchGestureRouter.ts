@@ -1,5 +1,7 @@
 import type { ViewportPoint } from './PixiViewport'
 
+export const DEFAULT_PINCH_ZOOM_SENSITIVITY = 1.35
+
 export interface PointerGestureEventLike {
   pointerId: number
   pointerType?: string
@@ -14,6 +16,11 @@ export interface GestureViewport {
 
 export interface TouchGestureRouterOptions {
   viewport: GestureViewport
+  /**
+   * Exponent applied to the raw pinch distance ratio.
+   * `1` keeps physical one-to-one scaling; values above `1` feel more like paint apps.
+   */
+  pinchZoomSensitivity?: number
   onStrokeStart?: (event: PointerGestureEventLike) => void
   onStrokeMove?: (event: PointerGestureEventLike) => void
   onStrokeEnd?: (event: PointerGestureEventLike) => void
@@ -34,6 +41,7 @@ interface TrackedTouch {
  */
 export class TouchGestureRouter {
   private readonly viewport: GestureViewport
+  private readonly pinchZoomSensitivity: number
   private readonly onStrokeStart?: (event: PointerGestureEventLike) => void
   private readonly onStrokeMove?: (event: PointerGestureEventLike) => void
   private readonly onStrokeEnd?: (event: PointerGestureEventLike) => void
@@ -46,6 +54,7 @@ export class TouchGestureRouter {
 
   constructor(options: TouchGestureRouterOptions) {
     this.viewport = options.viewport
+    this.pinchZoomSensitivity = normalizePinchZoomSensitivity(options.pinchZoomSensitivity)
     this.onStrokeStart = options.onStrokeStart
     this.onStrokeMove = options.onStrokeMove
     this.onStrokeEnd = options.onStrokeEnd
@@ -141,7 +150,10 @@ export class TouchGestureRouter {
       current.centroid.x - this.lastCentroid.x,
       current.centroid.y - this.lastCentroid.y,
     )
-    this.viewport.zoomAt(current.centroid, current.distance / this.lastDistance)
+    this.viewport.zoomAt(
+      current.centroid,
+      applyPinchZoomSensitivity(current.distance / this.lastDistance, this.pinchZoomSensitivity),
+    )
     this.lastCentroid = current.centroid
     this.lastDistance = current.distance
   }
@@ -183,4 +195,18 @@ function toTouch(event: PointerGestureEventLike): TrackedTouch {
     x: event.clientX,
     y: event.clientY,
   }
+}
+
+function applyPinchZoomSensitivity(distanceRatio: number, sensitivity: number): number {
+  if (!Number.isFinite(distanceRatio) || distanceRatio <= 0)
+    return 1
+
+  return Math.exp(Math.log(distanceRatio) * sensitivity)
+}
+
+function normalizePinchZoomSensitivity(sensitivity: number | undefined): number {
+  if (sensitivity === undefined || !Number.isFinite(sensitivity) || sensitivity <= 0)
+    return DEFAULT_PINCH_ZOOM_SENSITIVITY
+
+  return sensitivity
 }

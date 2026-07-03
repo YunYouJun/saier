@@ -17,7 +17,7 @@ afterEach(() => {
     item.unmount()
 })
 
-function createFakePainter(options: { presetId?: BrushPresetId, hasSampler?: boolean, includeExternalPreset?: boolean } = {}) {
+function createFakePainter(options: { presetId?: BrushPresetId, hasSampler?: boolean, includeCustomPresetGroup?: string, includeExternalPreset?: boolean } = {}) {
   const presetId = options.presetId ?? 'pen'
   const preset = DEFAULT_BRUSH_PRESETS.find(item => item.id === presetId) ?? DEFAULT_BRUSH_PRESETS[0]!
   const brush: PainterBrushState = {
@@ -48,6 +48,22 @@ function createFakePainter(options: { presetId?: BrushPresetId, hasSampler?: boo
         supportsMixingControls: item.engine === 'smudge',
       })),
       ...(
+        options.includeCustomPresetGroup
+          ? [{
+              id: 'custom-brush' as BrushPresetId,
+              name: 'Custom Brush',
+              group: options.includeCustomPresetGroup,
+              source: 'custom' as const,
+              custom: true,
+              engine: 'simple',
+              tipId: 'round-hard',
+              engineAvailable: true,
+              requiresSurfaceSampler: false,
+              supportsMixingControls: false,
+            }]
+          : []
+      ),
+      ...(
         options.includeExternalPreset
           ? [{
               id: 'myb-wasm' as BrushPresetId,
@@ -69,6 +85,7 @@ function createFakePainter(options: { presetId?: BrushPresetId, hasSampler?: boo
     brush,
     history: { canRedo: false, canUndo: false },
     layers: [],
+    layerTree: [],
     tool: 'brush',
   }
 
@@ -76,10 +93,10 @@ function createFakePainter(options: { presetId?: BrushPresetId, hasSampler?: boo
     brush: {
       getStabilizerStrength: vi.fn(() => 1),
       setColorAmount: vi.fn(),
-      createCustomPreset: vi.fn(() => ({
+      createCustomPreset: vi.fn((createOptions: { name: string, group?: string }) => ({
         id: 'custom-brush' as BrushPresetId,
-        name: 'Custom Brush',
-        group: 'Custom',
+        name: createOptions.name,
+        group: createOptions.group,
         source: 'custom',
         custom: true,
         engine: 'simple',
@@ -215,15 +232,45 @@ describe('painter options bar P7 controls', () => {
     const { el, painter } = mountOptionsBar()
 
     expect(el.textContent).toContain('Sketching')
-    expect(el.querySelector('.brush-preset-list')).toBeTruthy()
+    expect(el.querySelector('.brush-preset-grid')).toBeTruthy()
+    expect(el.querySelector('.brush-preset-preview')).toBeTruthy()
 
     buttonByLabel(el, 'Save current brush').click()
     await nextTick()
 
     expect(painter.brush.createCustomPreset).toHaveBeenCalledWith({
       name: 'Custom Brush',
-      group: 'Custom',
+      group: 'Sketching',
       select: true,
     })
+  })
+
+  it('creates an empty brush group and saves the current brush into it', async () => {
+    const { el, painter } = mountOptionsBar()
+
+    buttonByLabel(el, 'New brush group').click()
+    await nextTick()
+
+    expect(el.textContent).toContain('Custom Group')
+
+    buttonByLabel(el, 'Save current brush').click()
+    await nextTick()
+
+    expect(painter.brush.createCustomPreset).toHaveBeenCalledWith({
+      name: 'Custom Brush',
+      group: 'Custom Group',
+      select: true,
+    })
+  })
+
+  it('removes custom brush groups and their custom presets', async () => {
+    const { el, painter } = mountOptionsBar({ includeCustomPresetGroup: 'Favorites' })
+
+    buttonByText(el, 'Favorites').click()
+    await nextTick()
+    buttonByLabel(el, 'Remove brush group').click()
+    await nextTick()
+
+    expect(painter.brush.removePreset).toHaveBeenCalledWith('custom-brush')
   })
 })

@@ -7,26 +7,36 @@ import {
 } from 'reka-ui'
 import { computed, useId } from 'vue'
 
+type PainterSliderVariant = 'compact' | 'panel'
+
 const props = withDefaults(defineProps<{
   disabled?: boolean
   formatValue?: (value: number) => string
+  icon?: string
   label: string
   max?: number
   min?: number
   precision?: number
   step?: number
   unit?: string
+  variant?: PainterSliderVariant
 }>(), {
   disabled: false,
   max: 100,
   min: 0,
   step: 1,
   unit: '',
+  variant: 'panel',
 })
 
 const model = defineModel<number>({ required: true })
 
 const labelId = useId()
+
+const rootClass = computed(() => [
+  'painter-slider',
+  `painter-slider--${props.variant}`,
+])
 
 const sliderValue = computed({
   get(): number[] {
@@ -59,11 +69,16 @@ function precisionFromStep(step: number): number {
 </script>
 
 <template>
-  <div class="painter-slider" :data-disabled="disabled ? '' : undefined">
-    <div class="painter-slider__header">
+  <div :class="rootClass" :data-disabled="disabled ? '' : undefined">
+    <div v-if="variant === 'panel'" class="painter-slider__header">
       <span :id="labelId" class="painter-slider__label">{{ label }}</span>
       <output class="painter-slider__value">{{ displayValue }}</output>
     </div>
+
+    <template v-else>
+      <span v-if="icon" class="painter-slider__icon" :class="icon" aria-hidden="true" />
+      <span :id="labelId" class="painter-slider__label">{{ label }}</span>
+    </template>
 
     <SliderRoot
       v-model="sliderValue"
@@ -81,8 +96,10 @@ function precisionFromStep(step: number): number {
       <SliderTrack class="painter-slider__track">
         <SliderRange class="painter-slider__range" />
       </SliderTrack>
-      <SliderThumb class="painter-slider__thumb" />
+      <SliderThumb class="painter-slider__thumb" :aria-label="label" :aria-valuetext="displayValue" />
     </SliderRoot>
+
+    <output v-if="variant !== 'panel'" class="painter-slider__value">{{ displayValue }}</output>
   </div>
 </template>
 
@@ -108,6 +125,11 @@ function precisionFromStep(step: number): number {
   min-width: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.painter-slider__icon {
+  flex: 0 0 auto;
+  color: currentColor;
 }
 
 .painter-slider__value {
@@ -170,5 +192,54 @@ function precisionFromStep(step: number): number {
 
 .painter-slider[data-disabled] {
   opacity: 0.45;
+}
+
+.painter-slider--compact {
+  display: inline-flex;
+  height: 28px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 7px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 5px;
+  color: rgb(255 255 255 / 76%);
+}
+
+.painter-slider--compact .painter-slider__icon {
+  font-size: 16px;
+}
+
+.painter-slider--compact .painter-slider__label {
+  max-width: 78px;
+}
+
+.painter-slider--compact .painter-slider__root {
+  width: var(--painter-slider-compact-track-size, 88px);
+  flex: 0 0 var(--painter-slider-compact-track-size, 88px);
+}
+
+.painter-slider--compact .painter-slider__track {
+  height: 5px;
+}
+
+.painter-slider--compact .painter-slider__thumb {
+  width: 10px;
+  height: 16px;
+  border-radius: 3px;
+}
+
+.painter-slider--compact .painter-slider__value {
+  min-width: 2ch;
+}
+
+@media (max-width: 640px) {
+  .painter-slider--compact .painter-slider__label {
+    display: none;
+  }
+
+  .painter-slider--compact .painter-slider__root {
+    width: var(--painter-slider-compact-track-size-mobile, 74px);
+    flex-basis: var(--painter-slider-compact-track-size-mobile, 74px);
+  }
 }
 </style>

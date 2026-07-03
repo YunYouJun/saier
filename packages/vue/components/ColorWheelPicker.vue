@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, shallowRef, useId, watch } from 'vue'
+import PainterSlider from './PainterSlider.vue'
 
 interface HsvColor {
   h: number
@@ -7,20 +8,38 @@ interface HsvColor {
   v: number
 }
 
+interface RgbColor {
+  r: number
+  g: number
+  b: number
+}
+
 interface ColorWheelPickerLabels {
+  blue: string
   current: string
+  green: string
   hex: string
   hue: string
   palette: string
+  red: string
   saturation: string
   value: string
 }
 
+type ColorPickerSectionId = 'palette' | 'rgbSliders' | 'wheel'
+
+type ColorPickerVisibleSections = Partial<Record<ColorPickerSectionId, boolean>>
+
+type ColorWheelPickerDensity = 'comfortable' | 'compact'
+
 const props = withDefaults(defineProps<{
+  density?: ColorWheelPickerDensity
   labels?: Partial<ColorWheelPickerLabels>
   size?: number
   swatches?: string[]
+  visibleSections?: ColorPickerVisibleSections
 }>(), {
+  density: 'comfortable',
   size: 148,
   swatches: () => [
     '#000000',
@@ -43,10 +62,13 @@ const hueId = useId()
 const svId = useId()
 
 const DEFAULT_LABELS: ColorWheelPickerLabels = {
+  blue: 'Blue',
   current: 'Current color',
+  green: 'Green',
   hex: 'Hex',
   hue: 'Hue',
   palette: 'Palette',
+  red: 'Red',
   saturation: 'Saturation',
   value: 'Value',
 }
@@ -60,6 +82,10 @@ const hsv = shallowRef<HsvColor>(hexToHsv(toHex(model.value)))
 const hexValue = shallowRef(toHex(model.value))
 let activeDrag: 'hue' | 'sv' | null = null
 let activeDragTarget: HTMLElement | null = null
+
+const pickerClass = computed(() => ({
+  'color-wheel-picker--compact': props.density === 'compact',
+}))
 
 const wheelStyle = computed(() => ({
   width: `${props.size}px`,
@@ -75,8 +101,9 @@ const hueThumbStyle = computed(() => {
   }
 })
 
-const svBackground = computed(() => ({
+const svStyle = computed(() => ({
   backgroundColor: `hsl(${hsv.value.h} 100% 50%)`,
+  height: `${props.size}px`,
 }))
 
 const svThumbStyle = computed(() => ({
@@ -85,6 +112,28 @@ const svThumbStyle = computed(() => ({
 }))
 
 const normalizedSwatches = computed(() => props.swatches.map(toHex))
+const visible = computed<Required<Record<ColorPickerSectionId, boolean>>>(() => ({
+  palette: props.visibleSections?.palette ?? true,
+  rgbSliders: props.visibleSections?.rgbSliders ?? true,
+  wheel: props.visibleSections?.wheel ?? true,
+}))
+
+const rgb = computed(() => hexToRgb(hexValue.value))
+
+const red = computed({
+  get: () => rgb.value.r,
+  set: value => setRgbChannel('r', value),
+})
+
+const green = computed({
+  get: () => rgb.value.g,
+  set: value => setRgbChannel('g', value),
+})
+
+const blue = computed({
+  get: () => rgb.value.b,
+  set: value => setRgbChannel('b', value),
+})
 
 watch(() => model.value, (value) => {
   const next = toHex(value)
@@ -217,6 +266,14 @@ function selectSwatch(color: string): void {
   setHsv(hexToHsv(color))
 }
 
+function setRgbChannel(channel: keyof RgbColor, value: number): void {
+  const nextRgb = { ...hexToRgb(hexValue.value), [channel]: clampByte(value) }
+  const next = rgbToHex(nextRgb)
+  hexValue.value = next
+  hsv.value = hexToHsv(next)
+  model.value = next
+}
+
 function setHsv(next: HsvColor): void {
   hsv.value = {
     h: normalizeHue(next.h),
@@ -273,6 +330,15 @@ function hexToHsv(hex: string): HsvColor {
   }
 }
 
+function hexToRgb(hex: string): RgbColor {
+  const value = Number.parseInt(toHex(hex).replace(/^#/, ''), 16)
+  return {
+    r: (value >> 16) & 0xFF,
+    g: (value >> 8) & 0xFF,
+    b: value & 0xFF,
+  }
+}
+
 function hsvToHex(color: HsvColor): string {
   const h = normalizeHue(color.h)
   const s = clamp01(color.s)
@@ -300,6 +366,20 @@ function hsvToHex(color: HsvColor): string {
   return `#${toHexByte(r + m)}${toHexByte(g + m)}${toHexByte(b + m)}`
 }
 
+function rgbToHex(color: RgbColor): string {
+  return `#${toHexByte(color.r / 255)}${toHexByte(color.g / 255)}${toHexByte(color.b / 255)}`
+}
+
+function clampByte(value: number): number {
+  return Number.isFinite(value)
+    ? Math.max(0, Math.min(255, Math.round(value)))
+    : 0
+}
+
+function formatRgbValue(value: number): string {
+  return String(clampByte(value))
+}
+
 function toHexByte(value: number): string {
   return Math.round(clamp01(value) * 255).toString(16).padStart(2, '0')
 }
@@ -314,8 +394,8 @@ function normalizeHue(value: number): number {
 </script>
 
 <template>
-  <div class="color-wheel-picker">
-    <div class="color-wheel-picker__pickers">
+  <div class="color-wheel-picker" :class="pickerClass">
+    <div v-if="visible.wheel" class="color-wheel-picker__pickers">
       <div
         :id="hueId"
         class="color-wheel-picker__wheel"
@@ -339,7 +419,7 @@ function normalizeHue(value: number): number {
         role="group"
         tabindex="0"
         :aria-label="`${text.saturation} / ${text.value}`"
-        :style="svBackground"
+        :style="svStyle"
         @keydown="onSvKeydown"
         @pointerdown.prevent="beginSvDrag"
       >
@@ -361,7 +441,34 @@ function normalizeHue(value: number): number {
       </label>
     </div>
 
-    <div class="color-wheel-picker__palette" :aria-label="text.palette">
+    <div v-if="visible.rgbSliders" class="color-wheel-picker__rgb">
+      <PainterSlider
+        v-model="red"
+        :label="text.red"
+        :max="255"
+        :min="0"
+        :step="1"
+        :format-value="formatRgbValue"
+      />
+      <PainterSlider
+        v-model="green"
+        :label="text.green"
+        :max="255"
+        :min="0"
+        :step="1"
+        :format-value="formatRgbValue"
+      />
+      <PainterSlider
+        v-model="blue"
+        :label="text.blue"
+        :max="255"
+        :min="0"
+        :step="1"
+        :format-value="formatRgbValue"
+      />
+    </div>
+
+    <div v-if="visible.palette" class="color-wheel-picker__palette" :aria-label="text.palette">
       <button
         v-for="swatch in normalizedSwatches"
         :key="swatch"
@@ -426,7 +533,6 @@ function normalizeHue(value: number): number {
 
 .color-wheel-picker__sv {
   position: relative;
-  height: 148px;
   min-width: 0;
   overflow: hidden;
   border: 1px solid rgb(255 255 255 / 12%);
@@ -454,6 +560,10 @@ function normalizeHue(value: number): number {
   gap: 10px;
   align-items: end;
   margin-top: 12px;
+}
+
+.color-wheel-picker__fields:first-child {
+  margin-top: 0;
 }
 
 .color-wheel-picker__preview {
@@ -492,6 +602,12 @@ function normalizeHue(value: number): number {
   margin-top: 12px;
 }
 
+.color-wheel-picker__rgb {
+  display: grid;
+  gap: 9px;
+  margin-top: 12px;
+}
+
 .color-wheel-picker__swatch {
   aspect-ratio: 1;
   min-width: 0;
@@ -505,5 +621,55 @@ function normalizeHue(value: number): number {
   box-shadow:
     inset 0 0 0 1px rgb(0 0 0 / 32%),
     0 0 0 2px rgb(96 165 250 / 70%);
+}
+
+.color-wheel-picker--compact .color-wheel-picker__pickers {
+  grid-template-columns: auto minmax(86px, 1fr);
+  gap: 8px;
+}
+
+.color-wheel-picker--compact .color-wheel-picker__wheel-hole {
+  inset: 14px;
+}
+
+.color-wheel-picker--compact .color-wheel-picker__wheel-thumb,
+.color-wheel-picker--compact .color-wheel-picker__sv-thumb {
+  width: 12px;
+  height: 12px;
+}
+
+.color-wheel-picker--compact .color-wheel-picker__fields {
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.color-wheel-picker--compact .color-wheel-picker__preview {
+  width: 28px;
+  height: 28px;
+}
+
+.color-wheel-picker--compact .color-wheel-picker__hex {
+  gap: 3px;
+}
+
+.color-wheel-picker--compact .color-wheel-picker__hex input {
+  height: 26px;
+  padding-inline: 7px;
+}
+
+.color-wheel-picker--compact .color-wheel-picker__rgb {
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.color-wheel-picker--compact .color-wheel-picker__palette {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.color-wheel-picker--compact .color-wheel-picker__swatch {
+  border-radius: 5px;
 }
 </style>

@@ -1,18 +1,22 @@
 <script lang="ts" setup>
 import type { PainterBrushState } from '@saier/core'
 import type { Painter } from 'saier'
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, shallowRef } from 'vue'
+import ColorWheelPicker from './ColorWheelPicker.vue'
 
 interface PainterControlsLabels {
   backgroundColor: string
+  blue: string
   brush: string
   colorPicker: string
   eraser: string
   foregroundColor: string
+  green: string
   hex: string
   hue: string
   image: string
   palette: string
+  red: string
   selection: string
   saturation: string
   value: string
@@ -25,7 +29,13 @@ interface PainterControlsLabels {
   redo: string
 }
 
+type ColorPickerSectionId = 'palette' | 'rgbSliders' | 'wheel'
+
+type ColorPickerVisibleSections = Partial<Record<ColorPickerSectionId, boolean>>
+
 const props = defineProps<{
+  colorPanelMode?: 'inline' | 'popover'
+  colorSections?: ColorPickerVisibleSections
   painter: Painter
   labels?: Partial<PainterControlsLabels>
   mode?: 'full' | 'palette'
@@ -35,21 +45,25 @@ const emit = defineEmits<{
   extract: [dataUrl: string]
 }>()
 
-const backgroundColor = ref<string | number>(Number(props.painter.background.color) || 0xFFFFFF)
+const backgroundColor = shallowRef<string | number>(Number(props.painter.background.color) || 0xFFFFFF)
 const controllerState = props.painter.controller.getState()
-const activeTool = ref(controllerState.tool)
-const brushColor = ref<string | number>(rgbaToHex(controllerState.brush.color))
+const activeTool = shallowRef(controllerState.tool)
+const activeColorTarget = shallowRef<'background' | 'brush'>('brush')
+const brushColor = shallowRef<string | number>(rgbaToHex(controllerState.brush.color))
 
 const DEFAULT_LABELS: PainterControlsLabels = {
   backgroundColor: 'Background color',
+  blue: 'Blue',
   brush: 'Brush',
   colorPicker: 'Color picker',
   eraser: 'Eraser',
   foregroundColor: 'Brush color',
+  green: 'Green',
   hex: 'Hex',
   hue: 'Hue',
   image: 'Import image',
   palette: 'Palette',
+  red: 'Red',
   selection: 'Selection',
   saturation: 'Saturation',
   value: 'Value',
@@ -68,16 +82,30 @@ const text = computed(() => ({
 }))
 
 const colorPickerLabels = computed(() => ({
+  blue: text.value.blue,
   current: text.value.colorPicker,
+  green: text.value.green,
   hex: text.value.hex,
   hue: text.value.hue,
   palette: text.value.palette,
+  red: text.value.red,
   saturation: text.value.saturation,
   value: text.value.value,
 }))
 
+const activeColor = computed({
+  get: () => activeColorTarget.value === 'brush' ? brushColor.value : backgroundColor.value,
+  set: (color: string | number) => {
+    if (activeColorTarget.value === 'brush')
+      onBrushColorChange(color)
+    else
+      onBackgroundColorChange(color)
+  },
+})
+
 function onBackgroundColorChange(color: number | string) {
   const background = props.painter.background
+  backgroundColor.value = color
   if (background)
     background.color = color
 }
@@ -186,6 +214,13 @@ function rgbaToHex(color: PainterBrushState['color']): string {
   return `#${toHexByte(color.r)}${toHexByte(color.g)}${toHexByte(color.b)}`
 }
 
+function toColorStyle(color: number | string): string {
+  if (typeof color === 'number')
+    return `#${Math.round(color).toString(16).padStart(6, '0').slice(-6)}`
+
+  return color
+}
+
 function toHexByte(value: number): string {
   return Math.round(Math.max(0, Math.min(1, value)) * 255)
     .toString(16)
@@ -195,7 +230,16 @@ function toHexByte(value: number): string {
 
 <template>
   <!-- eslint-disable vue/no-mutating-props -->
-  <div rounded-lg bg="dark-100" flex="~ col" gap="1" p="1" text-white>
+  <div
+    class="painter-controls"
+    :class="{ 'painter-controls--inline-color': colorPanelMode === 'inline' }"
+    rounded-lg
+    bg="dark-100"
+    flex="~ col"
+    gap="1"
+    p="1"
+    text-white
+  >
     <template v-if="mode !== 'palette'">
       <PainterIconButton
         v-for="tool in tools"
@@ -207,22 +251,108 @@ function toHexByte(value: number): string {
       />
     </template>
 
-    <div my-1>
-      <PainterColorPicker
-        :model-value="brushColor"
-        :label="text.foregroundColor"
-        :labels="colorPickerLabels"
-        @update:model-value="onBrushColorChange"
-      />
-    </div>
+    <section v-if="colorPanelMode === 'inline'" class="painter-controls__color-panel">
+      <div class="painter-controls__color-targets">
+        <button
+          type="button"
+          class="painter-controls__color-target"
+          :class="{ 'is-active': activeColorTarget === 'brush' }"
+          :title="text.foregroundColor"
+          @click="activeColorTarget = 'brush'"
+        >
+          <span class="i-ph-paint-brush" aria-hidden="true" />
+          <span class="painter-controls__color-chip" :style="{ backgroundColor: toColorStyle(brushColor) }" />
+        </button>
 
-    <div v-if="painter.background" my-1>
-      <PainterColorPicker
-        :model-value="backgroundColor"
-        :label="text.backgroundColor"
+        <button
+          v-if="painter.background"
+          type="button"
+          class="painter-controls__color-target"
+          :class="{ 'is-active': activeColorTarget === 'background' }"
+          :title="text.backgroundColor"
+          @click="activeColorTarget = 'background'"
+        >
+          <span class="i-ph-fill" aria-hidden="true" />
+          <span class="painter-controls__color-chip" :style="{ backgroundColor: toColorStyle(backgroundColor) }" />
+        </button>
+      </div>
+
+      <ColorWheelPicker
+        v-model="activeColor"
+        density="compact"
         :labels="colorPickerLabels"
-        @update:model-value="onBackgroundColorChange"
+        :size="116"
+        :visible-sections="colorSections"
       />
-    </div>
+    </section>
+
+    <template v-else>
+      <div my-1>
+        <PainterColorPicker
+          :model-value="brushColor"
+          :label="text.foregroundColor"
+          :labels="colorPickerLabels"
+          :visible-sections="colorSections"
+          @update:model-value="onBrushColorChange"
+        />
+      </div>
+
+      <div v-if="painter.background" my-1>
+        <PainterColorPicker
+          :model-value="backgroundColor"
+          :label="text.backgroundColor"
+          :labels="colorPickerLabels"
+          :visible-sections="colorSections"
+          @update:model-value="onBackgroundColorChange"
+        />
+      </div>
+    </template>
   </div>
 </template>
+
+<style scoped>
+.painter-controls--inline-color {
+  width: 276px;
+  padding: 6px;
+}
+
+.painter-controls__color-panel {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.painter-controls__color-targets {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.painter-controls__color-target {
+  display: inline-flex;
+  height: 28px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 7%);
+  color: rgb(255 255 255 / 78%);
+  padding-inline: 7px;
+}
+
+.painter-controls__color-target:hover,
+.painter-controls__color-target.is-active {
+  border-color: rgb(96 165 250 / 58%);
+  background: rgb(96 165 250 / 18%);
+  color: white;
+}
+
+.painter-controls__color-chip {
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgb(255 255 255 / 64%);
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 34%);
+}
+</style>

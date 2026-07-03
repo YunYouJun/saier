@@ -41,6 +41,9 @@ const emit = defineEmits<{
         </div>
 
         <div class="site-painter__actions">
+          <div class="site-painter__account">
+            <slot name="account" />
+          </div>
           <span class="site-painter__status">{{ statusLabel }}</span>
           <button type="button" class="site-painter__locale" @click="emit('toggleLocale')">
             <span>{{ languageLabel }}</span>
@@ -98,7 +101,7 @@ const emit = defineEmits<{
   display: grid;
   height: 100vh;
   min-height: 0;
-  grid-template-rows: 126px minmax(0, 1fr);
+  grid-template-rows: 132px minmax(0, 1fr);
   overflow: hidden;
   background: #262629;
   color: white;
@@ -107,7 +110,7 @@ const emit = defineEmits<{
 .site-painter__chrome {
   display: grid;
   min-width: 0;
-  grid-template-rows: 44px 44px 38px;
+  grid-template-rows: 44px 44px 44px;
   border-bottom: 1px solid rgb(255 255 255 / 10%);
   background: rgb(18 18 20 / 94%);
 }
@@ -189,10 +192,11 @@ const emit = defineEmits<{
 }
 
 .site-painter__documents {
+  box-sizing: border-box;
   display: flex;
   min-width: 0;
   align-items: center;
-  padding: 0 12px 6px;
+  padding: 4px 12px 6px;
   overflow: hidden;
 }
 
@@ -202,6 +206,15 @@ const emit = defineEmits<{
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.site-painter__account {
+  display: inline-flex;
+  min-width: 0;
+}
+
+.site-painter__account:empty {
+  display: none;
 }
 
 .site-painter__status {
@@ -235,6 +248,12 @@ const emit = defineEmits<{
   position: relative;
   min-width: 0;
   min-height: 0;
+  --site-painter-left-panel-width: 276px;
+  --site-painter-panel-gap: 12px;
+  --site-painter-right-panel-space: 344px;
+  --site-painter-options-max-width: calc(
+    100vw - var(--site-painter-left-panel-width) - var(--site-painter-right-panel-space) - 48px
+  );
   overflow: hidden;
 }
 
@@ -260,15 +279,15 @@ const emit = defineEmits<{
 }
 
 .site-painter__options {
-  top: 12px;
-  left: 12px;
-  width: min(760px, calc(100vw - 376px));
-  max-width: min(760px, calc(100vw - 376px));
+  top: var(--site-painter-panel-gap);
+  left: calc(var(--site-painter-panel-gap) + var(--site-painter-left-panel-width) + var(--site-painter-panel-gap));
+  width: min(760px, var(--site-painter-options-max-width));
+  max-width: min(760px, var(--site-painter-options-max-width));
 }
 
 .site-painter__controls {
-  top: 142px;
-  left: 12px;
+  top: var(--site-painter-panel-gap);
+  left: var(--site-painter-panel-gap);
 }
 
 .site-painter__layers {
@@ -347,6 +366,7 @@ const emit = defineEmits<{
   }
 
   .site-painter__options {
+    left: 12px;
     right: 12px;
     width: auto;
     max-width: none;
@@ -366,11 +386,11 @@ const emit = defineEmits<{
 
 @media (max-width: 640px) {
   .site-painter {
-    grid-template-rows: 92px minmax(0, 1fr);
+    grid-template-rows: 132px minmax(0, 1fr);
   }
 
   .site-painter__chrome {
-    grid-template-rows: 46px 46px;
+    grid-template-rows: 44px 44px 44px;
   }
 
   .site-painter__brand-copy,

@@ -16,6 +16,7 @@ export function usePixiPainter() {
     canvas: srcCanvas,
     layerActions,
     layerThumbnails,
+    layerTree,
     layers,
     painter,
   } = usePainter({
@@ -93,6 +94,7 @@ export function usePixiPainter() {
     data,
     layerActions,
     layerThumbnails,
+    layerTree,
     layers,
     onExtract,
     painter,

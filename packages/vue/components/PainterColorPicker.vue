@@ -3,18 +3,26 @@ import { computed, onBeforeUnmount, onMounted, shallowRef, useId, useTemplateRef
 import ColorWheelPicker from './ColorWheelPicker.vue'
 
 interface PainterColorPickerLabels {
+  blue: string
   current: string
+  green: string
   hex: string
   hue: string
   palette: string
+  red: string
   saturation: string
   value: string
 }
+
+type ColorPickerSectionId = 'palette' | 'rgbSliders' | 'wheel'
+
+type ColorPickerVisibleSections = Partial<Record<ColorPickerSectionId, boolean>>
 
 const props = defineProps<{
   label?: string
   labels?: Partial<PainterColorPickerLabels>
   modelValue: number | string
+  visibleSections?: ColorPickerVisibleSections
 }>()
 
 const emit = defineEmits<{
@@ -107,6 +115,7 @@ function toHex(value: string | number): string {
         :model-value="color"
         :labels="labels"
         :swatches="swatches"
+        :visible-sections="visibleSections"
         @update:model-value="onColorChange"
       />
     </div>

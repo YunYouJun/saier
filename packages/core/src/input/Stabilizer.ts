@@ -1,11 +1,18 @@
 import type { BrushInputPoint } from '../types'
 
 export interface StabilizerOptions {
-  /** 0 = passthrough, 1 = moving average, 2 = exponential, 3+ = lazy rope. */
+  /** 0 = passthrough, 1 = moving average, 2 = exponential, 3+ = SAI-style lazy rope. */
   strength?: number
   movingAverageWindow?: number
   exponentialAlpha?: number
+  /** Base lazy-rope radius in document px. Defaults to a strength-derived value. */
   ropeLength?: number
+  /** Pointer speed in document px/ms where lazy-rope shortening starts. */
+  velocityMin?: number
+  /** Pointer speed in document px/ms where lazy-rope shortening reaches its maximum. */
+  velocityMax?: number
+  /** Fraction of `ropeLength` kept at `velocityMax`. Lower follows fast strokes more closely. */
+  fastRopeRatio?: number
 }
 
 export class Stabilizer {
@@ -14,19 +21,26 @@ export class Stabilizer {
   private readonly movingAverageWindow: number
   private readonly exponentialAlpha: number
   private readonly ropeLength: number
+  private readonly velocityMin: number
+  private readonly velocityMax: number
+  private readonly fastRopeRatio: number
   private readonly buffer: BrushInputPoint[] = []
   private smoothed: BrushInputPoint | null = null
   private lastRaw: BrushInputPoint | null = null
 
   constructor(options: StabilizerOptions = {}) {
-    this.strength = Math.max(0, options.strength ?? 0)
-    this.movingAverageWindow = Math.max(1, options.movingAverageWindow ?? 4)
-    this.exponentialAlpha = options.exponentialAlpha ?? 0.35
-    this.ropeLength = Math.max(0, options.ropeLength ?? 6 * Math.max(1, this.strength))
+    this.strength = Math.max(0, finiteOr(options.strength, 0))
+    this.movingAverageWindow = Math.max(1, finiteOr(options.movingAverageWindow, 4))
+    this.exponentialAlpha = clamp(finiteOr(options.exponentialAlpha, 0.35), 0.05, 1)
+    this.ropeLength = Math.max(0, finiteOr(options.ropeLength, defaultRopeLength(this.strength)))
+    this.velocityMin = Math.max(0, finiteOr(options.velocityMin, 0.08))
+    this.velocityMax = Math.max(this.velocityMin + 0.000001, finiteOr(options.velocityMax, 1.2))
+    this.fastRopeRatio = clamp(finiteOr(options.fastRopeRatio, 0.45), 0.1, 1)
   }
 
   push(point: BrushInputPoint): BrushInputPoint[] {
     const raw = clonePoint(point)
+    const previousRaw = this.lastRaw
     this.lastRaw = raw
 
     if (this.strength <= 0)
@@ -38,7 +52,7 @@ export class Stabilizer {
     if (this.strength < 3)
       return [this.pushExponential(raw)]
 
-    return [this.pushRope(raw)]
+    return [this.pushLazyRope(raw, previousRaw)]
   }
 
   flush(): BrushInputPoint[] {
@@ -97,16 +111,17 @@ export class Stabilizer {
     return clonePoint(this.smoothed)
   }
 
-  private pushRope(point: BrushInputPoint): BrushInputPoint {
+  private pushLazyRope(point: BrushInputPoint, previousRaw: BrushInputPoint | null): BrushInputPoint {
     if (!this.smoothed) {
       this.smoothed = clonePoint(point)
       return clonePoint(point)
     }
 
+    const ropeLength = this.effectiveRopeLength(point, previousRaw)
     const dx = point.x - this.smoothed.x
     const dy = point.y - this.smoothed.y
     const distance = Math.hypot(dx, dy)
-    if (distance <= this.ropeLength) {
+    if (distance <= ropeLength) {
       this.smoothed = {
         ...point,
         x: this.smoothed.x,
@@ -115,13 +130,23 @@ export class Stabilizer {
       return clonePoint(this.smoothed)
     }
 
-    const pull = (distance - this.ropeLength) / distance
+    const pull = (distance - ropeLength) / distance
     this.smoothed = {
       ...point,
       x: this.smoothed.x + dx * pull,
       y: this.smoothed.y + dy * pull,
     }
     return clonePoint(this.smoothed)
+  }
+
+  private effectiveRopeLength(point: BrushInputPoint, previousRaw: BrushInputPoint | null): number {
+    if (!previousRaw || this.ropeLength <= 0)
+      return this.ropeLength
+
+    const dt = Math.max(1, point.time - previousRaw.time)
+    const speed = Math.hypot(point.x - previousRaw.x, point.y - previousRaw.y) / dt
+    const fastness = clamp01((speed - this.velocityMin) / (this.velocityMax - this.velocityMin))
+    return this.ropeLength * lerp(1, this.fastRopeRatio, fastness)
   }
 }
 
@@ -144,4 +169,20 @@ function clonePoint(point: BrushInputPoint): BrushInputPoint {
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t
+}
+
+function defaultRopeLength(strength: number): number {
+  return strength < 3 ? 0 : 4 * strength
+}
+
+function clamp01(value: number): number {
+  return clamp(value, 0, 1)
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value))
+}
+
+function finiteOr(value: number | undefined, fallback: number): number {
+  return value !== undefined && Number.isFinite(value) ? value : fallback
 }

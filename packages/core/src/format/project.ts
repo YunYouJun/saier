@@ -1,10 +1,10 @@
-import type { BlendMode, LayerMaskRef, RasterLayer } from '../document'
+import type { BlendMode, LayerMaskRef, LayerNode, RasterLayer } from '../document'
 import type { LayerTransform } from '../math'
 import { Document } from '../document'
 import { TiledSurface } from '../surface'
 
 export const SAIER_PROJECT_FORMAT = 'saier.project'
-export const SAIER_PROJECT_VERSION = 1
+export const SAIER_PROJECT_VERSION = 2
 
 export type SaierProjectMetadataValue = string | number | boolean | null
 export type SaierProjectMetadata = Record<string, SaierProjectMetadataValue>
@@ -25,6 +25,7 @@ export interface SaierProjectSurface {
 }
 
 export interface SaierProjectLayer {
+  type?: 'raster'
   id: string
   label: string
   visible: boolean
@@ -36,14 +37,26 @@ export interface SaierProjectLayer {
   mask?: LayerMaskRef
 }
 
+export interface SaierProjectLayerGroup {
+  type: 'group'
+  id: string
+  label: string
+  visible: boolean
+  collapsed: boolean
+  children: SaierProjectLayerNode[]
+}
+
+export type SaierProjectLayerNode = SaierProjectLayer | SaierProjectLayerGroup
+
 export interface SaierProjectFile {
   format: typeof SAIER_PROJECT_FORMAT
-  version: typeof SAIER_PROJECT_VERSION
+  version: 1 | typeof SAIER_PROJECT_VERSION
   width: number
   height: number
   tileSize: number
   activeLayerId: string | null
   metadata?: SaierProjectMetadata
+  layerTree?: SaierProjectLayerNode[]
   layers: SaierProjectLayer[]
   surfaces: SaierProjectSurface[]
 }
@@ -81,6 +94,7 @@ export function serializeSaierProject(options: SerializeSaierProjectOptions): Sa
     tileSize,
     activeLayerId: options.document.activeLayerId,
     ...(options.metadata ? { metadata: { ...options.metadata } } : {}),
+    layerTree: serializeLayerNodes(options.document.layerTree),
     layers: layers.map(serializeLayer),
     surfaces,
   }
@@ -90,22 +104,10 @@ export function deserializeSaierProject(project: SaierProjectFile): Deserialized
   assertProjectFile(project)
 
   const document = new Document({ width: project.width, height: project.height })
-  for (const layer of project.layers) {
-    document.addLayer({
-      id: layer.id,
-      label: layer.label,
-      visible: layer.visible,
-      opacity: layer.opacity,
-      blendMode: layer.blendMode,
-      lockAlpha: layer.lockAlpha,
-      clip: layer.clip,
-      ...(layer.transform ? { transform: { ...layer.transform } } : {}),
-    })
-    if (layer.mask) {
-      document.attachMask(layer.id, layer.mask.id)
-      document.setMaskEnabled(layer.id, layer.mask.enabled)
-    }
-  }
+  if (project.layerTree)
+    deserializeLayerNodes(project.layerTree, document, null)
+  else
+    deserializeLayers(project.layers, document, null)
 
   if (project.activeLayerId)
     document.setActive(project.activeLayerId)
@@ -133,6 +135,7 @@ export function deserializeSaierProject(project: SaierProjectFile): Deserialized
 
 function serializeLayer(layer: RasterLayer): SaierProjectLayer {
   return {
+    type: 'raster',
     id: layer.id,
     label: layer.label,
     visible: layer.visible,
@@ -142,6 +145,62 @@ function serializeLayer(layer: RasterLayer): SaierProjectLayer {
     clip: layer.clip,
     ...(layer.transform ? { transform: { ...layer.transform } } : {}),
     ...(layer.mask ? { mask: { ...layer.mask } } : {}),
+  }
+}
+
+function serializeLayerNodes(nodes: LayerNode[]): SaierProjectLayerNode[] {
+  return nodes.map((node): SaierProjectLayerNode => {
+    if (node.type === 'raster')
+      return serializeLayer(node)
+    return {
+      type: 'group',
+      id: node.id,
+      label: node.label,
+      visible: node.visible,
+      collapsed: node.collapsed,
+      children: serializeLayerNodes(node.children),
+    }
+  })
+}
+
+function deserializeLayerNodes(nodes: SaierProjectLayerNode[], document: Document, parentId: string | null): void {
+  for (const node of nodes) {
+    if (node.type === 'group') {
+      document.addGroup({
+        id: node.id,
+        label: node.label,
+        visible: node.visible,
+        collapsed: node.collapsed,
+        parentId,
+      })
+      deserializeLayerNodes(node.children, document, node.id)
+      continue
+    }
+
+    deserializeLayer(node, document, parentId)
+  }
+}
+
+function deserializeLayers(layers: SaierProjectLayer[], document: Document, parentId: string | null): void {
+  for (const layer of layers)
+    deserializeLayer(layer, document, parentId)
+}
+
+function deserializeLayer(layer: SaierProjectLayer, document: Document, parentId: string | null): void {
+  document.addLayer({
+    id: layer.id,
+    label: layer.label,
+    visible: layer.visible,
+    opacity: layer.opacity,
+    blendMode: layer.blendMode,
+    lockAlpha: layer.lockAlpha,
+    clip: layer.clip,
+    parentId,
+    ...(layer.transform ? { transform: { ...layer.transform } } : {}),
+  })
+  if (layer.mask) {
+    document.attachMask(layer.id, layer.mask.id)
+    document.setMaskEnabled(layer.id, layer.mask.enabled)
   }
 }
 
@@ -194,7 +253,7 @@ function collectSurfaceIds(layers: RasterLayer[]): string[] {
 function assertProjectFile(project: SaierProjectFile): void {
   if (project.format !== SAIER_PROJECT_FORMAT)
     throw new Error(`Unsupported project format: ${project.format}`)
-  if (project.version !== SAIER_PROJECT_VERSION)
+  if (project.version !== 1 && project.version !== SAIER_PROJECT_VERSION)
     throw new Error(`Unsupported project version: ${project.version}`)
   normalizePositiveInteger(project.width, 'project width')
   normalizePositiveInteger(project.height, 'project height')

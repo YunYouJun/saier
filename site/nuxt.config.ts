@@ -1,4 +1,5 @@
 import path from 'node:path'
+import process from 'node:process'
 import { pwa } from './app/config/pwa'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
@@ -30,6 +31,14 @@ export default defineNuxtConfig({
     },
   },
 
+  runtimeConfig: {
+    public: {
+      saierCloudFileMaxBytes: Number(process.env.NUXT_PUBLIC_SAIER_CLOUD_FILE_MAX_BYTES || 200 * 1024 * 1024),
+      yunlefunCloudbaseEnv: process.env.NUXT_PUBLIC_YUNLEFUN_CLOUDBASE_ENV || 'yunlefun-8g7ybcxc7345c490',
+      yunlefunSsoOrigin: process.env.NUXT_PUBLIC_YUNLEFUN_SSO_ORIGIN || 'https://www.yunle.fun',
+    },
+  },
+
   pwa,
 
   alias: {
@@ -42,6 +51,8 @@ export default defineNuxtConfig({
   vite: {
     optimizeDeps: {
       include: [
+        '@cloudbase/js-sdk',
+        '@yunlefun/sso',
         'axios',
         'consola',
         'hotkeys-js',

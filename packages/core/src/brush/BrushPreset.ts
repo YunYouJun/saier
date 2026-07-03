@@ -117,6 +117,12 @@ export interface BrushPresetSummary {
   tags?: string[]
   engine: BrushPresetEngine
   tipId: string
+  /** Default brush diameter in document pixels, useful for compact UI previews. */
+  size?: number
+  /** Default stroke opacity multiplier `0..1`, useful for compact UI previews. */
+  opacity?: number
+  /** Default hardness `0..1`, useful for compact UI previews. */
+  hardness?: number
   engineAvailable?: boolean
   engineLabel?: string
   requiresSurfaceSampler?: boolean
@@ -425,12 +431,19 @@ export function toBrushPresetSummary(
     tags: preset.tags ? [...preset.tags] : undefined,
     engine: preset.engine,
     tipId: preset.tipId,
+    size: preset.size,
+    opacity: preset.opacity,
+    hardness: preset.hardness,
     engineAvailable: Boolean(descriptor),
     engineLabel: descriptor?.label,
     requiresSurfaceSampler: descriptor?.requiresSurfaceSampler ?? false,
     supportsMixingControls: descriptor?.supportsMixingControls ?? false,
     experimental: descriptor?.experimental ?? false,
   }
+}
+
+export function isSyncableBrushPreset(preset: BrushPreset): boolean {
+  return preset.custom === true && preset.source !== 'builtin'
 }
 
 export function createBrushEngineFromPreset(

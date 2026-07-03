@@ -1,0 +1,44 @@
+{
+  "name": "saier",
+  "installCommand": "corepack enable && corepack prepare pnpm@10.17.1 --activate && pnpm install --frozen-lockfile",
+  "buildCommand": "corepack enable && corepack prepare pnpm@10.17.1 --activate && pnpm -C site run generate",
+  "outputDirectory": "site/.output/public",
+  "nodeVersion": "22.11.0",
+  "headers": [
+    {
+      "source": "/_nuxt/*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/*",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(), payment=()"
+        }
+      ]
+    }
+  ]
+}

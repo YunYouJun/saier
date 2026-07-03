@@ -14,6 +14,7 @@
   "keywords": [],
   "scripts": {
     "build": "pnpm build:lib && pnpm build:site",
+    "generate": "pnpm -C site run generate",
     "build:react": "pnpm -C examples/react run build",
     "build:vue": "pnpm -C examples/vue run build",
     "build:lib": "pnpm -C packages/saier run build",

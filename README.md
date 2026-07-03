@@ -10,16 +10,17 @@ Use `saier` for the default painter runtime, `@saier/core` for the headless rast
 
 |                   | URL                                   |
 | ----------------- | ------------------------------------- |
-| 🖼️ **App / Demo** | <https://saier.yunle.fun>             |
-| 📖 **Docs**       | <https://docs.saier.yunle.fun>        |
+| 🖼️ **App / Demo** | <https://saier.pages.dev>             |
+| 📖 **Docs**       | <https://saier-docs.pages.dev>        |
 | 📦 **npm**        | <https://www.npmjs.com/package/saier> |
 
 > Both sites are deployed on Cloudflare Pages (connected to this GitHub repo).
 > `site/` (Nuxt app) → App / Demo · `docs/` (VitePress) → Docs.
+> Custom domains `saier.yunle.fun` and `docs.saier.yunle.fun` should be enabled only after DNS is bound.
 
 ## Documentation
 
-- **Guide & Design docs**: <https://docs.saier.yunle.fun> — or run `pnpm docs:dev` (VitePress site under [`docs/`](./docs))
+- **Guide & Design docs**: <https://saier-docs.pages.dev> — or run `pnpm docs:dev` (VitePress site under [`docs/`](./docs))
 - **Architecture roadmap** (for contributors / coding agents): [`docs/design/`](./docs/design/index.md) — the phased plan (P0–P9) to evolve saier into a Pixi-agnostic raster painting runtime. See also [`AGENTS.md`](./AGENTS.md).
 - **Custom brushes**: [`docs/guide/custom-brushes.md`](./docs/guide/custom-brushes.md) covers runtime custom presets, external engine registration, and `.myb` preset mapping.
 

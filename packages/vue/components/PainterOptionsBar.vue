@@ -372,7 +372,7 @@ function normalizeStabilizerStrength(strength: number): number {
 </script>
 
 <template>
-  <div bg="dark-100" flex="~ col" gap="2" p="2" rounded-lg text-white>
+  <div class="painter-options" bg="dark-100" flex="~ col" gap="2" p="2" rounded-lg text-white>
     <BrushPresetPicker
       v-model:active-group-label="activeGroupLabel"
       :presets="presets"
@@ -427,10 +427,17 @@ function normalizeStabilizerStrength(strength: number): number {
   </div>
 </template>
 
-<style lang="scss">
+<style scoped lang="scss">
+.painter-options {
+  width: min(344px, calc(100vw - 16px));
+  max-height: min(720px, calc(100vh - 188px));
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
 .painter-options__params {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
   gap: 8px 10px;
   align-items: end;
 }

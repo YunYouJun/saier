@@ -155,15 +155,35 @@ function handleCreateCustom(): void {
   emit('createCustom', label)
 }
 
+function handleCreateGroup(event: MouseEvent): void {
+  closeActionMenu(event)
+  emit('createGroup')
+}
+
 function handleRemoveGroup(): void {
   const group = activeGroup.value
   if (group?.custom)
     emit('removeGroup', group.label)
 }
 
+function handleRemoveGroupFromMenu(event: MouseEvent): void {
+  closeActionMenu(event)
+  handleRemoveGroup()
+}
+
+function handleRemoveActive(event: MouseEvent): void {
+  closeActionMenu(event)
+  emit('removeActive')
+}
+
 function handlePreviewLeave(id: BrushPresetId): void {
   if (previewPresetId.value === id)
     previewPresetId.value = undefined
+}
+
+function closeActionMenu(event: MouseEvent): void {
+  const details = (event.currentTarget as HTMLElement).closest('details')
+  details?.removeAttribute('open')
 }
 
 function groupIdForPreset(preset: BrushPresetSummary | undefined): string | undefined {
@@ -280,26 +300,7 @@ function clamp(value: number, min: number, max: number): number {
       <div class="brush-preset-actions">
         <button
           type="button"
-          class="brush-preset-action brush-preset-action--group"
-          :title="props.addGroupTitle"
-          :aria-label="props.addGroupTitle"
-          @click="emit('createGroup')"
-        >
-          <span class="i-ph-folder-plus" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          class="brush-preset-action brush-preset-action--group"
-          :disabled="!canRemoveActiveGroup"
-          :title="props.removeGroupTitle"
-          :aria-label="props.removeGroupTitle"
-          @click="handleRemoveGroup"
-        >
-          <span class="i-ph-folder-minus" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          class="brush-preset-action"
+          class="brush-preset-action brush-preset-action--primary"
           :disabled="!props.canCreateCustom"
           :title="props.addTitle"
           :aria-label="props.addTitle"
@@ -307,16 +308,54 @@ function clamp(value: number, min: number, max: number): number {
         >
           <span class="i-ph-plus" aria-hidden="true" />
         </button>
-        <button
-          type="button"
-          class="brush-preset-action"
-          :disabled="!props.canRemoveActive || !activePreset?.custom"
-          :title="props.removeTitle"
-          :aria-label="props.removeTitle"
-          @click="emit('removeActive')"
-        >
-          <span class="i-ph-trash" aria-hidden="true" />
-        </button>
+
+        <details class="brush-preset-actions__menu">
+          <summary
+            class="brush-preset-action brush-preset-action--menu"
+            :title="props.addGroupTitle"
+            :aria-label="props.addGroupTitle"
+          >
+            <span class="i-ph-dots-three-vertical" aria-hidden="true" />
+          </summary>
+
+          <div class="brush-preset-menu" role="menu">
+            <button
+              type="button"
+              class="brush-preset-menu__item"
+              :title="props.addGroupTitle"
+              :aria-label="props.addGroupTitle"
+              role="menuitem"
+              @click="handleCreateGroup"
+            >
+              <span class="i-ph-folder-plus" aria-hidden="true" />
+              <span class="brush-preset-menu__label">{{ props.addGroupTitle }}</span>
+            </button>
+            <button
+              type="button"
+              class="brush-preset-menu__item"
+              :disabled="!canRemoveActiveGroup"
+              :title="props.removeGroupTitle"
+              :aria-label="props.removeGroupTitle"
+              role="menuitem"
+              @click="handleRemoveGroupFromMenu"
+            >
+              <span class="i-ph-folder-minus" aria-hidden="true" />
+              <span class="brush-preset-menu__label">{{ props.removeGroupTitle }}</span>
+            </button>
+            <button
+              type="button"
+              class="brush-preset-menu__item"
+              :disabled="!props.canRemoveActive || !activePreset?.custom"
+              :title="props.removeTitle"
+              :aria-label="props.removeTitle"
+              role="menuitem"
+              @click="handleRemoveActive"
+            >
+              <span class="i-ph-trash" aria-hidden="true" />
+              <span class="brush-preset-menu__label">{{ props.removeTitle }}</span>
+            </button>
+          </div>
+        </details>
       </div>
     </div>
 
@@ -377,7 +416,7 @@ function clamp(value: number, min: number, max: number): number {
 .brush-preset-picker {
   display: grid;
   min-width: 0;
-  gap: 5px;
+  gap: 6px;
   padding: 4px;
   border: 1px solid rgb(255 255 255 / 10%);
   border-radius: 6px;
@@ -388,31 +427,42 @@ function clamp(value: number, min: number, max: number): number {
   display: grid;
   min-width: 0;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 5px;
-  align-items: stretch;
+  gap: 3px;
+  align-items: end;
 }
 
 .brush-preset-groups {
+  position: relative;
   display: flex;
   min-width: 0;
-  gap: 3px;
+  gap: 0;
   overflow-x: auto;
   overflow-y: hidden;
-  padding-bottom: 1px;
-  scrollbar-width: thin;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+  mask-image: linear-gradient(90deg, transparent 0, black 9px, black calc(100% - 12px), transparent 100%);
+  padding: 0 10px 0 7px;
+  scrollbar-width: none;
+}
+
+.brush-preset-groups::-webkit-scrollbar {
+  display: none;
 }
 
 .brush-preset-group {
+  position: relative;
   display: grid;
-  height: 28px;
-  min-width: 74px;
+  height: 27px;
+  min-width: 62px;
+  max-width: 104px;
+  flex: 0 0 auto;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 5px;
-  flex: 0 0 auto;
+  gap: 4px;
+  margin-bottom: -1px;
   border: 1px solid transparent;
-  border-radius: 4px;
-  background: rgb(255 255 255 / 5%);
+  border-bottom-color: rgb(255 255 255 / 10%);
+  border-radius: 5px 5px 0 0;
+  background: transparent;
   color: rgb(255 255 255 / 62%);
   font-size: 11px;
   line-height: 1;
@@ -421,13 +471,15 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 .brush-preset-group.is-active {
-  border-color: rgb(96 165 250 / 38%);
-  background: rgb(96 165 250 / 16%);
+  border-color: rgb(96 165 250 / 40%);
+  border-bottom-color: rgb(18 18 22 / 95%);
+  background: linear-gradient(180deg, rgb(96 165 250 / 16%), rgb(255 255 255 / 5%)), rgb(18 18 22 / 95%);
   color: white;
 }
 
 .brush-preset-group:focus-visible,
 .brush-preset-action:focus-visible,
+.brush-preset-menu__item:focus-visible,
 .brush-preset-card:focus-visible {
   outline: 2px solid rgb(147 197 253 / 78%);
   outline-offset: 1px;
@@ -446,24 +498,44 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 .brush-preset-actions {
-  display: flex;
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
   gap: 3px;
+  padding-left: 5px;
+}
+
+.brush-preset-actions::before {
+  display: block;
+  width: 1px;
+  height: 18px;
+  margin-right: 3px;
+  background: rgb(255 255 255 / 10%);
+  content: '';
 }
 
 .brush-preset-action {
   display: grid;
-  width: 28px;
-  height: 28px;
+  width: 27px;
+  height: 26px;
   place-items: center;
   border: 1px solid rgb(255 255 255 / 10%);
   border-radius: 4px;
   background: rgb(255 255 255 / 5%);
   color: rgb(255 255 255 / 78%);
-  font-size: 15px;
+  font-size: 14px;
+  line-height: 1;
 }
 
 .brush-preset-action:hover {
   background: rgb(255 255 255 / 10%);
+}
+
+.brush-preset-action--primary {
+  border-color: rgb(96 165 250 / 28%);
+  background: rgb(96 165 250 / 13%);
+  color: white;
 }
 
 .brush-preset-action:disabled {
@@ -471,24 +543,93 @@ function clamp(value: number, min: number, max: number): number {
   opacity: 0.38;
 }
 
+.brush-preset-actions__menu {
+  position: relative;
+}
+
+.brush-preset-action--menu {
+  cursor: pointer;
+  list-style: none;
+}
+
+.brush-preset-action--menu::-webkit-details-marker {
+  display: none;
+}
+
+.brush-preset-actions__menu[open] .brush-preset-action--menu {
+  border-color: rgb(255 255 255 / 18%);
+  background: rgb(255 255 255 / 11%);
+  color: white;
+}
+
+.brush-preset-menu {
+  position: absolute;
+  z-index: 20;
+  top: 31px;
+  right: 0;
+  display: grid;
+  width: 178px;
+  gap: 1px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 5px;
+  background: rgb(18 18 22 / 96%);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 34%);
+  padding: 4px;
+}
+
+.brush-preset-menu__item {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  height: 27px;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: rgb(255 255 255 / 76%);
+  font-size: 11px;
+  line-height: 1;
+  padding: 0 7px;
+  text-align: left;
+}
+
+.brush-preset-menu__item:hover {
+  background: rgb(255 255 255 / 8%);
+  color: white;
+}
+
+.brush-preset-menu__item:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.brush-preset-menu__label {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .brush-preset-body {
   display: grid;
   min-width: 0;
-  grid-template-columns: minmax(0, 1fr) minmax(92px, 112px);
-  gap: 5px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
   align-items: stretch;
 }
 
 .brush-preset-grid {
   display: grid;
   min-width: 0;
-  max-height: 178px;
-  grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
-  grid-auto-rows: 72px;
+  max-height: 200px;
+  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  grid-auto-rows: 66px;
   align-content: start;
   gap: 4px;
   overflow-y: auto;
-  padding-right: 1px;
+  padding: 0 1px 1px 0;
   scrollbar-width: thin;
 }
 
@@ -496,18 +637,23 @@ function clamp(value: number, min: number, max: number): number {
   position: relative;
   display: grid;
   min-width: 0;
-  height: 72px;
-  grid-template-rows: 32px minmax(14px, auto) 12px;
+  height: 66px;
+  grid-template-areas:
+    'icon'
+    'name'
+    'meta';
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 30px 13px 11px;
   align-items: center;
   justify-items: center;
-  gap: 2px;
+  gap: 1px;
   border: 1px solid rgb(255 255 255 / 7%);
   border-radius: 5px;
   background: rgb(255 255 255 / 4%);
   color: rgb(255 255 255 / 82%);
   font-size: 11px;
   line-height: 1.05;
-  padding: 6px 5px 5px;
+  padding: 5px 4px 6px;
   text-align: center;
 }
 
@@ -531,8 +677,9 @@ function clamp(value: number, min: number, max: number): number {
 .brush-preset-card__icon {
   position: relative;
   display: block;
-  width: 42px;
-  height: 32px;
+  width: 40px;
+  height: 30px;
+  grid-area: icon;
   color: currentColor;
   opacity: var(--brush-icon-opacity);
 }
@@ -664,6 +811,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 .brush-preset-card__name {
+  grid-area: name;
   overflow: hidden;
   width: 100%;
   min-width: 0;
@@ -674,19 +822,21 @@ function clamp(value: number, min: number, max: number): number {
 .brush-preset-card__meta {
   color: rgb(255 255 255 / 42%);
   font-size: 10px;
+  grid-area: meta;
   font-variant-numeric: tabular-nums;
+  line-height: 1.1;
 }
 
 .brush-preset-card__badge {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  max-width: calc(100% - 8px);
+  top: 3px;
+  right: 3px;
+  max-width: calc(100% - 6px);
   overflow: hidden;
   border-radius: 3px;
   background: rgb(0 0 0 / 36%);
   color: rgb(255 255 255 / 62%);
-  font-size: 8px;
+  font-size: 7px;
   line-height: 1;
   padding: 2px 3px;
   text-overflow: ellipsis;
@@ -697,21 +847,22 @@ function clamp(value: number, min: number, max: number): number {
 .brush-preset-preview {
   display: grid;
   min-width: 0;
-  grid-template-rows: 1fr auto;
-  gap: 6px;
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: 7px;
+  align-items: center;
   border: 1px solid rgb(255 255 255 / 8%);
   border-radius: 5px;
   background:
     linear-gradient(90deg, rgb(255 255 255 / 5%) 1px, transparent 1px) 0 0 / 12px 12px,
     linear-gradient(0deg, rgb(255 255 255 / 5%) 1px, transparent 1px) 0 0 / 12px 12px,
     rgb(0 0 0 / 18%);
-  padding: 7px;
+  padding: 6px;
 }
 
 .brush-preset-preview__surface {
   position: relative;
   display: grid;
-  min-height: 74px;
+  min-height: 52px;
   place-items: center;
   overflow: hidden;
 }
@@ -772,23 +923,16 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 @media (max-width: 640px) {
-  .brush-preset-body {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .brush-preset-grid {
-    max-height: 168px;
-    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    max-height: 200px;
   }
 
   .brush-preset-preview {
-    grid-template-columns: 72px minmax(0, 1fr);
-    grid-template-rows: auto;
-    align-items: center;
+    grid-template-columns: 64px minmax(0, 1fr);
   }
 
   .brush-preset-preview__surface {
-    min-height: 62px;
+    min-height: 50px;
   }
 }
 </style>

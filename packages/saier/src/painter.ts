@@ -5,6 +5,7 @@ import type {
   BrushPreset,
   BrushPresetRegistry,
   DocumentLayersChangeEvent,
+  LayerNode,
   MemoryEstimateEntry,
   MemoryRiskLevel,
   PainterMemorySnapshot,
@@ -31,7 +32,7 @@ import {
   UndoManager,
 } from '@saier/core'
 import { PixiTileTextureBackend, RenderTextureBackend, TouchGestureRouter } from '@saier/pixi'
-import { Application, Container, Sprite } from 'pixi.js'
+import { Application, Container, Rectangle, Sprite } from 'pixi.js'
 import { PainterBoard } from './board'
 import { createBrush, PainterBrush } from './brush'
 import { createCanvas } from './canvas'
@@ -103,6 +104,7 @@ export interface PainterDocumentState {
   width: number
   height: number
   active: boolean
+  dirty: boolean
 }
 
 export interface CreatePainterDocumentOptions {
@@ -112,6 +114,20 @@ export interface CreatePainterDocumentOptions {
   height: number
   defaultLayerLabel?: string
   activate?: boolean
+}
+
+export type PainterExtractCanvasType = 'image' | 'base64' | 'canvas' | 'pixels'
+export type PainterExtractCanvasMode = 'preview' | 'content'
+
+export interface PainterExtractCanvasOptions {
+  /**
+   * `preview` exports the visible board, including paper/background.
+   * `content` exports only the active document layer composite, preserving
+   * transparent empty pixels.
+   *
+   * @default 'preview'
+   */
+  mode?: PainterExtractCanvasMode
 }
 
 export interface ExportPainterProjectOptions {
@@ -135,6 +151,7 @@ interface PainterDocumentSession {
   name: string
   width: number
   height: number
+  dirty: boolean
   document: RasterDocument
   surface: SurfaceBackend
   undoManager: UndoManager
@@ -143,6 +160,7 @@ interface PainterDocumentSession {
   boundingBoxes: Container
   surfaceLayerIds: Set<string>
   maskSurfaceIds: Set<string>
+  layerTreeSignature: string
   viewport: PainterViewportState
   removeDocumentListener: () => void
 }
@@ -483,6 +501,33 @@ export class Painter {
     return this.requireActiveSession().id
   }
 
+  isDocumentDirty(id?: string): boolean {
+    return this.resolveDocumentSession(id).dirty
+  }
+
+  hasUnsavedChanges(): boolean {
+    return this.documentOrder.some((id) => {
+      const session = this.documentSessions.get(id)
+      return Boolean(session?.dirty)
+    })
+  }
+
+  markDocumentDirty(id?: string): void {
+    const session = this.resolveDocumentSession(id)
+    if (session.dirty)
+      return
+    session.dirty = true
+    this.emitDocumentsChange()
+  }
+
+  markDocumentSaved(id?: string): void {
+    const session = this.resolveDocumentSession(id)
+    if (!session.dirty)
+      return
+    session.dirty = false
+    this.emitDocumentsChange()
+  }
+
   createDocument(options: CreatePainterDocumentOptions): PainterDocumentState {
     const width = normalizeDocumentDimension(options.width)
     const height = normalizeDocumentDimension(options.height)
@@ -560,6 +605,7 @@ export class Painter {
     if (!session || !next || session.name === next)
       return
     session.name = next
+    session.dirty = true
     this.emitDocumentsChange()
   }
 
@@ -581,16 +627,19 @@ export class Painter {
 
     // a stroke on any layer may change a clip/mask source → refresh derived displays
     this.refreshDerivedDisplays(patch.rect)
+    this.markDocumentDirty()
     const undoManager = this.undoManager
     undoManager.record(patch)
     this.history.record({
       undo: () => {
         undoManager.undo()
         this.refreshDerivedDisplays(patch.rect)
+        this.markDocumentDirty()
       },
       redo: () => {
         undoManager.redo()
         this.refreshDerivedDisplays(patch.rect)
+        this.markDocumentDirty()
       },
     })
   }
@@ -655,12 +704,16 @@ export class Painter {
       undo: () => {
         layer.visible = false
         layer.boundingBoxContainer.visible = false
+        this.markDocumentDirty()
       },
       redo: () => {
         layer.visible = true
         layer.boundingBoxContainer.visible = true
+        this.markDocumentDirty()
       },
     })
+
+    this.markDocumentDirty()
 
     if (options.autoToggleSelection)
       this.useTool('selection')
@@ -764,19 +817,25 @@ export class Painter {
   /**
    * @default
    */
-  async extractCanvas(type: 'image' | 'base64' | 'canvas' | 'pixels' = 'image') {
+  async extractCanvas(type: PainterExtractCanvasType = 'image', options: PainterExtractCanvasOptions = {}) {
     const { app } = this
-    const target = this.board.container
-    if (type === 'image')
-      return app.renderer.extract.image(target)
-    else if (type === 'base64')
-      return app.renderer.extract.base64(target)
-    else if (type === 'canvas')
-      return app.renderer.extract.canvas(target)
-    else if (type === 'pixels')
-      return app.renderer.extract.pixels(target)
-    else
-      throw new Error(`unknown type: ${type}`)
+    const { restore, target } = this.prepareExtractCanvas(options)
+
+    try {
+      if (type === 'image')
+        return await app.renderer.extract.image(target)
+      else if (type === 'base64')
+        return await app.renderer.extract.base64(target)
+      else if (type === 'canvas')
+        return await app.renderer.extract.canvas(target)
+      else if (type === 'pixels')
+        return app.renderer.extract.pixels(target)
+      else
+        throw new Error(`unknown type: ${type}`)
+    }
+    finally {
+      restore()
+    }
   }
 
   exportProject(options: ExportPainterProjectOptions = {}): SaierProjectFile {
@@ -851,6 +910,7 @@ export class Painter {
       width: current.width,
       height: current.height,
       defaultLayerLabel: 'Layer 1',
+      dirty: true,
     })
     replacement.viewport = { ...current.viewport }
     this.destroySession(current)
@@ -903,6 +963,7 @@ export class Painter {
   }
 
   private createDocumentSession(options: Required<Pick<CreatePainterDocumentOptions, 'id' | 'name' | 'width' | 'height'>> & Pick<CreatePainterDocumentOptions, 'defaultLayerLabel'> & {
+    dirty?: boolean
     document?: RasterDocument
   }): PainterDocumentSession {
     const layersContainer = new Container()
@@ -922,6 +983,7 @@ export class Painter {
       name: options.name,
       width: options.width,
       height: options.height,
+      dirty: options.dirty ?? false,
       document,
       surface,
       undoManager,
@@ -930,11 +992,16 @@ export class Painter {
       boundingBoxes,
       surfaceLayerIds: new Set(),
       maskSurfaceIds: new Set(),
+      layerTreeSignature: '',
       viewport: this.defaultViewport(),
       removeDocumentListener: () => {},
     }
     const handleLayersChange = (event: DocumentLayersChangeEvent) => {
       this.syncSurfaceLayers(event.effectiveLayers, session)
+      const nextSignature = layerTreeSignature(event.layerTree)
+      if (session.layerTreeSignature && session.layerTreeSignature !== nextSignature)
+        this.markDocumentDirty(session.id)
+      session.layerTreeSignature = nextSignature
     }
     document.on('layers:change', handleLayersChange)
     session.removeDocumentListener = () => {
@@ -943,6 +1010,7 @@ export class Painter {
 
     if (options.document) {
       this.syncSurfaceLayers(document.effectiveLayers, session)
+      session.layerTreeSignature = layerTreeSignature(document.layerTree)
     }
     else {
       const layer = document.addLayer({
@@ -950,6 +1018,7 @@ export class Painter {
         label: options.defaultLayerLabel ?? 'Layer 1',
       })
       this.syncSurfaceLayers([layer], session)
+      session.layerTreeSignature = layerTreeSignature(document.layerTree)
     }
     layersContainer.visible = false
     boundingBoxes.visible = false
@@ -991,6 +1060,58 @@ export class Painter {
     return session
   }
 
+  private resolveDocumentSession(id?: string): PainterDocumentSession {
+    if (id) {
+      const session = this.documentSessions.get(id)
+      if (!session)
+        throw new Error(`Unknown document: ${id}`)
+      return session
+    }
+
+    return this.requireActiveSession()
+  }
+
+  private prepareExtractCanvas(options: PainterExtractCanvasOptions) {
+    if (options.mode !== 'content') {
+      return {
+        target: this.board.container,
+        restore: () => {},
+      }
+    }
+
+    const session = this.requireActiveSession()
+    this.flushSurfaceUploads()
+    const exportContainer = new Container()
+    exportContainer.label = `${session.id}:content-export`
+    const originalParent = session.layersContainer.parent
+    const originalIndex = originalParent?.getChildIndex(session.layersContainer) ?? -1
+    const originalPosition = session.layersContainer.position.clone()
+    const originalVisible = session.layersContainer.visible
+
+    session.layersContainer.position.set(session.width / 2, session.height / 2)
+    session.layersContainer.visible = true
+    exportContainer.addChild(session.layersContainer)
+
+    return {
+      target: {
+        target: exportContainer,
+        frame: new Rectangle(0, 0, session.width, session.height),
+      },
+      restore: () => {
+        session.layersContainer.position.copyFrom(originalPosition)
+        session.layersContainer.visible = originalVisible
+        exportContainer.removeChild(session.layersContainer)
+        if (originalParent) {
+          const index = originalIndex >= 0
+            ? Math.min(originalIndex, originalParent.children.length)
+            : originalParent.children.length
+          originalParent.addChildAt(session.layersContainer, index)
+        }
+        exportContainer.destroy()
+      },
+    }
+  }
+
   private toDocumentState(session: PainterDocumentSession): PainterDocumentState {
     return {
       id: session.id,
@@ -998,6 +1119,7 @@ export class Painter {
       width: session.width,
       height: session.height,
       active: session.id === this.activeDocumentId,
+      dirty: session.dirty,
     }
   }
 
@@ -1262,6 +1384,10 @@ function projectName(metadata: SaierProjectMetadata, fallbackIndex: number): str
   return typeof metadata.name === 'string' && metadata.name.trim()
     ? metadata.name.trim()
     : `Canvas ${fallbackIndex}`
+}
+
+function layerTreeSignature(layerTree: LayerNode[]): string {
+  return JSON.stringify(layerTree)
 }
 
 function getMemoryRiskLevel(totalEstimatedBytes: number, deviceMemoryBytes?: number): MemoryRiskLevel {

@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.1.6-beta.1",
   "private": true,
-  "packageManager": "pnpm@10.34.4",
+  "packageManager": "pnpm@11.10.0+sha512.0b7f8b98060031904c017e3a41eb187a16d40eeb829b95c4f8cb03681761fc4ab53dd219115b9b447f4dce1a05a214764461e7d3703392a9f32f9511ce8c86c8",
   "description": "Elegant online painting runtime powered by PixiJS",
   "author": {
     "email": "me@yunyoujun.cn",
@@ -42,6 +42,7 @@
     "@playwright/test": "^1.61.1",
     "@vitest/browser-playwright": "4.1.9",
     "bumpp": "^11.1.0",
+    "consola": "^3.4.2",
     "eslint": "^10.5.0",
     "eslint-plugin-format": "^2.0.1",
     "lint-staged": "^17.0.8",

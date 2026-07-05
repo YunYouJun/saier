@@ -4,10 +4,15 @@ import type { YunlefunCloudFile } from '~/composables/useYunlefunCloudFiles'
 import type { SiteKeyboardShortcutRow, SiteNewCanvasRequest, SitePainterColorSectionId, SitePainterCommand, SitePainterFilterCommand, SitePainterMenuCommand, SitePainterPanelId, SitePainterTool } from '~/types/painter-app'
 import { usePainter } from '@saier/vue/composables/usePainter'
 import { computed, onMounted, reactive, shallowRef, watch } from 'vue'
+import { useBeforeUnloadGuard } from '~/composables/useBeforeUnloadGuard'
 import { useSitePainterShortcuts } from '~/composables/useSitePainterShortcuts'
 import { useYunlefunBrushLibrary } from '~/composables/useYunlefunBrushLibrary'
 import { useYunlefunCloudFiles } from '~/composables/useYunlefunCloudFiles'
 import { SITE_PAINTER_COMMANDS } from '~/constants/painterCommands'
+
+interface UnsavedChangesConfirmRequest {
+  resolve: (confirmed: boolean) => void
+}
 
 const {
   htmlLang,
@@ -24,6 +29,7 @@ const lastFilterCommand = shallowRef<SitePainterFilterCommand>()
 const keyboardShortcutsDialogOpen = shallowRef(false)
 const newCanvasDialogOpen = shallowRef(false)
 const stabilizerStrength = shallowRef(1)
+const unsavedChangesConfirmRequest = shallowRef<UnsavedChangesConfirmRequest>()
 const colorSectionVisibility = reactive<Record<SitePainterColorSectionId, boolean>>({
   palette: true,
   rgbSliders: true,
@@ -112,11 +118,25 @@ const toolbarLabels = computed(() => ({
   ...text.value.menu,
   stabilizer: text.value.brushOptions.stabilizer,
 }))
+const panelLabels = computed<Record<SitePainterPanelId, string>>(() => ({
+  controls: text.value.menu.operationPanel,
+  diagnostics: text.value.menu.diagnosticsPanel,
+  layers: text.value.menu.layerPanel,
+  options: text.value.menu.brushOptionsPanel,
+}))
+const panelActionLabels = computed(() => ({
+  collapse: text.value.menu.collapsePanel,
+  detach: text.value.menu.detachPanel,
+  expand: text.value.menu.expandPanel,
+  hide: text.value.menu.hidePanel,
+}))
 const canMoveLayerUp = computed(() => activeLayerIndex.value >= 0 && activeLayerIndex.value < layers.value.length - 1)
 const canMoveLayerDown = computed(() => activeLayerIndex.value > 0)
 const canRemoveLayer = computed(() => layers.value.length > 1 && Boolean(activeLayer.value))
+const hasUnsavedChanges = computed(() => documents.value.some(document => document.dirty))
+const unsavedChangesDialogOpen = computed(() => Boolean(unsavedChangesConfirmRequest.value))
 const shortcutsDisabled = computed(() =>
-  cloudSyncDialogOpen.value || keyboardShortcutsDialogOpen.value || newCanvasDialogOpen.value,
+  cloudSyncDialogOpen.value || keyboardShortcutsDialogOpen.value || newCanvasDialogOpen.value || unsavedChangesDialogOpen.value,
 )
 const {
   formatCommandShortcuts,
@@ -180,6 +200,8 @@ useHead(() => ({
     lang: htmlLang.value,
   },
 }))
+
+useBeforeUnloadGuard(hasUnsavedChanges)
 
 watch(painter, (current) => {
   bindBrushLibraryPainter(current)
@@ -330,6 +352,14 @@ function closeNewCanvasDialog(): void {
   newCanvasDialogOpen.value = false
 }
 
+async function clearActiveCanvas(): Promise<void> {
+  const p = painter.value
+  if (!p || !await confirmDiscardUnsavedDocument())
+    return
+
+  p.clearCanvas()
+}
+
 function openCloudSyncDialog(): void {
   cloudSyncDialogOpen.value = true
   if (isYunlefunAuthenticated.value)
@@ -434,6 +464,7 @@ function saveProject(): void {
   link.download = `${safeFileName(projectFileName(project))}.saier.project.json`
   link.click()
   URL.revokeObjectURL(link.href)
+  p.markDocumentSaved()
 }
 
 async function uploadCurrentProjectToCloud(): Promise<void> {
@@ -442,9 +473,11 @@ async function uploadCurrentProjectToCloud(): Promise<void> {
     return
 
   const project = p.exportProject()
-  await uploadCloudProject(project, {
+  const result = await uploadCloudProject(project, {
     name: projectFileName(project),
   })
+  if (result.ok)
+    p.markDocumentSaved()
 }
 
 async function loadCloudProject(file: YunlefunCloudFile): Promise<void> {
@@ -465,7 +498,7 @@ async function deleteCloudProject(file: YunlefunCloudFile): Promise<void> {
 }
 
 async function extractBase64(): Promise<string | undefined> {
-  const dataUrl = await painter.value?.extractCanvas('base64')
+  const dataUrl = await painter.value?.extractCanvas('base64', { mode: 'preview' })
   return typeof dataUrl === 'string' ? dataUrl : undefined
 }
 
@@ -564,8 +597,36 @@ function switchDocument(id: string): void {
   documentActions.switch(id)
 }
 
-function closeDocument(id: string): void {
+async function closeDocument(id: string): Promise<void> {
+  if (!await confirmDiscardUnsavedDocument(id))
+    return
+
   documentActions.close(id)
+}
+
+async function confirmDiscardUnsavedDocument(id?: string): Promise<boolean> {
+  const document = id
+    ? documents.value.find(item => item.id === id)
+    : documents.value.find(item => item.active)
+  if (!document?.dirty)
+    return true
+
+  return requestUnsavedChangesConfirmation()
+}
+
+function requestUnsavedChangesConfirmation(): Promise<boolean> {
+  if (unsavedChangesConfirmRequest.value)
+    return Promise.resolve(false)
+
+  return new Promise((resolve) => {
+    unsavedChangesConfirmRequest.value = { resolve }
+  })
+}
+
+function resolveUnsavedChangesConfirmation(confirmed: boolean): void {
+  const request = unsavedChangesConfirmRequest.value
+  unsavedChangesConfirmRequest.value = undefined
+  request?.resolve(confirmed)
 }
 
 function canRunCommand(command: SitePainterCommand): boolean {
@@ -754,6 +815,7 @@ function safeFileName(name: string): string {
 <template>
   <SitePainterShell
     :app-name="text.appName"
+    :available-panels="availablePanels"
     :close-preview-label="text.closePreview"
     :export-preview="exportPreview"
     :export-preview-label="text.exportPreview"
@@ -761,9 +823,13 @@ function safeFileName(name: string): string {
     :loading="!painter"
     :loading-label="text.loading"
     :next-locale-label="nextLocaleLabel"
+    :panel-action-labels="panelActionLabels"
+    :panel-labels="panelLabels"
+    :panel-visibility="panelVisibility"
     :status-label="statusLabel"
     :tagline="text.tagline"
     @close-preview="closePreview"
+    @set-panel-visible="setPanelVisible"
     @toggle-locale="toggleLocale"
   >
     <template #account>
@@ -849,9 +915,11 @@ function safeFileName(name: string): string {
         v-if="painter && panelVisibility.controls"
         color-panel-mode="inline"
         :color-sections="colorSectionVisibility"
+        guard-clear
         :painter="painter"
         :labels="text.controls"
         mode="palette"
+        @clear="clearActiveCanvas"
         @extract="onExtract"
       />
     </template>
@@ -897,6 +965,16 @@ function safeFileName(name: string): string {
     :labels="text.documents"
     @close="closeNewCanvasDialog"
     @create="createCanvasDocument"
+  />
+
+  <SiteConfirmDialog
+    :open="unsavedChangesDialogOpen"
+    :title="text.documents.unsavedChangesTitle"
+    :message="text.documents.unsavedChangesConfirm"
+    :cancel-label="text.documents.cancel"
+    :confirm-label="text.documents.discardChanges"
+    @cancel="resolveUnsavedChangesConfirmation(false)"
+    @confirm="resolveUnsavedChangesConfirmation(true)"
   />
 
   <SiteKeyboardShortcutsDialog

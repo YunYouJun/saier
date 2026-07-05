@@ -89,6 +89,10 @@ interface SiteMessages {
     window: string
     showPanels: string
     showColorPanels: string
+    collapsePanel: string
+    detachPanel: string
+    expandPanel: string
+    hidePanel: string
     brushOptionsPanel: string
     operationPanel: string
     layerPanel: string
@@ -214,6 +218,9 @@ interface SiteMessages {
     cancel: string
     size: string
     invalidSize: string
+    unsavedChangesTitle: string
+    unsavedChangesConfirm: string
+    discardChanges: string
     defaultName: string
     presets: {
       square512: string
@@ -332,6 +339,10 @@ const messages: Record<SiteLocale, SiteMessages> = {
       window: 'Window',
       showPanels: 'Show panels',
       showColorPanels: 'Show color panels',
+      collapsePanel: 'Collapse panel',
+      detachPanel: 'Detach panel',
+      expandPanel: 'Expand panel',
+      hidePanel: 'Hide panel',
       brushOptionsPanel: 'Brush options',
       operationPanel: 'Controls',
       layerPanel: 'Layers',
@@ -510,6 +521,9 @@ const messages: Record<SiteLocale, SiteMessages> = {
       cancel: 'Cancel',
       size: 'Size',
       invalidSize: 'Use whole pixels from 64 to 8192.',
+      unsavedChangesTitle: 'Unsaved changes',
+      unsavedChangesConfirm: 'This file has unsaved changes. Discard them?',
+      discardChanges: 'Discard',
       defaultName: 'Canvas',
       presets: {
         square512: 'Square 512',
@@ -632,6 +646,10 @@ const messages: Record<SiteLocale, SiteMessages> = {
       window: '窗口',
       showPanels: '显示操作面板',
       showColorPanels: '显示颜色面板',
+      collapsePanel: '折叠面板',
+      detachPanel: '分离面板',
+      expandPanel: '展开面板',
+      hidePanel: '隐藏面板',
       brushOptionsPanel: '画笔参数',
       operationPanel: '操作面板',
       layerPanel: '图层面板',
@@ -810,6 +828,9 @@ const messages: Record<SiteLocale, SiteMessages> = {
       cancel: '取消',
       size: '尺寸',
       invalidSize: '请输入 64 到 8192 的整数像素。',
+      unsavedChangesTitle: '未保存的更改',
+      unsavedChangesConfirm: '当前文件有未保存的更改，确定要丢弃吗？',
+      discardChanges: '丢弃更改',
       defaultName: '画布',
       presets: {
         square512: '方形 512',

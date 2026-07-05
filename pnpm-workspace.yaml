@@ -1,5 +1,10 @@
 shellEmulator: true
 trustPolicy: no-downgrade
+trustPolicyExclude:
+  # Required by workbox-build@7.4.1; pnpm 11 flags this prerelease as a provenance downgrade.
+  - '@trickfilm400/rollup-plugin-off-main-thread@3.0.0-pre1'
+  # pnpm no-downgrade currently compares semver trust evidence across majors for this legacy transitive version.
+  - semver@6.3.1
 packages:
   - docs
   - examples/*
@@ -21,3 +26,10 @@ catalog:
   vitepress: ^2.0.0-alpha.17
   vitepress-plugin-group-icons: ^1.7.5
   vue: ^3.5.35
+allowBuilds:
+  '@parcel/watcher': true
+  '@swc/core': true
+  core-js-pure: false
+  esbuild: true
+  simple-git-hooks: false
+  vue-demi: true

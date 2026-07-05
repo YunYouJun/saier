@@ -109,6 +109,7 @@ describe('saier project save/load (P8)', () => {
       width: 32,
       height: 32,
       active: true,
+      dirty: false,
     })
     expect(painter.getDocuments()).toHaveLength(2)
     expect(painter.getActiveDocumentId()).toBe('loaded')
@@ -169,6 +170,7 @@ describe('saier project save/load (P8)', () => {
     painter.importProject(project, { id: 'small-tile-import' })
 
     expect(backend(painter).tileSize).not.toBe(project.tileSize)
+    expect(painter.isDocumentDirty('small-tile-import')).toBe(false)
     expect(readPixel(painter, 'small-tiles', 9, 10)).toEqual(pixel([32, 64, 128, 255]))
   })
 })

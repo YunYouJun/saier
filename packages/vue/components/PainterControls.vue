@@ -36,12 +36,14 @@ type ColorPickerVisibleSections = Partial<Record<ColorPickerSectionId, boolean>>
 const props = defineProps<{
   colorPanelMode?: 'inline' | 'popover'
   colorSections?: ColorPickerVisibleSections
+  guardClear?: boolean
   painter: Painter
   labels?: Partial<PainterControlsLabels>
   mode?: 'full' | 'palette'
 }>()
 
 const emit = defineEmits<{
+  clear: []
   extract: [dataUrl: string]
 }>()
 
@@ -144,7 +146,7 @@ const tools = computed(() => [
     id: 'clear',
     icon: 'i-ph-trash',
     title: text.value.clear,
-    onClick: () => props.painter.clearCanvas(),
+    onClick: () => props.guardClear ? emit('clear') : props.painter.clearCanvas(),
   },
   {
     id: 'scale-up',

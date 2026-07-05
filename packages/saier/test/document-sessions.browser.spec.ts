@@ -83,6 +83,29 @@ function drawBrushStroke(painter: Painter, color: number | string): void {
 }
 
 describe('painter document sessions', () => {
+  it('starts clean and marks a document dirty after painting', async () => {
+    const painter = await createFixture()
+    const id = painter.getActiveDocumentId()
+
+    expect(painter.isDocumentDirty()).toBe(false)
+    expect(painter.hasUnsavedChanges()).toBe(false)
+    expect(painter.getDocuments()).toEqual([
+      expect.objectContaining({ id, dirty: false }),
+    ])
+
+    drawBrushStroke(painter, '#ff0000')
+
+    expect(painter.isDocumentDirty(id)).toBe(true)
+    expect(painter.hasUnsavedChanges()).toBe(true)
+    expect(painter.getDocuments()).toEqual([
+      expect.objectContaining({ id, dirty: true }),
+    ])
+
+    painter.markDocumentSaved(id)
+    expect(painter.isDocumentDirty(id)).toBe(false)
+    expect(painter.hasUnsavedChanges()).toBe(false)
+  })
+
   it('creates canvases with independent dimensions and active state', async () => {
     const painter = await createFixture()
     const firstId = painter.getActiveDocumentId()
@@ -107,6 +130,55 @@ describe('painter document sessions', () => {
     painter.switchDocument(firstId)
     expect(painter.document.width).toBe(64)
     expect(painter.document.height).toBe(64)
+  })
+
+  it('keeps dirty state scoped to each file', async () => {
+    const painter = await createFixture()
+    const firstId = painter.getActiveDocumentId()
+    drawBrushStroke(painter, '#ff0000')
+
+    const second = painter.createDocument({
+      name: 'Clean',
+      width: 128,
+      height: 96,
+      defaultLayerLabel: 'Layer 1',
+    })
+
+    expect(painter.isDocumentDirty(firstId)).toBe(true)
+    expect(painter.isDocumentDirty(second.id)).toBe(false)
+
+    drawBrushStroke(painter, '#0000ff')
+    expect(painter.isDocumentDirty(second.id)).toBe(true)
+
+    painter.markDocumentSaved(second.id)
+    expect(painter.isDocumentDirty(firstId)).toBe(true)
+    expect(painter.isDocumentDirty(second.id)).toBe(false)
+    expect(painter.hasUnsavedChanges()).toBe(true)
+  })
+
+  it('marks clear canvas as dirty', async () => {
+    const painter = await createFixture()
+
+    painter.clearCanvas()
+
+    expect(painter.isDocumentDirty()).toBe(true)
+    expect(painter.getDocuments()).toEqual([
+      expect.objectContaining({ dirty: true }),
+    ])
+  })
+
+  it('does not mark dirty when only the active layer changes', async () => {
+    const painter = await createFixture()
+    const firstLayerId = painter.document.activeLayerId
+    if (!firstLayerId)
+      throw new Error('missing default layer')
+
+    painter.controller.layer.add({ id: 'layer-2', label: 'Layer 2' })
+    painter.markDocumentSaved()
+
+    painter.controller.layer.setActive(firstLayerId)
+
+    expect(painter.isDocumentDirty()).toBe(false)
   })
 
   it('keeps pixels isolated while switching between files', async () => {

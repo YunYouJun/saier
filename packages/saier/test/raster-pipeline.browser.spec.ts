@@ -1,5 +1,5 @@
 import type { FederatedPointerEvent } from 'pixi.js'
-import type { Painter } from '../src'
+import type { Painter, PainterExtractCanvasOptions } from '../src'
 import { PixiTileTextureBackend } from '@saier/pixi'
 import { Container, Graphics, Point, Rectangle, Sprite } from 'pixi.js'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -103,8 +103,8 @@ function drawEraseStroke(painter: Painter): void {
   painter.flushSurfaceUploads()
 }
 
-async function readExportCenterPixel(painter: Painter): Promise<Uint8ClampedArray> {
-  const canvas = await painter.extractCanvas('canvas') as HTMLCanvasElement
+async function readExportCenterPixel(painter: Painter, options?: PainterExtractCanvasOptions): Promise<Uint8ClampedArray> {
+  const canvas = await painter.extractCanvas('canvas', options) as HTMLCanvasElement
   const context = canvas.getContext('2d')
   if (!context)
     throw new Error('missing 2d context')
@@ -151,6 +151,23 @@ describe('saier raster pipeline', () => {
     drawBrushStroke(second)
 
     expect(readLayerPixels(first)).toEqual(readLayerPixels(second))
+  })
+
+  it('separates preview export background from transparent document content', async () => {
+    const painter = await createFixture()
+
+    const preview = await readExportCenterPixel(painter)
+    expect(preview[0]).toBe(255)
+    expect(preview[1]).toBe(255)
+    expect(preview[2]).toBe(255)
+    expect(preview[3]).toBe(255)
+
+    const content = await readExportCenterPixel(painter, { mode: 'content' })
+    expect(content[3]).toBe(0)
+
+    drawBrushStroke(painter)
+    const paintedContent = await readExportCenterPixel(painter, { mode: 'content' })
+    expect(paintedContent[3]).toBeGreaterThan(0)
   })
 
   it('applies custom stabilizer strength to brush and eraser', async () => {

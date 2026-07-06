@@ -11,6 +11,20 @@ interface SiteMessages {
   exportPreview: string
   closePreview: string
   loading: string
+  notices: {
+    close: string
+    projectDraftClearFailed: string
+    projectDraftReadFailed: string
+    projectDraftRestoreFailed: string
+    projectDraftSaveFailed: string
+    brushImportFailed: string
+    brushImportInvalidMyPaint: string
+    brushImportSavedLocally: string
+    brushImportSucceeded: string
+    brushImportUnsupported: string
+    brushImportUnsupportedSai: string
+    projectImportFailed: string
+  }
   account: {
     checking: string
     error: string
@@ -41,6 +55,7 @@ interface SiteMessages {
     loading: string
     maxFileSize: string
     memberPlan: string
+    name: string
     missingDatabase: string
     missingStorage: string
     normalPlan: string
@@ -48,9 +63,14 @@ interface SiteMessages {
     quotaAvailable: string
     quotaExceeded: string
     quotaUsed: string
+    recentFiles: string
     refresh: string
+    renaming: string
+    rename: string
+    renameFailed: string
     remove: string
     reservationExpired: string
+    saveRename: string
     signIn: string
     signInRequired: string
     size: string
@@ -66,6 +86,7 @@ interface SiteMessages {
     openProject: string
     saveProject: string
     cloudSync: string
+    importBrush: string
     importImage: string
     exportPreview: string
     download: string
@@ -222,6 +243,17 @@ interface SiteMessages {
     unsavedChangesConfirm: string
     discardChanges: string
     defaultName: string
+    draftRecovery: {
+      close: string
+      discard: string
+      file: string
+      message: string
+      restore: string
+      size: string
+      title: string
+      updatedAt: string
+      unknownName: string
+    }
     presets: {
       square512: string
       square1024: string
@@ -261,6 +293,20 @@ const messages: Record<SiteLocale, SiteMessages> = {
     exportPreview: 'Export preview',
     closePreview: 'Close preview',
     loading: 'Loading painter...',
+    notices: {
+      close: 'Dismiss',
+      projectDraftClearFailed: 'Could not discard the local draft.',
+      projectDraftReadFailed: 'Could not read the local draft.',
+      projectDraftRestoreFailed: 'Could not restore the local draft.',
+      projectDraftSaveFailed: 'Could not save the local draft.',
+      brushImportFailed: 'Could not import this brush.',
+      brushImportInvalidMyPaint: 'This .myb file does not look like a MyPaint brush preset.',
+      brushImportSavedLocally: 'Brush imported locally. Cloud sync failed.',
+      brushImportSucceeded: 'Brush imported',
+      brushImportUnsupported: 'Import a MyPaint .myb brush file.',
+      brushImportUnsupportedSai: 'SAI brush presets are not an open import format yet. Import MyPaint .myb for now.',
+      projectImportFailed: 'Could not open this project.',
+    },
     account: {
       checking: 'Syncing',
       error: 'Account error',
@@ -291,6 +337,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
       loading: 'Loading files...',
       maxFileSize: 'File limit',
       memberPlan: 'Member storage',
+      name: 'Name',
       missingDatabase: 'Cloud file index is not available. Check the CloudBase collection and permissions.',
       missingStorage: 'Cloud storage is not available. Check the CloudBase storage security domain.',
       normalPlan: 'Free storage',
@@ -298,9 +345,14 @@ const messages: Record<SiteLocale, SiteMessages> = {
       quotaAvailable: 'Available',
       quotaExceeded: 'Not enough YunLeFun cloud storage for this upload.',
       quotaUsed: 'Used',
+      recentFiles: 'Recent files',
       refresh: 'Refresh',
+      renaming: 'Renaming...',
+      rename: 'Rename',
+      renameFailed: 'Failed to rename cloud file.',
       remove: 'Delete',
       reservationExpired: 'The upload reservation expired. Please try again.',
+      saveRename: 'Save name',
       signIn: 'Sign in',
       signInRequired: 'Sign in with YunLeFun to use shared cloud storage.',
       size: 'Size',
@@ -316,6 +368,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
       openProject: 'Open project',
       saveProject: 'Save project',
       cloudSync: 'Cloud sync...',
+      importBrush: 'Import brush...',
       importImage: 'Import image',
       exportPreview: 'Preview export',
       download: 'Download PNG',
@@ -397,6 +450,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
         'file:download': 'Download PNG',
         'file:cloud-sync': 'Cloud sync',
         'file:export-preview': 'Preview export',
+        'file:import-brush': 'Import brush',
         'file:import-image': 'Import image',
         'file:new': 'New canvas',
         'file:open-project': 'Open project',
@@ -525,6 +579,17 @@ const messages: Record<SiteLocale, SiteMessages> = {
       unsavedChangesConfirm: 'This file has unsaved changes. Discard them?',
       discardChanges: 'Discard',
       defaultName: 'Canvas',
+      draftRecovery: {
+        close: 'Discard draft',
+        discard: 'Discard draft',
+        file: 'File',
+        message: 'A browser draft was found from your last session.',
+        restore: 'Restore draft',
+        size: 'Canvas',
+        title: 'Recover unsaved work',
+        updatedAt: 'Saved',
+        unknownName: 'Untitled draft',
+      },
       presets: {
         square512: 'Square 512',
         square1024: 'Square 1024',
@@ -568,6 +633,20 @@ const messages: Record<SiteLocale, SiteMessages> = {
     exportPreview: '导出预览',
     closePreview: '关闭预览',
     loading: '画板加载中...',
+    notices: {
+      close: '关闭',
+      projectDraftClearFailed: '无法丢弃本地草稿。',
+      projectDraftReadFailed: '无法读取本地草稿。',
+      projectDraftRestoreFailed: '无法恢复本地草稿。',
+      projectDraftSaveFailed: '无法保存本地草稿。',
+      brushImportFailed: '无法导入这个笔刷。',
+      brushImportInvalidMyPaint: '这个 .myb 文件不像有效的 MyPaint 笔刷预设。',
+      brushImportSavedLocally: '笔刷已导入本地，但云同步失败。',
+      brushImportSucceeded: '笔刷已导入',
+      brushImportUnsupported: '请导入 MyPaint .myb 笔刷文件。',
+      brushImportUnsupportedSai: 'SAI 笔刷预设暂时没有开放导入格式；请先导入 MyPaint .myb。',
+      projectImportFailed: '无法打开这个工程。',
+    },
     account: {
       checking: '同步中',
       error: '账户异常',
@@ -598,6 +677,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
       loading: '正在加载文件...',
       maxFileSize: '文件上限',
       memberPlan: '会员云空间',
+      name: '名称',
       missingDatabase: '云端文件索引不可用，请检查 CloudBase 集合与权限。',
       missingStorage: '云存储不可用，请检查 CloudBase 存储安全域名。',
       normalPlan: '普通云空间',
@@ -605,9 +685,14 @@ const messages: Record<SiteLocale, SiteMessages> = {
       quotaAvailable: '可用',
       quotaExceeded: '云乐坊云空间不足，无法上传这个文件。',
       quotaUsed: '已用',
+      recentFiles: '最近文件',
       refresh: '刷新',
+      renaming: '重命名中...',
+      rename: '重命名',
+      renameFailed: '云端文件重命名失败。',
       remove: '删除',
       reservationExpired: '上传预留已过期，请重试。',
+      saveRename: '保存名称',
       signIn: '登录',
       signInRequired: '登录云乐坊后可使用共享云空间。',
       size: '大小',
@@ -623,6 +708,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
       openProject: '打开工程',
       saveProject: '保存工程',
       cloudSync: '云同步...',
+      importBrush: '导入笔刷...',
       importImage: '导入图片',
       exportPreview: '预览导出',
       download: '下载 PNG',
@@ -704,6 +790,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
         'file:download': '下载 PNG',
         'file:cloud-sync': '云同步',
         'file:export-preview': '预览导出',
+        'file:import-brush': '导入笔刷',
         'file:import-image': '导入图片',
         'file:new': '新建画布',
         'file:open-project': '打开工程',
@@ -832,6 +919,17 @@ const messages: Record<SiteLocale, SiteMessages> = {
       unsavedChangesConfirm: '当前文件有未保存的更改，确定要丢弃吗？',
       discardChanges: '丢弃更改',
       defaultName: '画布',
+      draftRecovery: {
+        close: '丢弃草稿',
+        discard: '丢弃草稿',
+        file: '文件',
+        message: '检测到上次会话留下的浏览器草稿。',
+        restore: '恢复草稿',
+        size: '画布',
+        title: '恢复未保存内容',
+        updatedAt: '保存时间',
+        unknownName: '未命名草稿',
+      },
       presets: {
         square512: '方形 512',
         square1024: '方形 1024',

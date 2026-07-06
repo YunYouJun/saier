@@ -108,8 +108,8 @@ title: Roadmap (P0–P10)
 - **目标**：P9 public beta 之后，把 YunLeFun 账号级体验补成可长期使用的云同步闭环，优先支持自定义笔刷跨设备同步。
 - **范围（优先级）**：
   - [P10-01](./tasks/P10-01-brush-cloud-sync)：自定义笔刷库云同步。笔刷库以 `saier.brush-library.v1` 小型 JSON 文件存入共享云空间，与项目文件共用普通用户 100MiB / 会员 1GiB 配额；单个笔刷库额外限制 256KiB。
-  - P10-02：云端项目库增强（最近文件、重命名、删除确认、导入失败提示）。
-  - P10-03：autosave / crash recovery（本地草稿优先，云同步失败不丢数据）。
+  - [P10-02](./tasks/P10-02-cloud-project-library)：云端项目库增强（最近文件、重命名、删除确认、导入失败提示）。
+  - [P10-03](./tasks/P10-03-autosave-crash-recovery)：autosave / crash recovery（本地草稿优先，云同步失败不丢数据）。
   - P10-04：浏览器兼容矩阵与性能基线（Chrome / Edge / Safari，1024² / 4096²）。
   - P10-05：发布流程收口（`saier` 主包、`pixi-painter` deprecated alias、changelog）。
 - **验收**：账号 A 保存自定义笔刷后刷新 / 新浏览器登录仍可见；删除后云端和本地都消失；账号 B 不可见；笔刷库文件不出现在项目文件列表；笔刷库上传占用共享 quota 且替换旧库不持续增长。

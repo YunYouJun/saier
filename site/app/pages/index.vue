@@ -1,17 +1,36 @@
 <script setup lang="ts">
 import type { PainterLayerNodeState, SaierProjectFile, StrokePatch, TiledSurface, TilePatch } from '@saier/core'
+import type { Painter } from 'saier'
 import type { YunlefunCloudFile } from '~/composables/useYunlefunCloudFiles'
 import type { SiteKeyboardShortcutRow, SiteNewCanvasRequest, SitePainterColorSectionId, SitePainterCommand, SitePainterFilterCommand, SitePainterMenuCommand, SitePainterPanelId, SitePainterTool } from '~/types/painter-app'
+import type { SaierProjectDraftFile } from '~/utils/projectDraft'
 import { usePainter } from '@saier/vue/composables/usePainter'
-import { computed, onMounted, reactive, shallowRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, shallowRef, watch } from 'vue'
 import { useBeforeUnloadGuard } from '~/composables/useBeforeUnloadGuard'
 import { useSitePainterShortcuts } from '~/composables/useSitePainterShortcuts'
 import { useYunlefunBrushLibrary } from '~/composables/useYunlefunBrushLibrary'
 import { useYunlefunCloudFiles } from '~/composables/useYunlefunCloudFiles'
 import { SITE_PAINTER_COMMANDS } from '~/constants/painterCommands'
+import {
+  isBrushPresetImportError,
+  parseBrushPresetImportText,
+} from '~/utils/brushImport'
+import {
+  clearProjectDraft,
+  createProjectDraft,
+  readProjectDraft,
+  writeProjectDraft,
+} from '~/utils/projectDraft'
 
 interface UnsavedChangesConfirmRequest {
   resolve: (confirmed: boolean) => void
+}
+
+interface SiteNoticeItem {
+  id: number
+  type: 'error' | 'warning' | 'info'
+  title: string
+  message?: string
 }
 
 const {
@@ -28,6 +47,8 @@ const cloudSyncDialogOpen = shallowRef(false)
 const lastFilterCommand = shallowRef<SitePainterFilterCommand>()
 const keyboardShortcutsDialogOpen = shallowRef(false)
 const newCanvasDialogOpen = shallowRef(false)
+const projectDraftRecovery = shallowRef<SaierProjectDraftFile>()
+const siteNotices = shallowRef<SiteNoticeItem[]>([])
 const stabilizerStrength = shallowRef(1)
 const unsavedChangesConfirmRequest = shallowRef<UnsavedChangesConfirmRequest>()
 const colorSectionVisibility = reactive<Record<SitePainterColorSectionId, boolean>>({
@@ -41,6 +62,8 @@ const panelVisibility = reactive<Record<SitePainterPanelId, boolean>>({
   layers: true,
   options: true,
 })
+
+const PROJECT_DRAFT_SAVE_DEBOUNCE_MS = 1200
 
 const {
   activeLayerId,
@@ -78,6 +101,7 @@ const {
   quota: cloudFileQuota,
   refreshFiles: refreshCloudFiles,
   removeFile: removeCloudFile,
+  renameFile: renameCloudFile,
   status: cloudFileStatus,
   uploadProgress: cloudFileUploadProgress,
   uploadProject: uploadCloudProject,
@@ -134,9 +158,25 @@ const canMoveLayerUp = computed(() => activeLayerIndex.value >= 0 && activeLayer
 const canMoveLayerDown = computed(() => activeLayerIndex.value > 0)
 const canRemoveLayer = computed(() => layers.value.length > 1 && Boolean(activeLayer.value))
 const hasUnsavedChanges = computed(() => documents.value.some(document => document.dirty))
+const projectDraftRecoveryOpen = computed(() => Boolean(projectDraftRecovery.value))
+const projectDraftRecoveryMeta = computed(() => {
+  const draft = projectDraftRecovery.value
+  if (!draft)
+    return undefined
+
+  return {
+    name: projectDraftName(draft),
+    size: `${draft.project.width} x ${draft.project.height}`,
+    updatedAt: formatDraftUpdatedAt(draft.updatedAt),
+  }
+})
 const unsavedChangesDialogOpen = computed(() => Boolean(unsavedChangesConfirmRequest.value))
 const shortcutsDisabled = computed(() =>
-  cloudSyncDialogOpen.value || keyboardShortcutsDialogOpen.value || newCanvasDialogOpen.value || unsavedChangesDialogOpen.value,
+  cloudSyncDialogOpen.value
+  || keyboardShortcutsDialogOpen.value
+  || newCanvasDialogOpen.value
+  || projectDraftRecoveryOpen.value
+  || unsavedChangesDialogOpen.value,
 )
 const {
   formatCommandShortcuts,
@@ -201,13 +241,27 @@ useHead(() => ({
   },
 }))
 
-useBeforeUnloadGuard(hasUnsavedChanges)
+useBeforeUnloadGuard(hasUnsavedChanges, {
+  onBeforeUnload: () => {
+    const current = painter.value
+    if (current)
+      void saveProjectDraftNow(current)
+  },
+})
+
+let projectDraftSaveTimer: ReturnType<typeof setTimeout> | undefined
+let projectDraftStorageQueue = Promise.resolve()
+let removeProjectDraftListeners: (() => void) | undefined
+let restoringProjectDraft = false
+let siteNoticeId = 0
 
 watch(painter, (current) => {
   bindBrushLibraryPainter(current)
+  bindProjectDraftAutosave(current)
   if (!current)
     return
 
+  void detectLocalProjectDraft(current)
   setStabilizerStrength(current.brush.getStabilizerStrength())
   syncBrushLibraryForCurrentAccount(current)
 }, { immediate: true })
@@ -218,6 +272,15 @@ watch(isYunlefunAuthenticated, () => {
 
 onMounted(() => {
   void syncYunlefunSilently()
+})
+
+onBeforeUnmount(() => {
+  removeProjectDraftListeners?.()
+  removeProjectDraftListeners = undefined
+  if (projectDraftSaveTimer) {
+    clearTimeout(projectDraftSaveTimer)
+    projectDraftSaveTimer = undefined
+  }
 })
 
 async function handleMenuCommand(command: SitePainterMenuCommand): Promise<void> {
@@ -250,6 +313,9 @@ async function handleMenuCommand(command: SitePainterMenuCommand): Promise<void>
       break
     case 'file:import-image':
       painter.value?.useTool('image')
+      break
+    case 'file:import-brush':
+      await importBrushPreset()
       break
     case 'file:export-preview':
       await previewExport()
@@ -447,6 +513,53 @@ async function openProject(): Promise<void> {
     }
     catch (error) {
       console.error('Failed to import Saier project file.', error)
+      showProjectImportFailure()
+    }
+  }
+  input.click()
+}
+
+async function importBrushPreset(): Promise<void> {
+  const p = painter.value
+  if (!p)
+    return
+
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.myb,.json,text/plain'
+  input.onchange = async () => {
+    const file = input.files?.[0]
+    if (!file)
+      return
+
+    let registeredName = ''
+    try {
+      const imported = parseBrushPresetImportText(await file.text(), {
+        existingIds: p.brush.listPresets().map(preset => preset.id),
+        fileName: file.name,
+      })
+      const registered = p.brush.registerPreset(imported.preset, { select: true })
+      registeredName = registered.name
+      p.useTool('brush')
+    }
+    catch (error) {
+      console.error('Failed to import brush preset file.', error)
+      showSiteNotice('error', text.value.notices.brushImportFailed, brushImportFailureMessage(error))
+      return
+    }
+
+    try {
+      const result = await saveBrushLibraryNow(p)
+      if (result.ok) {
+        showSiteNotice('info', text.value.notices.brushImportSucceeded, registeredName)
+      }
+      else {
+        showSiteNotice('warning', text.value.notices.brushImportSavedLocally, brushLibraryFailureMessage(text.value.cloudFiles))
+      }
+    }
+    catch (error) {
+      console.error('Failed to save imported brush preset.', error)
+      showSiteNotice('warning', text.value.notices.brushImportSavedLocally, errorMessage(error))
     }
   }
   input.click()
@@ -465,6 +578,7 @@ function saveProject(): void {
   link.click()
   URL.revokeObjectURL(link.href)
   p.markDocumentSaved()
+  void clearProjectDraftIfClean(p)
 }
 
 async function uploadCurrentProjectToCloud(): Promise<void> {
@@ -472,12 +586,15 @@ async function uploadCurrentProjectToCloud(): Promise<void> {
   if (!p)
     return
 
+  await saveProjectDraftNow(p)
   const project = p.exportProject()
   const result = await uploadCloudProject(project, {
     name: projectFileName(project),
   })
-  if (result.ok)
+  if (result.ok) {
     p.markDocumentSaved()
+    await clearProjectDraftIfClean(p)
+  }
 }
 
 async function loadCloudProject(file: YunlefunCloudFile): Promise<void> {
@@ -489,12 +606,214 @@ async function loadCloudProject(file: YunlefunCloudFile): Promise<void> {
   if (!result.ok || !result.project)
     return
 
-  p.importProject(result.project, { activate: true })
+  try {
+    p.importProject(result.project, { activate: true })
+  }
+  catch (error) {
+    console.error('Failed to import cloud Saier project file.', error)
+    showProjectImportFailure()
+    return
+  }
   closeCloudSyncDialog()
 }
 
 async function deleteCloudProject(file: YunlefunCloudFile): Promise<void> {
   await removeCloudFile(file)
+}
+
+async function renameCloudProject(file: YunlefunCloudFile, name: string): Promise<void> {
+  await renameCloudFile(file, name)
+}
+
+function bindProjectDraftAutosave(current: Painter | undefined): void {
+  removeProjectDraftListeners?.()
+  removeProjectDraftListeners = undefined
+  if (projectDraftSaveTimer) {
+    clearTimeout(projectDraftSaveTimer)
+    projectDraftSaveTimer = undefined
+  }
+  if (!current)
+    return
+
+  const schedule = () => scheduleProjectDraftSave(current)
+  current.emitter.on('brush:up', schedule)
+  current.emitter.on('eraser:up', schedule)
+  current.emitter.on('canvas:clear', schedule)
+  current.emitter.on('documents:change', schedule)
+  current.emitter.on('active-document:change', schedule)
+  current.controller.on('layers:change', schedule)
+  removeProjectDraftListeners = () => {
+    current.emitter.off('brush:up', schedule)
+    current.emitter.off('eraser:up', schedule)
+    current.emitter.off('canvas:clear', schedule)
+    current.emitter.off('documents:change', schedule)
+    current.emitter.off('active-document:change', schedule)
+    current.controller.off('layers:change', schedule)
+  }
+}
+
+async function detectLocalProjectDraft(_current: Painter): Promise<void> {
+  if (!import.meta.client)
+    return
+
+  try {
+    projectDraftRecovery.value = await readProjectDraft()
+  }
+  catch (error) {
+    console.error('Failed to read Saier local project draft.', error)
+    showSiteNotice('error', text.value.notices.projectDraftReadFailed, errorMessage(error))
+  }
+}
+
+async function restoreLocalProjectDraft(): Promise<void> {
+  const current = painter.value
+  const draft = projectDraftRecovery.value
+  if (!current || !draft)
+    return
+
+  projectDraftRecovery.value = undefined
+  const documentsBeforeRestore = current.getDocuments()
+  const previousActiveId = current.getActiveDocumentId()
+  restoringProjectDraft = true
+  try {
+    const restored = current.importProject(draft.project, {
+      activate: true,
+      name: projectFileName(draft.project),
+    })
+    current.markDocumentDirty(restored.id)
+
+    const previous = documentsBeforeRestore.find(document => document.id === previousActiveId)
+    if (documentsBeforeRestore.length === 1 && previous && !previous.dirty)
+      current.closeDocument(previousActiveId)
+  }
+  catch (error) {
+    console.error('Failed to restore Saier local project draft.', error)
+    showSiteNotice('error', text.value.notices.projectDraftRestoreFailed, errorMessage(error))
+    await discardLocalProjectDraft()
+  }
+  finally {
+    restoringProjectDraft = false
+  }
+}
+
+async function discardLocalProjectDraft(): Promise<void> {
+  projectDraftRecovery.value = undefined
+  await clearStoredProjectDraft()
+}
+
+function projectDraftName(draft: SaierProjectDraftFile): string {
+  const name = typeof draft.project.metadata?.name === 'string'
+    ? draft.project.metadata.name.trim()
+    : ''
+  return name || text.value.documents.draftRecovery.unknownName
+}
+
+function formatDraftUpdatedAt(updatedAt: number): string {
+  return new Intl.DateTimeFormat(locale.value === 'zh' ? 'zh-CN' : 'en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(updatedAt))
+}
+
+function scheduleProjectDraftSave(current: Painter): void {
+  if (restoringProjectDraft)
+    return
+  if (projectDraftSaveTimer)
+    clearTimeout(projectDraftSaveTimer)
+
+  projectDraftSaveTimer = setTimeout(() => {
+    projectDraftSaveTimer = undefined
+    void saveProjectDraftNow(current)
+  }, PROJECT_DRAFT_SAVE_DEBOUNCE_MS)
+}
+
+async function saveProjectDraftNow(current: Painter): Promise<void> {
+  if (!import.meta.client)
+    return
+
+  const activeDocument = current.getDocuments().find(document => document.active)
+  if (!activeDocument?.dirty) {
+    if (!current.hasUnsavedChanges())
+      await clearStoredProjectDraft()
+    return
+  }
+
+  try {
+    const draft = createProjectDraft(current.exportProject())
+    await queueProjectDraftStorage(() => writeProjectDraft(draft))
+  }
+  catch (error) {
+    console.error('Failed to write Saier local project draft.', error)
+    showSiteNotice('error', text.value.notices.projectDraftSaveFailed, errorMessage(error))
+  }
+}
+
+async function clearProjectDraftIfClean(current: Painter): Promise<void> {
+  if (!import.meta.client)
+    return
+
+  if (!current.hasUnsavedChanges())
+    await clearStoredProjectDraft()
+  else
+    scheduleProjectDraftSave(current)
+}
+
+async function clearStoredProjectDraft(): Promise<void> {
+  try {
+    await queueProjectDraftStorage(() => clearProjectDraft())
+  }
+  catch (error) {
+    console.error('Failed to clear Saier local project draft.', error)
+    showSiteNotice('error', text.value.notices.projectDraftClearFailed, errorMessage(error))
+  }
+}
+
+function queueProjectDraftStorage(operation: () => Promise<void>): Promise<void> {
+  const queued = projectDraftStorageQueue.then(operation, operation)
+  projectDraftStorageQueue = queued.catch(() => {})
+  return queued
+}
+
+function showProjectImportFailure(): void {
+  showSiteNotice('error', text.value.notices.projectImportFailed, text.value.cloudFiles.invalidProject)
+}
+
+function brushImportFailureMessage(error: unknown): string | undefined {
+  if (!isBrushPresetImportError(error))
+    return errorMessage(error)
+
+  switch (error.reason) {
+    case 'empty_file':
+    case 'unsupported_format':
+      return text.value.notices.brushImportUnsupported
+    case 'invalid_mypaint':
+      return text.value.notices.brushImportInvalidMyPaint
+    case 'unsupported_sai':
+      return text.value.notices.brushImportUnsupportedSai
+  }
+}
+
+function showSiteNotice(type: SiteNoticeItem['type'], title: string, message?: string): void {
+  const notice: SiteNoticeItem = {
+    id: ++siteNoticeId,
+    type,
+    title,
+    ...(message ? { message } : {}),
+  }
+  siteNotices.value = [
+    ...siteNotices.value.filter(item => item.title !== title),
+    notice,
+  ].slice(-4)
+}
+
+function closeSiteNotice(id: number): void {
+  siteNotices.value = siteNotices.value.filter(item => item.id !== id)
+}
+
+function errorMessage(error: unknown): string | undefined {
+  if (error instanceof Error && error.message)
+    return error.message
+  return typeof error === 'string' && error ? error : undefined
 }
 
 async function extractBase64(): Promise<string | undefined> {
@@ -959,6 +1278,20 @@ function safeFileName(name: string): string {
     </template>
   </SitePainterShell>
 
+  <SiteNoticeStack
+    :close-label="text.notices.close"
+    :notices="siteNotices"
+    @close="closeSiteNotice"
+  />
+
+  <SiteProjectDraftRecoveryDialog
+    :open="projectDraftRecoveryOpen"
+    :labels="text.documents.draftRecovery"
+    :meta="projectDraftRecoveryMeta"
+    @discard="discardLocalProjectDraft"
+    @restore="restoreLocalProjectDraft"
+  />
+
   <SiteNewCanvasDialog
     :open="newCanvasDialogOpen"
     :next-index="documents.length + 1"
@@ -1005,6 +1338,7 @@ function safeFileName(name: string): string {
     @login="loginWithYunlefunForCloudSync"
     @refresh="refreshCloudFiles"
     @remove-file="deleteCloudProject"
+    @rename-file="renameCloudProject"
     @sync-brush-library="syncBrushLibraryNow"
     @upload-current="uploadCurrentProjectToCloud"
   />

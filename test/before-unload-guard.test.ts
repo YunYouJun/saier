@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { applyBeforeUnloadGuard } from '../site/app/composables/useBeforeUnloadGuard'
+import { runBeforeUnloadGuard } from '../site/app/composables/useBeforeUnloadGuard'
 
 function createBeforeUnloadEvent(): BeforeUnloadEvent {
   return {
@@ -9,20 +9,26 @@ function createBeforeUnloadEvent(): BeforeUnloadEvent {
 }
 
 describe('before unload guard', () => {
-  it('does not block unloading when disabled', () => {
+  it('does nothing when there are no unsaved changes', () => {
     const event = createBeforeUnloadEvent()
+    const onBeforeUnload = vi.fn()
 
-    expect(applyBeforeUnloadGuard(event, false)).toBe(false)
+    const guarded = runBeforeUnloadGuard(event, false, { onBeforeUnload })
 
+    expect(guarded).toBe(false)
+    expect(onBeforeUnload).not.toHaveBeenCalled()
     expect(event.preventDefault).not.toHaveBeenCalled()
     expect(event.returnValue).toBeUndefined()
   })
 
-  it('blocks unloading when enabled', () => {
+  it('flushes pending work and requests browser confirmation for unsaved changes', () => {
     const event = createBeforeUnloadEvent()
+    const onBeforeUnload = vi.fn()
 
-    expect(applyBeforeUnloadGuard(event, true)).toBe(true)
+    const guarded = runBeforeUnloadGuard(event, true, { onBeforeUnload })
 
+    expect(guarded).toBe(true)
+    expect(onBeforeUnload).toHaveBeenCalledTimes(1)
     expect(event.preventDefault).toHaveBeenCalledTimes(1)
     expect(event.returnValue).toBe('')
   })

@@ -7,6 +7,7 @@ The browser no longer creates Saier cloud metadata directly. New project and bru
 ```text
 getStorageQuota -> reserveStorageUpload -> uploadFile(storageKey) -> finalizeStorageUpload
 deleteStorageFile
+renameStorageFile
 listStorageFiles({ appId, kind, slotKey })
 ```
 
@@ -41,6 +42,7 @@ The security rules are not sufficient by themselves. Before enabling P10 brush c
 - `listStorageFiles({ appId: 'saier', kind: 'brush-library', slotKey: 'default', limit: 1 })`: return the current user's latest active brush-library file. The backend may also return quota, but Saier must not depend on a brush-specific response shape.
 - `reserveStorageUpload({ appId: 'saier', kind: 'brush-library', slotKey: 'default', fileName: 'brush-library.saier.brushes.json', sizeBytes, contentType: 'application/json' })`: apply app/kind policy; reject unauthenticated users, `sizeBytes > 262144`, non-JSON content, non-Saier app ids, and quota overflow; reserve storage under `user-storage/{uid}/saier/{reservationId}/brush-library.saier.brushes.json`.
 - `finalizeStorageUpload({ reservationId, storageKey, fileId })`: require ownership, exact reservation/storage key/file id match, and active reservation state; when policy says singleton, mark the new file active, release or delete the previous active file for the same `userId + appId + kind + slotKey`, and keep shared quota flat across replacements.
+- `renameStorageFile({ appId: 'saier', kind: 'project', reservationId, fileName })`: update owner-visible project metadata without moving the storage object; reject non-project kinds, non-Saier app ids, non-JSON project names, and rows not owned by the current user.
 
 The app/kind policy is storage metadata only. `user-storage-api` must not parse `saier.brush-library.v1`, inspect `BrushPreset`, or contain Saier brush merge logic.
 
@@ -120,6 +122,7 @@ After applying:
 8. `reserveStorageUpload` rejects brush-library files over 256 KiB, writes `kind: 'brush-library'` and `slotKey: 'default'`, and reserves under the owner path.
 9. `finalizeStorageUpload` replaces the previous active brush library for the same `userId + appId + kind + slotKey` and releases the old file's quota.
 10. Saier project lists only show `kind: 'project'` or legacy `.saier.project.json` rows; `kind: 'brush-library'` rows stay hidden from the project table.
+11. `renameStorageFile` updates project display names only for the current owner and never accepts `kind: 'brush-library'`.
 
 Official references:
 

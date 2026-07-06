@@ -33,6 +33,7 @@ export type SitePainterCommand
     | 'file:save-project'
     | 'file:cloud-sync'
     | 'file:import-image'
+    | 'file:import-brush'
     | 'file:export-preview'
     | 'file:download'
     | 'edit:undo'

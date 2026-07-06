@@ -33,6 +33,9 @@ catalogs:
     unplugin-vue-components:
       specifier: ^32.1.0
       version: 32.1.0
+    vite:
+      specifier: ^7.3.6
+      version: 7.3.6
     vite-plugin-vue-devtools:
       specifier: ^8.1.2
       version: 8.1.3
@@ -115,7 +118,7 @@ importers:
         version: 14.3.0(vue@3.5.38(typescript@5.9.3))
       '@yunyoujun/docs':
         specifier: 'catalog:'
-        version: 0.1.14(vite@8.1.0)
+        version: 0.1.14(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))
       floating-vue:
         specifier: 'catalog:'
         version: 5.2.2(@nuxt/kit@3.21.8(magicast@0.5.3))(vue@3.5.38(typescript@5.9.3))
@@ -124,19 +127,22 @@ importers:
         version: 3.0.4(typescript@5.9.3)(vue@3.5.38(typescript@5.9.3))
       unocss:
         specifier: 'catalog:'
-        version: 66.7.2(@unocss/webpack@66.7.2(esbuild@0.28.1)(rolldown@1.1.3)(rollup@4.62.2)(vite@8.1.0)(webpack@5.101.3(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.15)))(vite@8.1.0)
+        version: 66.7.2(@unocss/webpack@66.7.2(esbuild@0.28.1)(rolldown@1.1.3)(rollup@4.62.2)(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))(webpack@5.101.3(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.15)))(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))
       unplugin-vue-components:
         specifier: 'catalog:'
-        version: 32.1.0(@nuxt/kit@3.21.8(magicast@0.5.3))(esbuild@0.28.1)(rolldown@1.1.3)(rollup@4.62.2)(vite@8.1.0)(vue@3.5.38(typescript@5.9.3))(webpack@5.101.3(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.15))
+        version: 32.1.0(@nuxt/kit@3.21.8(magicast@0.5.3))(esbuild@0.28.1)(rolldown@1.1.3)(rollup@4.62.2)(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))(vue@3.5.38(typescript@5.9.3))(webpack@5.101.3(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.15))
+      vite:
+        specifier: 'catalog:'
+        version: 7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0)
       vite-plugin-vue-devtools:
         specifier: 'catalog:'
-        version: 8.1.3(@nuxt/kit@3.21.8(magicast@0.5.3))(vite@8.1.0)(vue@3.5.38(typescript@5.9.3))
+        version: 8.1.3(@nuxt/kit@3.21.8(magicast@0.5.3))(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))(vue@3.5.38(typescript@5.9.3))
       vitepress:
         specifier: 'catalog:'
         version: 2.0.0-alpha.17(@types/node@26.0.1)(axios@1.18.1)(change-case@5.4.4)(fuse.js@7.4.2)(jiti@2.7.0)(lightningcss@1.32.0)(oxc-minify@0.133.0)(postcss@8.5.15)(sass@1.101.0)(terser@5.48.0)(typescript@5.9.3)(yaml@2.9.0)
       vitepress-plugin-group-icons:
         specifier: 'catalog:'
-        version: 1.7.5(vite@8.1.0)
+        version: 1.7.5(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))
       vue:
         specifier: 'catalog:'
         version: 3.5.38(typescript@5.9.3)
@@ -11369,6 +11375,19 @@ snapshots:
     dependencies:
       '@unocss/core': 66.7.2
 
+  '@unocss/vite@66.7.2(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))':
+    dependencies:
+      '@jridgewell/remapping': 2.3.5
+      '@unocss/config': 66.7.2
+      '@unocss/core': 66.7.2
+      '@unocss/inspector': 66.7.2
+      chokidar: 5.0.0
+      magic-string: 0.30.21
+      pathe: 2.0.3
+      tinyglobby: 0.2.17
+      unplugin-utils: 0.3.1
+      vite: 7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0)
+
   '@unocss/vite@66.7.2(vite@8.1.0)':
     dependencies:
       '@jridgewell/remapping': 2.3.5
@@ -11381,6 +11400,30 @@ snapshots:
       tinyglobby: 0.2.17
       unplugin-utils: 0.3.1
       vite: 8.1.0(@types/node@26.0.1)(@vitejs/devtools@0.3.3)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0)
+
+  '@unocss/webpack@66.7.2(esbuild@0.28.1)(rolldown@1.1.3)(rollup@4.62.2)(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))(webpack@5.101.3(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.15))':
+    dependencies:
+      '@jridgewell/remapping': 2.3.5
+      '@unocss/config': 66.7.2
+      '@unocss/core': 66.7.2
+      chokidar: 5.0.0
+      magic-string: 0.30.21
+      pathe: 2.0.3
+      tinyglobby: 0.2.17
+      unplugin: 3.2.0(esbuild@0.28.1)(rolldown@1.1.3)(rollup@4.62.2)(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))(webpack@5.101.3(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.15))
+      unplugin-utils: 0.3.1
+      webpack: 5.101.3(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.15)
+      webpack-sources: 3.5.0
+    transitivePeerDependencies:
+      - '@farmfe/core'
+      - '@rspack/core'
+      - bun-types-no-globals
+      - esbuild
+      - rolldown
+      - rollup
+      - unloader
+      - vite
+    optional: true
 
   '@unocss/webpack@66.7.2(esbuild@0.28.1)(rolldown@1.1.3)(rollup@4.62.2)(vite@8.1.0)(webpack@5.101.3(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.15))':
     dependencies:
@@ -12171,12 +12214,12 @@ snapshots:
 
   '@yunlefun/sso@0.3.1': {}
 
-  '@yunyoujun/docs@0.1.14(vite@8.1.0)':
+  '@yunyoujun/docs@0.1.14(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))':
     dependencies:
       dayjs: 1.11.21
       markdown-it-task-lists: 2.1.1
       prompts: 2.4.2
-      vitepress-plugin-group-icons: 1.7.5(vite@8.1.0)
+      vitepress-plugin-group-icons: 1.7.5(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))
       yargs: 18.0.0
     transitivePeerDependencies:
       - vite
@@ -16991,6 +17034,30 @@ snapshots:
 
   universalify@2.0.1: {}
 
+  unocss@66.7.2(@unocss/webpack@66.7.2(esbuild@0.28.1)(rolldown@1.1.3)(rollup@4.62.2)(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))(webpack@5.101.3(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.15)))(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0)):
+    dependencies:
+      '@unocss/cli': 66.7.2
+      '@unocss/core': 66.7.2
+      '@unocss/preset-attributify': 66.7.2
+      '@unocss/preset-icons': 66.7.2
+      '@unocss/preset-mini': 66.7.2
+      '@unocss/preset-tagify': 66.7.2
+      '@unocss/preset-typography': 66.7.2
+      '@unocss/preset-uno': 66.7.2
+      '@unocss/preset-web-fonts': 66.7.2
+      '@unocss/preset-wind': 66.7.2
+      '@unocss/preset-wind3': 66.7.2
+      '@unocss/preset-wind4': 66.7.2
+      '@unocss/transformer-attributify-jsx': 66.7.2
+      '@unocss/transformer-compile-class': 66.7.2
+      '@unocss/transformer-directives': 66.7.2
+      '@unocss/transformer-variant-group': 66.7.2
+      '@unocss/vite': 66.7.2(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))
+    optionalDependencies:
+      '@unocss/webpack': 66.7.2(esbuild@0.28.1)(rolldown@1.1.3)(rollup@4.62.2)(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))(webpack@5.101.3(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.15))
+    transitivePeerDependencies:
+      - vite
+
   unocss@66.7.2(@unocss/webpack@66.7.2(esbuild@0.28.1)(rolldown@1.1.3)(rollup@4.62.2)(vite@8.1.0)(webpack@5.101.3(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.15)))(vite@8.1.0):
     dependencies:
       '@unocss/cli': 66.7.2
@@ -17069,7 +17136,7 @@ snapshots:
       pathe: 2.0.3
       picomatch: 4.0.4
 
-  unplugin-vue-components@32.1.0(@nuxt/kit@3.21.8(magicast@0.5.3))(esbuild@0.28.1)(rolldown@1.1.3)(rollup@4.62.2)(vite@8.1.0)(vue@3.5.38(typescript@5.9.3))(webpack@5.101.3(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.15)):
+  unplugin-vue-components@32.1.0(@nuxt/kit@3.21.8(magicast@0.5.3))(esbuild@0.28.1)(rolldown@1.1.3)(rollup@4.62.2)(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))(vue@3.5.38(typescript@5.9.3))(webpack@5.101.3(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.15)):
     dependencies:
       chokidar: 5.0.0
       local-pkg: 1.2.1
@@ -17078,7 +17145,7 @@ snapshots:
       obug: 2.1.3
       picomatch: 4.0.4
       tinyglobby: 0.2.17
-      unplugin: 3.2.0(esbuild@0.28.1)(rolldown@1.1.3)(rollup@4.62.2)(vite@8.1.0)(webpack@5.101.3(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.15))
+      unplugin: 3.2.0(esbuild@0.28.1)(rolldown@1.1.3)(rollup@4.62.2)(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))(webpack@5.101.3(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.15))
       unplugin-utils: 0.3.1
       vue: 3.5.38(typescript@5.9.3)
     optionalDependencies:
@@ -17130,6 +17197,18 @@ snapshots:
       acorn: 8.17.0
       picomatch: 4.0.4
       webpack-virtual-modules: 0.6.2
+
+  unplugin@3.2.0(esbuild@0.28.1)(rolldown@1.1.3)(rollup@4.62.2)(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))(webpack@5.101.3(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.15)):
+    dependencies:
+      '@jridgewell/remapping': 2.3.5
+      picomatch: 4.0.4
+      webpack-virtual-modules: 0.6.2
+    optionalDependencies:
+      esbuild: 0.28.1
+      rolldown: 1.1.3
+      rollup: 4.62.2
+      vite: 7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0)
+      webpack: 5.101.3(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.15)
 
   unplugin@3.2.0(esbuild@0.28.1)(rolldown@1.1.3)(rollup@4.62.2)(vite@8.1.0)(webpack@5.101.3(esbuild@0.28.1)(lightningcss@1.32.0)(postcss@8.5.15)):
     dependencies:
@@ -17228,11 +17307,21 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
+  vite-dev-rpc@2.0.0(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0)):
+    dependencies:
+      birpc: 4.0.0
+      vite: 7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0)
+      vite-hot-client: 2.2.0(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))
+
   vite-dev-rpc@2.0.0(vite@8.1.0):
     dependencies:
       birpc: 4.0.0
       vite: 8.1.0(@types/node@26.0.1)(@vitejs/devtools@0.3.3)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0)
       vite-hot-client: 2.2.0(vite@8.1.0)
+
+  vite-hot-client@2.2.0(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0)):
+    dependencies:
+      vite: 7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0)
 
   vite-hot-client@2.2.0(vite@8.1.0):
     dependencies:
@@ -17274,7 +17363,7 @@ snapshots:
       typescript: 5.9.3
       vue-tsc: 3.3.5(typescript@5.9.3)
 
-  vite-plugin-inspect@11.4.1(@nuxt/kit@3.21.8(magicast@0.5.3))(vite@8.1.0):
+  vite-plugin-inspect@11.4.1(@nuxt/kit@3.21.8(magicast@0.5.3))(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0)):
     dependencies:
       ansis: 4.3.1
       error-stack-parser-es: 1.0.5
@@ -17284,8 +17373,8 @@ snapshots:
       perfect-debounce: 2.1.0
       sirv: 3.0.2
       unplugin-utils: 0.3.1
-      vite: 8.1.0(@types/node@26.0.1)(@vitejs/devtools@0.3.3)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0)
-      vite-dev-rpc: 2.0.0(vite@8.1.0)
+      vite: 7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0)
+      vite-dev-rpc: 2.0.0(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))
     optionalDependencies:
       '@nuxt/kit': 3.21.8(magicast@0.5.3)
 
@@ -17315,21 +17404,21 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  vite-plugin-vue-devtools@8.1.3(@nuxt/kit@3.21.8(magicast@0.5.3))(vite@8.1.0)(vue@3.5.38(typescript@5.9.3)):
+  vite-plugin-vue-devtools@8.1.3(@nuxt/kit@3.21.8(magicast@0.5.3))(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))(vue@3.5.38(typescript@5.9.3)):
     dependencies:
       '@vue/devtools-core': 8.1.3(vue@3.5.38(typescript@5.9.3))
       '@vue/devtools-kit': 8.1.3
       '@vue/devtools-shared': 8.1.3
       sirv: 3.0.2
-      vite: 8.1.0(@types/node@26.0.1)(@vitejs/devtools@0.3.3)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0)
-      vite-plugin-inspect: 11.4.1(@nuxt/kit@3.21.8(magicast@0.5.3))(vite@8.1.0)
-      vite-plugin-vue-inspector: 6.0.0(vite@8.1.0)
+      vite: 7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0)
+      vite-plugin-inspect: 11.4.1(@nuxt/kit@3.21.8(magicast@0.5.3))(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))
+      vite-plugin-vue-inspector: 6.0.0(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))
     transitivePeerDependencies:
       - '@nuxt/kit'
       - supports-color
       - vue
 
-  vite-plugin-vue-inspector@6.0.0(vite@8.1.0):
+  vite-plugin-vue-inspector@6.0.0(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0)):
     dependencies:
       '@babel/core': 7.29.7
       '@babel/plugin-proposal-decorators': 7.29.7(@babel/core@7.29.7)
@@ -17340,7 +17429,7 @@ snapshots:
       '@vue/compiler-dom': 3.5.38
       kolorist: 1.8.0
       magic-string: 0.30.21
-      vite: 8.1.0(@types/node@26.0.1)(@vitejs/devtools@0.3.3)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0)
+      vite: 7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -17388,13 +17477,13 @@ snapshots:
       terser: 5.48.0
       yaml: 2.9.0
 
-  vitepress-plugin-group-icons@1.7.5(vite@8.1.0):
+  vitepress-plugin-group-icons@1.7.5(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0)):
     dependencies:
       '@iconify-json/logos': 1.2.11
       '@iconify-json/vscode-icons': 1.2.60
       '@iconify/utils': 3.1.3
     optionalDependencies:
-      vite: 8.1.0(@types/node@26.0.1)(@vitejs/devtools@0.3.3)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0)
+      vite: 7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0)
 
   vitepress@2.0.0-alpha.17(@types/node@26.0.1)(axios@1.18.1)(change-case@5.4.4)(fuse.js@7.4.2)(jiti@2.7.0)(lightningcss@1.32.0)(oxc-minify@0.133.0)(postcss@8.5.15)(sass@1.101.0)(terser@5.48.0)(typescript@5.9.3)(yaml@2.9.0):
     dependencies:

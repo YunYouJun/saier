@@ -21,11 +21,16 @@ interface SiteCloudSyncDialogLabels {
   loading: string
   maxFileSize: string
   memberPlan: string
+  name: string
   normalPlan: string
   quotaAvailable: string
   quotaUsed: string
+  recentFiles: string
   refresh: string
+  renaming: string
+  rename: string
   remove: string
+  saveRename: string
   signIn: string
   signInRequired: string
   size: string
@@ -58,11 +63,14 @@ const emit = defineEmits<{
   login: []
   refresh: []
   removeFile: [file: YunlefunCloudFile]
+  renameFile: [file: YunlefunCloudFile, name: string]
   syncBrushLibrary: []
   uploadCurrent: []
 }>()
 
 const pendingRemoveId = shallowRef<string>()
+const pendingRenameId = shallowRef<string>()
+const renameDraft = shallowRef('')
 
 const canUseCloud = computed(() => props.isAuthenticated)
 const isBusy = computed(() =>
@@ -70,7 +78,8 @@ const isBusy = computed(() =>
   || props.status === 'uploading'
   || props.status === 'finalizing'
   || props.status === 'downloading'
-  || props.status === 'deleting',
+  || props.status === 'deleting'
+  || props.status === 'renaming',
 )
 const isBrushLibraryBusy = computed(() =>
   props.brushLibraryStatus === 'loading'
@@ -100,6 +109,8 @@ const statusLabel = computed(() => {
       return props.labels.finalizing
     case 'loading':
       return props.labels.checkingQuota
+    case 'renaming':
+      return props.labels.renaming
     case 'uploading':
       return props.uploadProgress > 0 && props.uploadProgress < 1
         ? `${props.labels.uploading} ${Math.round(props.uploadProgress * 100)}%`
@@ -130,6 +141,8 @@ watch(
   (open) => {
     if (!open)
       pendingRemoveId.value = undefined
+    if (!open)
+      cancelRename()
   },
 )
 
@@ -141,6 +154,28 @@ function requestRemove(file: YunlefunCloudFile): void {
   }
 
   pendingRemoveId.value = file.id
+}
+
+function startRename(file: YunlefunCloudFile): void {
+  pendingRemoveId.value = undefined
+  pendingRenameId.value = file.id
+  renameDraft.value = file.name
+}
+
+function cancelRename(): void {
+  pendingRenameId.value = undefined
+  renameDraft.value = ''
+}
+
+function submitRename(file: YunlefunCloudFile): void {
+  const nextName = renameDraft.value.trim()
+  if (!nextName || nextName === file.name) {
+    cancelRename()
+    return
+  }
+
+  emit('renameFile', file, nextName)
+  cancelRename()
 }
 
 function formatDate(timestamp: number): string {
@@ -254,8 +289,11 @@ function formatBytes(bytes: number): string {
       </p>
 
       <div class="site-cloud-sync__table" role="table">
+        <div class="site-cloud-sync__caption">
+          {{ labels.recentFiles }}
+        </div>
         <div class="site-cloud-sync__row site-cloud-sync__row--head" role="row">
-          <span role="columnheader">{{ labels.title }}</span>
+          <span role="columnheader">{{ labels.name }}</span>
           <span role="columnheader">{{ labels.size }}</span>
           <span role="columnheader">{{ labels.updated }}</span>
           <span role="columnheader" />
@@ -271,10 +309,42 @@ function formatBytes(bytes: number): string {
           class="site-cloud-sync__row"
           role="row"
         >
-          <span class="site-cloud-sync__name" role="cell">{{ file.name }}</span>
+          <span class="site-cloud-sync__name" role="cell">
+            <input
+              v-if="pendingRenameId === file.id"
+              v-model="renameDraft"
+              class="site-cloud-sync__rename-input"
+              :aria-label="labels.rename"
+              @keydown.enter.prevent="submitRename(file)"
+              @keydown.esc.prevent="cancelRename"
+            >
+            <template v-else>
+              {{ file.name }}
+            </template>
+          </span>
           <span role="cell">{{ formatBytes(file.size) }}</span>
           <span class="site-cloud-sync__date" role="cell">{{ formatDate(file.updatedAt) }}</span>
           <span class="site-cloud-sync__actions" role="cell">
+            <button
+              v-if="pendingRenameId === file.id"
+              type="button"
+              class="site-cloud-sync__icon-button"
+              :disabled="isBusy"
+              :title="labels.saveRename"
+              @click="submitRename(file)"
+            >
+              <span class="i-ph-check" />
+            </button>
+            <button
+              v-else
+              type="button"
+              class="site-cloud-sync__icon-button"
+              :disabled="isBusy"
+              :title="labels.rename"
+              @click="startRename(file)"
+            >
+              <span class="i-ph-pencil-simple" />
+            </button>
             <button type="button" class="site-cloud-sync__icon-button" :disabled="isBusy" :title="labels.load" @click="emit('loadFile', file)">
               <span class="i-ph-cloud-arrow-down" />
             </button>
@@ -467,9 +537,21 @@ function formatBytes(bytes: number): string {
   border-radius: 7px;
 }
 
+.site-cloud-sync__caption {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  background: rgb(28 28 31 / 98%);
+  color: rgb(255 255 255 / 62%);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 10px;
+}
+
 .site-cloud-sync__row {
   display: grid;
-  grid-template-columns: minmax(140px, 1.4fr) minmax(72px, 0.5fr) minmax(132px, 0.9fr) minmax(74px, auto);
+  grid-template-columns: minmax(140px, 1.4fr) minmax(72px, 0.5fr) minmax(132px, 0.9fr) minmax(108px, auto);
   min-height: 38px;
   align-items: center;
   gap: 12px;
@@ -486,7 +568,7 @@ function formatBytes(bytes: number): string {
 .site-cloud-sync__row--head {
   position: sticky;
   z-index: 1;
-  top: 0;
+  top: 33px;
   min-height: 30px;
   background: rgb(28 28 31 / 98%);
   color: rgb(255 255 255 / 46%);
@@ -512,6 +594,19 @@ function formatBytes(bytes: number): string {
 
 .site-cloud-sync__name {
   color: rgb(255 255 255 / 90%);
+}
+
+.site-cloud-sync__rename-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgb(125 211 252 / 34%);
+  border-radius: 5px;
+  outline: none;
+  background: rgb(255 255 255 / 9%);
+  color: white;
+  font: inherit;
+  padding: 5px 7px;
 }
 
 .site-cloud-sync__actions {

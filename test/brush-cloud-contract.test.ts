@@ -36,6 +36,7 @@ describe('brush cloud storage contract', () => {
     expect(composable).toContain('callUserStorageApi(\'reserveStorageUpload\'')
     expect(composable).toContain('callUserStorageApi(\'finalizeStorageUpload\'')
     expect(composable).toContain('callUserStorageApi(\'deleteStorageFile\'')
+    expect(composable).toContain('callUserStorageApi(\'renameStorageFile\'')
     expect(composable).toContain('kind: \'project\'')
 
     expect(composable).not.toContain('account-api')
@@ -51,6 +52,7 @@ describe('brush cloud storage contract', () => {
     expect(combined).toContain('kind: \'brush-library\'')
     expect(combined).toContain('slotKey: \'default\'')
     expect(combined).toContain('singletonBy')
+    expect(combined).toContain('renameStorageFile')
     expect(combined).toContain('must not parse `saier.brush-library.v1`')
 
     expect(combined).not.toContain('getBrushLibraryFile')

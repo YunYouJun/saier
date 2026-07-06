@@ -15,6 +15,7 @@ export const SITE_PAINTER_COMMANDS = [
   { id: 'file:save-project', category: 'file' },
   { id: 'file:cloud-sync', category: 'file' },
   { id: 'file:import-image', category: 'file' },
+  { id: 'file:import-brush', category: 'file' },
   { id: 'file:export-preview', category: 'file' },
   { id: 'file:download', category: 'file' },
   { id: 'edit:undo', category: 'edit' },

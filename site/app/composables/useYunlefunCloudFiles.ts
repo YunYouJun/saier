@@ -18,6 +18,7 @@ export const SAIER_CLOUD_FILE_MAX_BYTES = 200 * 1024 * 1024
 
 const USER_STORAGE_API_FUNCTION_NAME = 'user-storage-api'
 const SAIER_APP_ID = 'saier'
+const PROJECT_KIND = 'project'
 
 export type YunlefunCloudFileStatus
   = | 'idle'
@@ -26,6 +27,7 @@ export type YunlefunCloudFileStatus
     | 'finalizing'
     | 'downloading'
     | 'deleting'
+    | 'renaming'
     | 'error'
 
 export type YunlefunCloudFileFailure
@@ -34,6 +36,7 @@ export type YunlefunCloudFileFailure
     | 'invalid_project'
     | 'not_authenticated'
     | 'quota_exceeded'
+    | 'rename_failed'
     | 'reservation_expired'
     | 'storage_unavailable'
     | 'too_large'
@@ -80,6 +83,7 @@ export interface YunlefunCloudFileLabels {
   missingStorage: string
   notAuthenticated: string
   quotaExceeded: string
+  renameFailed: string
   reservationExpired: string
   tooLarge: string
 }
@@ -120,6 +124,11 @@ interface FinalizeStorageUploadResult {
 
 interface DeleteStorageFileResult {
   deduped?: boolean
+  file: StorageFileSummary
+  quota: YunlefunCloudStorageQuota
+}
+
+interface RenameStorageFileResult {
   file: StorageFileSummary
   quota: YunlefunCloudStorageQuota
 }
@@ -227,7 +236,7 @@ export function useYunlefunCloudFiles() {
     try {
       const [quotaSnapshot, listSnapshot] = await Promise.all([
         callUserStorageApi('getStorageQuota', {}),
-        callUserStorageApi('listStorageFiles', { appId: SAIER_APP_ID, limit: 100 }),
+        callUserStorageApi('listStorageFiles', { appId: SAIER_APP_ID, kind: PROJECT_KIND, limit: 100 }),
       ])
       const parsedQuota = parseQuotaSnapshot(quotaSnapshot)
       const parsedList = parseListStorageFilesResult(listSnapshot)
@@ -284,7 +293,7 @@ export function useYunlefunCloudFiles() {
         appId: SAIER_APP_ID,
         contentType: 'application/json',
         fileName,
-        kind: 'project',
+        kind: PROJECT_KIND,
         sizeBytes: blob.size,
       }))
       if (!reserved)
@@ -399,6 +408,46 @@ export function useYunlefunCloudFiles() {
     }
   }
 
+  async function renameFile(file: YunlefunCloudFile, name: string): Promise<YunlefunCloudFileResult> {
+    if (!await ensureSignedIn())
+      return failureResult('not_authenticated')
+
+    status.value = 'renaming'
+    lastFailure.value = null
+    lastError.value = ''
+
+    try {
+      if (!isCurrentAccountFile(file, account.value!.uid))
+        throw createFailureError('rename_failed')
+
+      const fileName = `${safeFileName(name)}.saier.project.json`
+      const renamed = parseRenameStorageFileResult(await callUserStorageApi('renameStorageFile', {
+        appId: SAIER_APP_ID,
+        fileName,
+        kind: PROJECT_KIND,
+        reservationId: file.reservationId,
+      }))
+      if (!renamed)
+        throw createFailureError('rename_failed')
+
+      quota.value = renamed.quota
+      const cloudFile = parseCloudFileRecord(renamed.file, account.value!.uid, maxBytes.value)
+      if (!cloudFile)
+        throw createFailureError('rename_failed')
+
+      files.value = files.value
+        .map(item => item.id === cloudFile.id ? cloudFile : item)
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+      status.value = 'idle'
+      return { file: cloudFile, ok: true, quota: renamed.quota }
+    }
+    catch (error) {
+      const reason = mapStorageError(error, 'rename_failed')
+      setFailure(reason, error)
+      return failureResult(reason, error)
+    }
+  }
+
   function failureMessage(labels: YunlefunCloudFileLabels): string {
     if (lastError.value)
       return lastError.value
@@ -416,6 +465,8 @@ export function useYunlefunCloudFiles() {
         return labels.notAuthenticated
       case 'quota_exceeded':
         return labels.quotaExceeded
+      case 'rename_failed':
+        return labels.renameFailed
       case 'reservation_expired':
         return labels.reservationExpired
       case 'storage_unavailable':
@@ -466,6 +517,7 @@ export function useYunlefunCloudFiles() {
     refreshFiles,
     refreshQuota,
     removeFile,
+    renameFile,
     status: readonly(status),
     uploadProgress: readonly(uploadProgress),
     uploadProject,
@@ -491,6 +543,13 @@ function parseDeleteStorageFileResult(value: unknown): DeleteStorageFileResult |
   const quota = parseQuotaSnapshot(record?.quota)
   const file = parseStorageFileSummary(record?.file)
   return quota && file ? { deduped: booleanValue(record?.deduped), file, quota } : undefined
+}
+
+function parseRenameStorageFileResult(value: unknown): RenameStorageFileResult | undefined {
+  const record = asRecord(value)
+  const quota = parseQuotaSnapshot(record?.quota)
+  const file = parseStorageFileSummary(record?.file)
+  return quota && file ? { file, quota } : undefined
 }
 
 function parseDownloadStorageFileResult(value: unknown): DownloadStorageFileResult | undefined {
@@ -796,6 +855,7 @@ function isCloudFailure(value: string): value is YunlefunCloudFileFailure {
     || value === 'invalid_project'
     || value === 'not_authenticated'
     || value === 'quota_exceeded'
+    || value === 'rename_failed'
     || value === 'reservation_expired'
     || value === 'storage_unavailable'
     || value === 'too_large'

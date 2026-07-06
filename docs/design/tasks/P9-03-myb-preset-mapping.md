@@ -15,6 +15,8 @@ title: P9-03 · .myb preset mapping spike
 
 **已落地（2026-07-01）**：`parseMyPaintBrushPreset()` 支持 JSON 风格 `.myb` 与简化 legacy line 格式，映射 radius / opaque / hardness / spacing / smudge 等核心字段到 `BrushPreset` 草案。
 
+**已落地（2026-07-06）**：site 的文件菜单提供「导入笔刷」入口，可把 MyPaint `.myb` 导入为 `source: 'mypaint'` 的自定义笔刷并进入现有笔刷库保存 / 云同步路径。SAI 完整笔刷预设不是开放稳定交换格式，当前只做明确错误提示，不承诺完整导入；后续若支持 SAI，优先从笔尖 / 纹理资源导入开始。
+
 ## 最小映射表
 
 | `.myb` setting            | `BrushPreset` 字段            | 说明                                                              |
@@ -37,6 +39,8 @@ title: P9-03 · .myb preset mapping spike
 
 - [x] 有一份映射表说明哪些字段可进入现有 preset，哪些必须交给 `MyPaintBrushEngineWasm`。
 - [x] 至少 3 个 `.myb` 样例能解析为 saier preset 草案。
+- [x] site 提供 `.myb` 导入入口，导入结果注册为可同步的自定义笔刷。
+- [x] SAI 完整预设导入有明确 unsupported 提示，避免误导成像素级兼容。
 
 ## Out of scope
 

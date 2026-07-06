@@ -18,6 +18,7 @@
     "pinia": "catalog:",
     "unocss": "catalog:",
     "unplugin-vue-components": "catalog:",
+    "vite": "catalog:",
     "vite-plugin-vue-devtools": "catalog:",
     "vitepress": "catalog:",
     "vitepress-plugin-group-icons": "catalog:",

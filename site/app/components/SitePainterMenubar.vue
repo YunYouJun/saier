@@ -25,6 +25,7 @@ interface SitePainterMenubarLabels {
   openProject: string
   saveProject: string
   cloudSync: string
+  importBrush: string
   importImage: string
   exportPreview: string
   download: string
@@ -184,6 +185,12 @@ function shortcutLabel(command: SitePainterCommand): string {
             <span class="site-menubar__item-main">
               <span class="i-ph-image" />
               <span>{{ labels.importImage }}</span>
+            </span>
+          </MenubarItem>
+          <MenubarItem class="site-menubar__item" :disabled="disabled" @select="emit('command', 'file:import-brush')">
+            <span class="site-menubar__item-main">
+              <span class="i-ph-paint-brush" />
+              <span>{{ labels.importBrush }}</span>
             </span>
           </MenubarItem>
           <MenubarItem class="site-menubar__item" :disabled="disabled" @select="emit('command', 'file:export-preview')">

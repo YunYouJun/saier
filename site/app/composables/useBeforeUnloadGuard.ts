@@ -1,9 +1,13 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { onBeforeUnmount, onMounted, toValue } from 'vue'
 
-export function useBeforeUnloadGuard(enabled: MaybeRefOrGetter<boolean>): void {
+export interface UseBeforeUnloadGuardOptions {
+  onBeforeUnload?: () => void
+}
+
+export function useBeforeUnloadGuard(enabled: MaybeRefOrGetter<boolean>, options: UseBeforeUnloadGuardOptions = {}): void {
   const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-    applyBeforeUnloadGuard(event, toValue(enabled))
+    runBeforeUnloadGuard(event, toValue(enabled), options)
   }
 
   onMounted(() => {
@@ -13,6 +17,16 @@ export function useBeforeUnloadGuard(enabled: MaybeRefOrGetter<boolean>): void {
   onBeforeUnmount(() => {
     window.removeEventListener('beforeunload', handleBeforeUnload)
   })
+}
+
+export function runBeforeUnloadGuard(
+  event: BeforeUnloadEvent,
+  enabled: boolean,
+  options: UseBeforeUnloadGuardOptions = {},
+): boolean {
+  if (enabled)
+    options.onBeforeUnload?.()
+  return applyBeforeUnloadGuard(event, enabled)
 }
 
 export function applyBeforeUnloadGuard(event: BeforeUnloadEvent, enabled: boolean): boolean {

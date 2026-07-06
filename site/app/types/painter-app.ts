@@ -1,6 +1,6 @@
 export type SitePainterTool = 'brush' | 'drag' | 'eraser' | 'image' | 'selection'
 
-export type SitePainterPanelId = 'controls' | 'diagnostics' | 'layers' | 'options'
+export type SitePainterPanelId = 'controls' | 'diagnostics' | 'layers' | 'navigator' | 'options'
 
 export type SitePainterColorSectionId = 'palette' | 'rgbSliders' | 'wheel'
 

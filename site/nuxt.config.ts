@@ -5,6 +5,7 @@ import { pwa } from './app/config/pwa'
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2026-06-28',
+  srcDir: 'app',
   ssr: false,
   devtools: { enabled: false },
 

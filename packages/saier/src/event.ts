@@ -1,13 +1,14 @@
 import type { PainterAction } from './features/history'
 import type { PainterInputSnapshot } from './input'
 import type { EditableLayer } from './layers'
-import type { PainterDocumentState } from './painter'
+import type { PainterDocumentState, PainterViewportSnapshot } from './painter'
 import mitt from 'mitt'
 
 export function createEmitter() {
   const emitter = mitt<{
     // board
     'board:drag': void
+    'viewport:change': PainterViewportSnapshot
 
     // layer
     'layer:add': EditableLayer

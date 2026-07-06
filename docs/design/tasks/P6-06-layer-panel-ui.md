@@ -8,11 +8,11 @@ title: P6-06 · 图层面板 UI（锁透明 / 剪贴 / 蒙版）
 - **Depends on**: P6-01..05、P5-03（Vue 图层面板）
 - **Files**: `packages/vue/components/PainterLayerPanel.vue`、`packages/vue/composables/usePainter.ts`、`site/app/**`、`examples/vue/**`、`test/`
 - **Effort**: M
-- **Status**: ✅ 已完成（默认发布 UI 暴露锁透明 / 剪贴；蒙版 UI 保持 experimental / 非默认）
+- **Status**: ✅ 已完成（默认发布 UI 暴露锁透明 / 剪贴 / 蒙版）
 
 ## Result
 
-`usePainter().layerActions` 暴露 `setLockAlpha` / `setClip`,`PainterLayerPanel.vue` 每个图层行加锁透明、剪贴切换钮(active 高亮、剪贴底层禁用),site 首页 + examples/vue 两个 demo 都接线消费,经 controller(无库静态直写)。蒙版 API / 像素路径已验证，但**默认发布 UI 暂不暴露蒙版增删 / 启停 / 绘画目标切换**，避免把高级能力过早承诺为正式功能。
+`usePainter().layerActions` 暴露 `setLockAlpha` / `setClip` / `addMask` / `removeMask` / `setMaskEnabled` / `setPaintTarget`，`PainterLayerPanel.vue` 每个图层行加锁透明、剪贴、蒙版增删 / 启停切换钮，内容 / 蒙版缩略图可切换当前绘画目标（active 高亮、剪贴底层禁用、禁用蒙版不可选）。site 首页 + examples/vue 两个 demo 都接线消费，经 controller / painter façade（无库静态直写）。
 
 ## Context
 
@@ -29,14 +29,11 @@ P5 已有 Vue 图层面板（增删 / 排序 / 显隐 / opacity / blend）。本
 ## Acceptance
 
 - [x] 面板可切换锁透明、剪贴，且即时反映到画布。
+- [x] 面板可添加 / 删除 / 启停蒙版，并在内容 / 蒙版绘画目标间切换。
 - [x] 所有默认发布操作经 controller（grep 验收：无库静态字段直写、无 Pixi scene graph 读取）。
 - [x] `examples/vue` 与 `site` 共用同一 `usePainter()`，无重复装配。
 - [x] demo 构建 / browser 测试覆盖默认发布 UI。
 
-## Deferred / experimental
-
-- [ ] 蒙版增删 / 启停 / 绘画目标切换 UI。底层 API 与像素路径已验证，默认发布 UI 暂不承诺。
-
 ## Out of scope
 
-- 自由变换手柄的 UI 重做；蒙版默认 UI；core 行为正确性（已在 P6-02..05 验收）。
+- 自由变换手柄的 UI 重做；core 行为正确性（已在 P6-02..05 验收）。

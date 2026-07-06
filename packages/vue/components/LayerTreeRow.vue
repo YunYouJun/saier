@@ -2,6 +2,8 @@
 import type { BlendMode, LayerNodeMoveTarget, PainterLayerNodeState } from '@saier/core'
 import { computed } from 'vue'
 
+type PainterLayerPaintTarget = 'content' | 'mask'
+
 interface LayerTreeRowLabels {
   addLayer: string
   addGroup: string
@@ -17,6 +19,12 @@ interface LayerTreeRowLabels {
   expandGroup: string
   lockAlpha: string
   clip: string
+  addMask: string
+  removeMask: string
+  enableMask: string
+  disableMask: string
+  paintContent: string
+  paintMask: string
   blendModes: Record<BlendMode, string>
 }
 
@@ -43,6 +51,8 @@ const props = defineProps<{
   lowerGroupChildCount: number
   activeLayerId: string | null
   thumbnails?: Record<string, string>
+  maskThumbnails?: Record<string, string>
+  paintTarget: PainterLayerPaintTarget
   labels: LayerTreeRowLabels
   rasterLayerCount: number
 }>()
@@ -60,11 +70,23 @@ const emit = defineEmits<{
   'update:label': [id: string, label: string]
   'update:lockAlpha': [id: string, lockAlpha: boolean]
   'update:clip': [id: string, clip: boolean]
+  'addMask': [id: string]
+  'removeMask': [id: string]
+  'update:maskEnabled': [id: string, enabled: boolean]
+  'update:paintTarget': [target: PainterLayerPaintTarget]
   'update:groupCollapsed': [id: string, collapsed: boolean]
 }>()
 
 const isGroup = computed(() => props.node.type === 'group')
 const isRaster = computed(() => props.node.type === 'raster')
+const isActiveRasterLayer = computed(() => props.node.type === 'raster' && props.node.id === props.activeLayerId)
+const isContentTarget = computed(() => isActiveRasterLayer.value && props.paintTarget === 'content')
+const isMaskTarget = computed(() =>
+  props.node.type === 'raster'
+  && props.node.id === props.activeLayerId
+  && props.paintTarget === 'mask'
+  && Boolean(props.node.mask?.enabled),
+)
 const rowStyle = computed(() => ({
   paddingLeft: `${Math.min(props.depth * 14 + 6, 72)}px`,
 }))
@@ -112,6 +134,28 @@ function blendModeFromEvent(event: Event): BlendMode {
 function selectNode(): void {
   if (props.node.type === 'raster')
     emit('select', props.node.id)
+}
+
+function selectPaintTarget(target: PainterLayerPaintTarget): void {
+  if (props.node.type !== 'raster')
+    return
+  emit('select', props.node.id)
+  if (target === 'mask' && !props.node.mask?.enabled)
+    return
+  emit('update:paintTarget', target)
+}
+
+function addMask(): void {
+  if (props.node.type !== 'raster')
+    return
+  emit('select', props.node.id)
+  emit('addMask', props.node.id)
+}
+
+function removeMask(): void {
+  if (props.node.type !== 'raster')
+    return
+  emit('removeMask', props.node.id)
 }
 
 function moveUp(): void {
@@ -237,13 +281,40 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
       </button>
 
       <div
-        class="layer-tree-row__thumb"
-        :class="{ 'is-group': node.type === 'group' }"
+        class="layer-tree-row__thumb-stack"
         @dragover.prevent
         @drop.prevent.stop="dropIntoGroup"
       >
-        <span v-if="node.type === 'group'" class="i-ph-folder" />
-        <img v-else-if="thumbnails?.[node.id]" :src="thumbnails[node.id]" alt="">
+        <div v-if="node.type === 'group'" class="layer-tree-row__thumb is-group">
+          <span class="i-ph-folder" />
+        </div>
+        <template v-else>
+          <button
+            type="button"
+            class="layer-tree-row__thumb"
+            :class="{ 'is-on': isContentTarget }"
+            :title="labels.paintContent"
+            :aria-label="labels.paintContent"
+            :aria-pressed="isContentTarget"
+            @click.stop="selectPaintTarget('content')"
+          >
+            <img v-if="thumbnails?.[node.id]" :src="thumbnails[node.id]" alt="">
+          </button>
+          <button
+            v-if="node.mask"
+            type="button"
+            class="layer-tree-row__thumb is-mask"
+            :class="{ 'is-on': isMaskTarget }"
+            :title="labels.paintMask"
+            :aria-label="labels.paintMask"
+            :aria-pressed="isMaskTarget"
+            :disabled="!node.mask.enabled"
+            @click.stop="selectPaintTarget('mask')"
+          >
+            <img v-if="maskThumbnails?.[node.mask.id]" :src="maskThumbnails[node.mask.id]" alt="">
+            <span v-else class="i-ph-mask-happy" />
+          </button>
+        </template>
       </div>
 
       <input
@@ -289,6 +360,35 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
         </template>
 
         <template v-if="node.type === 'raster'">
+          <button
+            v-if="!node.mask"
+            type="button"
+            class="layer-tree-row__icon"
+            :title="labels.addMask"
+            @click="addMask"
+          >
+            <span class="i-ph-mask-happy" />
+          </button>
+          <template v-else>
+            <button
+              type="button"
+              class="layer-tree-row__icon"
+              :class="{ 'is-on': node.mask.enabled }"
+              :title="node.mask.enabled ? labels.disableMask : labels.enableMask"
+              :aria-pressed="node.mask.enabled"
+              @click="emit('update:maskEnabled', node.id, !node.mask.enabled)"
+            >
+              <span :class="node.mask.enabled ? 'i-ph-eye' : 'i-ph-eye-slash'" />
+            </button>
+            <button
+              type="button"
+              class="layer-tree-row__icon"
+              :title="labels.removeMask"
+              @click="removeMask"
+            >
+              <span class="i-ph-mask-sad" />
+            </button>
+          </template>
           <button
             type="button"
             class="layer-tree-row__icon"
@@ -375,6 +475,8 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
         :lower-group-child-count="childLowerGroupChildCount"
         :active-layer-id="activeLayerId"
         :thumbnails="thumbnails"
+        :mask-thumbnails="maskThumbnails"
+        :paint-target="paintTarget"
         :labels="labels"
         :raster-layer-count="rasterLayerCount"
         @add="emit('add', $event)"
@@ -389,6 +491,10 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
         @update:label="(id, label) => emit('update:label', id, label)"
         @update:lock-alpha="(id, lockAlpha) => emit('update:lockAlpha', id, lockAlpha)"
         @update:clip="(id, clip) => emit('update:clip', id, clip)"
+        @add-mask="emit('addMask', $event)"
+        @remove-mask="emit('removeMask', $event)"
+        @update:mask-enabled="(id, enabled) => emit('update:maskEnabled', id, enabled)"
+        @update:paint-target="emit('update:paintTarget', $event)"
         @update:group-collapsed="(id, collapsed) => emit('update:groupCollapsed', id, collapsed)"
       />
     </div>
@@ -403,7 +509,7 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
 
 .layer-tree-row__body {
   display: grid;
-  grid-template-columns: 20px 28px 40px minmax(0, 1fr) auto;
+  grid-template-columns: 20px 28px 76px minmax(0, 1fr) auto;
   gap: 6px;
   align-items: center;
   padding: 6px;
@@ -455,10 +561,17 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
   background: rgb(80 120 190 / 40%);
 }
 
+.layer-tree-row__thumb-stack {
+  display: grid;
+  width: 76px;
+  grid-template-columns: repeat(2, 36px);
+  gap: 4px;
+}
+
 .layer-tree-row__thumb {
   display: grid;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   overflow: hidden;
   place-items: center;
   border: 1px solid rgb(255 255 255 / 12%);
@@ -475,12 +588,40 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
     4px -4px,
     -4px 0;
   background-size: 8px 8px;
+  color: white;
+  padding: 0;
 }
 
 .layer-tree-row__thumb.is-group {
   background: rgb(255 255 255 / 8%);
   color: rgb(180 205 255);
   font-size: 20px;
+}
+
+.layer-tree-row__thumb.is-mask {
+  background:
+    linear-gradient(45deg, rgb(255 255 255 / 70%) 25%, transparent 25%),
+    linear-gradient(-45deg, rgb(255 255 255 / 70%) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgb(255 255 255 / 70%) 75%),
+    linear-gradient(-45deg, transparent 75%, rgb(255 255 255 / 70%) 75%);
+  background-color: rgb(64 64 72);
+  background-position:
+    0 0,
+    0 4px,
+    4px -4px,
+    -4px 0;
+  background-size: 8px 8px;
+  color: rgb(20 20 26);
+}
+
+.layer-tree-row__thumb.is-on {
+  border-color: rgb(120 170 255 / 90%);
+  box-shadow: 0 0 0 1px rgb(120 170 255 / 80%);
+}
+
+.layer-tree-row__thumb:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
 }
 
 .layer-tree-row__thumb img {

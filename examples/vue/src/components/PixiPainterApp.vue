@@ -5,13 +5,18 @@ const {
   activeLayerId,
   data,
   layerActions,
+  layerMaskThumbnails,
   layerThumbnails,
   layerTree,
   layers,
+  navigatorActions,
+  navigatorThumbnail,
   onExtract,
+  paintTarget,
   painter,
   srcCanvas,
   targetCanvas,
+  viewport,
 } = usePixiPainter()
 void srcCanvas
 void targetCanvas
@@ -22,12 +27,22 @@ void targetCanvas
     <template v-if="painter">
       <PainterControls :painter="painter" class="absolute left-2 top-13" @extract="onExtract" />
       <PainterOptionsBar :painter="painter" class="absolute left-2 top-2" />
+      <PainterNavigator
+        class="absolute bottom-2 left-2"
+        :thumbnail="navigatorThumbnail"
+        :viewport="viewport"
+        @center="navigatorActions.setCenter"
+        @refresh="navigatorActions.refreshThumbnail"
+        @reset="navigatorActions.reset"
+      />
       <PainterLayerPanel
         class="absolute right-2 top-2"
         :layers="layers"
         :layer-tree="layerTree"
         :active-layer-id="activeLayerId"
         :thumbnails="layerThumbnails"
+        :mask-thumbnails="layerMaskThumbnails"
+        :paint-target="paintTarget"
         @add="layerActions.add"
         @add-group="layerActions.addGroup"
         @remove="layerActions.remove"
@@ -41,6 +56,10 @@ void targetCanvas
         @update:label="layerActions.setLabel"
         @update:lock-alpha="layerActions.setLockAlpha"
         @update:clip="layerActions.setClip"
+        @add-mask="layerActions.addMask"
+        @remove-mask="layerActions.removeMask"
+        @update:mask-enabled="layerActions.setMaskEnabled"
+        @update:paint-target="layerActions.setPaintTarget"
         @update:group-collapsed="layerActions.setGroupCollapsed"
       />
     </template>

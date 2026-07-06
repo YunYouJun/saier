@@ -3,6 +3,8 @@ import type { BlendMode, LayerNodeMoveTarget, PainterLayerNodeState, PainterLaye
 import { computed } from 'vue'
 import LayerTreeRow from './LayerTreeRow.vue'
 
+type PainterLayerPaintTarget = 'content' | 'mask'
+
 interface PainterLayerPanelLabels {
   title: string
   addLayer: string
@@ -19,6 +21,12 @@ interface PainterLayerPanelLabels {
   expandGroup: string
   lockAlpha: string
   clip: string
+  addMask: string
+  removeMask: string
+  enableMask: string
+  disableMask: string
+  paintContent: string
+  paintMask: string
   blendModes: Record<BlendMode, string>
 }
 
@@ -34,6 +42,8 @@ const props = defineProps<{
   layers: PainterLayerState[]
   layerTree?: PainterLayerNodeState[]
   thumbnails?: Record<string, string>
+  maskThumbnails?: Record<string, string>
+  paintTarget?: PainterLayerPaintTarget
   labels?: Partial<Omit<PainterLayerPanelLabels, 'blendModes'>> & {
     blendModes?: Partial<Record<BlendMode, string>>
   }
@@ -53,6 +63,10 @@ const emit = defineEmits<{
   'update:label': [id: string, label: string]
   'update:lockAlpha': [id: string, lockAlpha: boolean]
   'update:clip': [id: string, clip: boolean]
+  'addMask': [id: string]
+  'removeMask': [id: string]
+  'update:maskEnabled': [id: string, enabled: boolean]
+  'update:paintTarget': [target: PainterLayerPaintTarget]
   'update:groupCollapsed': [id: string, collapsed: boolean]
 }>()
 
@@ -72,6 +86,12 @@ const DEFAULT_LABELS: PainterLayerPanelLabels = {
   expandGroup: 'Expand group',
   lockAlpha: 'Lock transparency',
   clip: 'Clip to layer below',
+  addMask: 'Add layer mask',
+  removeMask: 'Remove layer mask',
+  enableMask: 'Enable layer mask',
+  disableMask: 'Disable layer mask',
+  paintContent: 'Paint layer content',
+  paintMask: 'Paint layer mask',
   blendModes: {
     normal: 'Normal',
     multiply: 'Multiply',
@@ -99,6 +119,7 @@ const tree = computed<PainterLayerNodeState[]>(() =>
 )
 
 const displayNodes = computed(() => displayEntries(tree.value))
+const currentPaintTarget = computed(() => props.paintTarget ?? 'content')
 
 const rasterLayerCount = computed(() =>
   tree.value.reduce((sum, node) => sum + countRasterLayers(node), 0),
@@ -169,6 +190,8 @@ function dropOnRootTop(event: DragEvent): void {
         :lower-group-child-count="lowerGroupChildCount"
         :active-layer-id="activeLayerId"
         :thumbnails="thumbnails"
+        :mask-thumbnails="maskThumbnails"
+        :paint-target="currentPaintTarget"
         :labels="text"
         :raster-layer-count="rasterLayerCount"
         @add="emit('add', $event)"
@@ -183,6 +206,10 @@ function dropOnRootTop(event: DragEvent): void {
         @update:label="(id, label) => emit('update:label', id, label)"
         @update:lock-alpha="(id, lockAlpha) => emit('update:lockAlpha', id, lockAlpha)"
         @update:clip="(id, clip) => emit('update:clip', id, clip)"
+        @add-mask="emit('addMask', $event)"
+        @remove-mask="emit('removeMask', $event)"
+        @update:mask-enabled="(id, enabled) => emit('update:maskEnabled', id, enabled)"
+        @update:paint-target="emit('update:paintTarget', $event)"
         @update:group-collapsed="(id, collapsed) => emit('update:groupCollapsed', id, collapsed)"
       />
 

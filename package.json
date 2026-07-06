@@ -27,6 +27,7 @@
     "docs:build": "pnpm -C docs run docs:build",
     "docs:preview": "pnpm -C docs run docs:preview",
     "lint": "eslint .",
+    "perf:baseline": "SAIER_PERF_BASELINE=1 playwright test --config=playwright.perf.config.ts",
     "test": "vitest",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",

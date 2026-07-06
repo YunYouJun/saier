@@ -117,6 +117,7 @@ interface SiteMessages {
     brushOptionsPanel: string
     operationPanel: string
     layerPanel: string
+    navigatorPanel: string
     diagnosticsPanel: string
     colorWheelPanel: string
     colorPalettePanel: string
@@ -136,6 +137,13 @@ interface SiteMessages {
     removeActiveLayer: string
     english: string
     chinese: string
+  }
+  navigator: {
+    empty: string
+    panCanvas: string
+    refresh: string
+    resetView: string
+    title: string
   }
   shortcuts: {
     title: string
@@ -277,6 +285,12 @@ interface SiteMessages {
     ungroup: string
     collapseGroup: string
     expandGroup: string
+    addMask: string
+    removeMask: string
+    enableMask: string
+    disableMask: string
+    paintContent: string
+    paintMask: string
     defaultLayerName: string
     defaultGroupName: string
     blendModes: Record<BlendMode, string>
@@ -399,6 +413,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
       brushOptionsPanel: 'Brush options',
       operationPanel: 'Controls',
       layerPanel: 'Layers',
+      navigatorPanel: 'Navigator',
       diagnosticsPanel: 'Diagnostics',
       colorWheelPanel: 'Color wheel',
       colorPalettePanel: 'Palette',
@@ -418,6 +433,13 @@ const messages: Record<SiteLocale, SiteMessages> = {
       removeActiveLayer: 'Delete active layer',
       english: 'English',
       chinese: 'Chinese',
+    },
+    navigator: {
+      empty: 'No preview',
+      panCanvas: 'Pan canvas',
+      refresh: 'Refresh preview',
+      resetView: 'Reset view',
+      title: 'Navigator',
     },
     shortcuts: {
       title: 'Keyboard Shortcuts',
@@ -613,6 +635,12 @@ const messages: Record<SiteLocale, SiteMessages> = {
       ungroup: 'Ungroup',
       collapseGroup: 'Collapse group',
       expandGroup: 'Expand group',
+      addMask: 'Add layer mask',
+      removeMask: 'Remove layer mask',
+      enableMask: 'Enable layer mask',
+      disableMask: 'Disable layer mask',
+      paintContent: 'Paint layer content',
+      paintMask: 'Paint layer mask',
       defaultLayerName: 'Layer',
       defaultGroupName: 'Group',
       blendModes: {
@@ -739,6 +767,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
       brushOptionsPanel: '画笔参数',
       operationPanel: '操作面板',
       layerPanel: '图层面板',
+      navigatorPanel: '导航器',
       diagnosticsPanel: '诊断面板',
       colorWheelPanel: '色轮',
       colorPalettePanel: '色板',
@@ -758,6 +787,13 @@ const messages: Record<SiteLocale, SiteMessages> = {
       removeActiveLayer: '删除当前图层',
       english: 'English',
       chinese: '中文',
+    },
+    navigator: {
+      empty: '暂无预览',
+      panCanvas: '平移画布',
+      refresh: '刷新预览',
+      resetView: '重置视图',
+      title: '导航器',
     },
     shortcuts: {
       title: '快捷键设置',
@@ -953,6 +989,12 @@ const messages: Record<SiteLocale, SiteMessages> = {
       ungroup: '解散图层组',
       collapseGroup: '折叠图层组',
       expandGroup: '展开图层组',
+      addMask: '添加图层蒙版',
+      removeMask: '删除图层蒙版',
+      enableMask: '启用图层蒙版',
+      disableMask: '停用图层蒙版',
+      paintContent: '绘制图层内容',
+      paintMask: '绘制图层蒙版',
       defaultLayerName: '图层',
       defaultGroupName: '图层组',
       blendModes: {

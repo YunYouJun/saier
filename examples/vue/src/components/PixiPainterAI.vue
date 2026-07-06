@@ -14,10 +14,15 @@ const {
   activeLayerId,
   canvas: srcCanvas,
   layerActions,
+  layerMaskThumbnails,
   layerThumbnails,
   layerTree,
   layers,
+  navigatorActions,
+  navigatorThumbnail,
+  paintTarget,
   painter,
+  viewport,
 } = usePainter()
 
 function setSrcCanvas(element: Element | ComponentPublicInstance | null): void {
@@ -83,12 +88,22 @@ watch(painter, (p, _previous, onCleanup) => {
     <template v-if="painter">
       <PainterControls :painter="painter" class="absolute left-1" />
       <PainterOptionsBar :painter="painter" class="absolute left-1 top-1" />
+      <PainterNavigator
+        class="absolute bottom-2 left-2"
+        :thumbnail="navigatorThumbnail"
+        :viewport="viewport"
+        @center="navigatorActions.setCenter"
+        @refresh="navigatorActions.refreshThumbnail"
+        @reset="navigatorActions.reset"
+      />
       <PainterLayerPanel
         class="absolute right-2 top-2"
         :layers="layers"
         :layer-tree="layerTree"
         :active-layer-id="activeLayerId"
         :thumbnails="layerThumbnails"
+        :mask-thumbnails="layerMaskThumbnails"
+        :paint-target="paintTarget"
         @add="layerActions.add"
         @add-group="layerActions.addGroup"
         @remove="layerActions.remove"
@@ -102,6 +117,10 @@ watch(painter, (p, _previous, onCleanup) => {
         @update:label="layerActions.setLabel"
         @update:lock-alpha="layerActions.setLockAlpha"
         @update:clip="layerActions.setClip"
+        @add-mask="layerActions.addMask"
+        @remove-mask="layerActions.removeMask"
+        @update:mask-enabled="layerActions.setMaskEnabled"
+        @update:paint-target="layerActions.setPaintTarget"
         @update:group-collapsed="layerActions.setGroupCollapsed"
       />
     </template>

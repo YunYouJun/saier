@@ -79,12 +79,14 @@ const PANEL_ITEMS: SitePainterPanelItem[] = [
   { id: 'options', icon: 'i-ph-sliders-horizontal' },
   { id: 'controls', icon: 'i-ph-palette' },
   { id: 'layers', icon: 'i-ph-stack' },
+  { id: 'navigator', icon: 'i-ph-map-trifold' },
   { id: 'diagnostics', icon: 'i-ph-activity' },
 ]
 
 const PANEL_MARGIN = 8
+const PANEL_RIGHT_GUTTER = 16
 const DEFAULT_PANEL_SIZE = {
-  width: 336,
+  width: 344,
   height: 320,
 }
 
@@ -132,8 +134,9 @@ onBeforeUnmount(() => {
 })
 
 function createDefaultPanelGroups(width: number, height: number): SitePainterPanelGroup[] {
-  const rightX = Math.max(12, width - 360)
-  const bottomY = Math.max(12, height - 312)
+  const rightX = defaultRightPanelX(width)
+  const navigatorY = Math.max(12, height - 252)
+  const diagnosticsY = Math.max(12, navigatorY - DEFAULT_PANEL_SIZE.height - 12)
 
   return [
     {
@@ -163,6 +166,19 @@ function createDefaultPanelGroups(width: number, height: number): SitePainterPan
       z: 11,
     },
     {
+      id: 'navigator',
+      panelIds: ['navigator'],
+      activePanelId: 'navigator',
+      collapsed: false,
+      anchorX: 'right',
+      anchorY: 'bottom',
+      anchorOffsetX: Math.max(PANEL_MARGIN, width - rightX - DEFAULT_PANEL_SIZE.width),
+      anchorOffsetY: 12,
+      x: rightX,
+      y: navigatorY,
+      z: 10,
+    },
+    {
       id: 'diagnostics',
       panelIds: ['diagnostics'],
       activePanelId: 'diagnostics',
@@ -170,10 +186,10 @@ function createDefaultPanelGroups(width: number, height: number): SitePainterPan
       anchorX: 'right',
       anchorY: 'bottom',
       anchorOffsetX: Math.max(PANEL_MARGIN, width - rightX - DEFAULT_PANEL_SIZE.width),
-      anchorOffsetY: Math.max(PANEL_MARGIN, height - bottomY - DEFAULT_PANEL_SIZE.height),
+      anchorOffsetY: Math.max(PANEL_MARGIN, height - diagnosticsY - DEFAULT_PANEL_SIZE.height),
       x: rightX,
-      y: bottomY,
-      z: 10,
+      y: diagnosticsY,
+      z: 9,
     },
   ]
 }
@@ -233,7 +249,7 @@ function createFloatingPanelGroup(panelId: SitePainterPanelId): SitePainterPanel
   const bounds = workspaceBounds()
   const offset = panelGroups.value.length * 28
   const id = `${panelId}-${Date.now()}`
-  const x = Math.min(48 + offset, Math.max(12, bounds.width - 360))
+  const x = Math.min(48 + offset, defaultRightPanelX(bounds.width))
   const y = Math.min(48 + offset, Math.max(12, bounds.height - 220))
 
   return {
@@ -579,13 +595,17 @@ function anchoredY(group: SitePainterPanelGroup, bounds: WorkspaceBounds): numbe
 function panelGroupSize(groupId: string): { width: number, height: number } {
   const element = workspaceRef.value?.querySelector<HTMLElement>(`[data-panel-group-id="${groupId}"]`)
   if (!element)
-    return { width: 336, height: 320 }
+    return DEFAULT_PANEL_SIZE
 
   const rect = element.getBoundingClientRect()
   return {
-    width: rect.width || 336,
-    height: rect.height || 320,
+    width: rect.width || DEFAULT_PANEL_SIZE.width,
+    height: rect.height || DEFAULT_PANEL_SIZE.height,
   }
+}
+
+function defaultRightPanelX(width: number): number {
+  return Math.max(12, width - DEFAULT_PANEL_SIZE.width - PANEL_RIGHT_GUTTER)
 }
 
 function workspaceBounds(): { width: number, height: number } {
@@ -771,6 +791,17 @@ function clamp(value: number, min: number, max: number): number {
               :aria-labelledby="`site-painter-panel-tab-${group.id}-layers`"
             >
               <slot name="layers" />
+            </div>
+
+            <div
+              v-if="isPanelInGroup(group, 'navigator')"
+              v-show="group.activePanelId === 'navigator'"
+              :id="`site-painter-panel-pane-${group.id}-navigator`"
+              class="site-painter-panel__pane"
+              role="tabpanel"
+              :aria-labelledby="`site-painter-panel-tab-${group.id}-navigator`"
+            >
+              <slot name="navigator" />
             </div>
 
             <div
@@ -980,7 +1011,7 @@ function clamp(value: number, min: number, max: number): number {
 .site-painter-panel {
   position: absolute;
   display: grid;
-  width: min(336px, calc(100vw - 16px));
+  width: min(344px, calc(100vw - 16px));
   min-width: 0;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
@@ -990,19 +1021,6 @@ function clamp(value: number, min: number, max: number): number {
   box-shadow: 0 18px 50px rgb(0 0 0 / 22%);
   color: white;
   pointer-events: auto;
-}
-
-.site-painter-panel--controls {
-  width: min(292px, calc(100vw - 16px));
-}
-
-.site-painter-panel--diagnostics {
-  width: min(320px, calc(100vw - 16px));
-}
-
-.site-painter-panel--layers,
-.site-painter-panel--options {
-  width: min(344px, calc(100vw - 16px));
 }
 
 .site-painter-panel.is-active,
@@ -1137,6 +1155,7 @@ function clamp(value: number, min: number, max: number): number {
 .site-painter-panel__pane :deep(.painter-options),
 .site-painter-panel__pane :deep(.painter-controls),
 .site-painter-panel__pane :deep(.painter-layer-panel),
+.site-painter-panel__pane :deep(.painter-navigator),
 .site-painter-panel__pane :deep(.site-diagnostics) {
   width: 100% !important;
   border: 0;

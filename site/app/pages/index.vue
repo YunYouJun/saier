@@ -60,6 +60,7 @@ const panelVisibility = reactive<Record<SitePainterPanelId, boolean>>({
   controls: true,
   diagnostics: true,
   layers: true,
+  navigator: true,
   options: true,
 })
 
@@ -72,14 +73,19 @@ const {
   documents,
   input,
   layerActions,
+  layerMaskThumbnails,
   layerThumbnails,
   layerTree,
   layers,
   memory,
+  navigatorActions,
+  navigatorThumbnail,
+  paintTarget,
   painter,
   refreshLayerThumbnails,
   refreshMemory,
   state,
+  viewport,
 } = usePainter({
   debug: import.meta.env.DEV,
 })
@@ -120,8 +126,8 @@ const {
 const showDiagnostics = import.meta.env.DEV
 const availablePanels = computed<SitePainterPanelId[]>(() =>
   showDiagnostics
-    ? ['options', 'controls', 'layers', 'diagnostics']
-    : ['options', 'controls', 'layers'],
+    ? ['options', 'controls', 'layers', 'navigator', 'diagnostics']
+    : ['options', 'controls', 'layers', 'navigator'],
 )
 const pageTitle = computed(() => `${text.value.appName} - ${text.value.tagline}`)
 const activeLayer = computed(() => layers.value.find(layer => layer.id === activeLayerId.value))
@@ -146,6 +152,7 @@ const panelLabels = computed<Record<SitePainterPanelId, string>>(() => ({
   controls: text.value.menu.operationPanel,
   diagnostics: text.value.menu.diagnosticsPanel,
   layers: text.value.menu.layerPanel,
+  navigator: text.value.menu.navigatorPanel,
   options: text.value.menu.brushOptionsPanel,
 }))
 const panelActionLabels = computed(() => ({
@@ -330,13 +337,13 @@ async function handleMenuCommand(command: SitePainterMenuCommand): Promise<void>
       painter.value?.history.redo()
       break
     case 'view:zoom-in':
-      painter.value?.canvas.scaleUp()
+      painter.value?.zoomIn()
       break
     case 'view:zoom-out':
-      painter.value?.canvas.scaleDown()
+      painter.value?.zoomOut()
       break
     case 'view:reset':
-      painter.value?.board.resetToCenter()
+      painter.value?.resetViewport()
       break
     case 'selection:cancel':
       painter.value?.cancelSelection()
@@ -1250,6 +1257,8 @@ function safeFileName(name: string): string {
         :layer-tree="layerTree"
         :active-layer-id="activeLayerId"
         :thumbnails="layerThumbnails"
+        :mask-thumbnails="layerMaskThumbnails"
+        :paint-target="paintTarget"
         :labels="text.layers"
         @add="addLayer"
         @add-group="addGroup"
@@ -1264,7 +1273,23 @@ function safeFileName(name: string): string {
         @update:label="layerActions.setLabel"
         @update:lock-alpha="layerActions.setLockAlpha"
         @update:clip="layerActions.setClip"
+        @add-mask="layerActions.addMask"
+        @remove-mask="layerActions.removeMask"
+        @update:mask-enabled="layerActions.setMaskEnabled"
+        @update:paint-target="layerActions.setPaintTarget"
         @update:group-collapsed="layerActions.setGroupCollapsed"
+      />
+    </template>
+
+    <template #navigator>
+      <PainterNavigator
+        v-if="painter && panelVisibility.navigator"
+        :thumbnail="navigatorThumbnail"
+        :viewport="viewport"
+        :labels="text.navigator"
+        @center="navigatorActions.setCenter"
+        @refresh="navigatorActions.refreshThumbnail"
+        @reset="navigatorActions.reset"
       />
     </template>
 

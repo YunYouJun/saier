@@ -52,6 +52,7 @@ interface SitePainterMenubarLabels {
   brushOptionsPanel: string
   operationPanel: string
   layerPanel: string
+  navigatorPanel: string
   diagnosticsPanel: string
   colorWheelPanel: string
   colorPalettePanel: string
@@ -109,10 +110,11 @@ const toolCommands: { value: SitePainterTool, labelKey: 'brush' | 'eraser' | 'pa
   { value: 'selection', labelKey: 'selection', icon: 'i-ph-selection' },
 ]
 
-const panelCommands: { value: SitePainterPanelId, labelKey: 'brushOptionsPanel' | 'diagnosticsPanel' | 'layerPanel' | 'operationPanel', icon: string }[] = [
+const panelCommands: { value: SitePainterPanelId, labelKey: 'brushOptionsPanel' | 'diagnosticsPanel' | 'layerPanel' | 'navigatorPanel' | 'operationPanel', icon: string }[] = [
   { value: 'options', labelKey: 'brushOptionsPanel', icon: 'i-ph-sliders-horizontal' },
   { value: 'controls', labelKey: 'operationPanel', icon: 'i-ph-palette' },
   { value: 'layers', labelKey: 'layerPanel', icon: 'i-ph-stack' },
+  { value: 'navigator', labelKey: 'navigatorPanel', icon: 'i-ph-map-trifold' },
   { value: 'diagnostics', labelKey: 'diagnosticsPanel', icon: 'i-ph-activity' },
 ]
 

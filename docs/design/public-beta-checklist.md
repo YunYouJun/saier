@@ -8,7 +8,7 @@ title: Public Beta Checklist
 
 ## Blocking
 
-- [x] **Mask 状态定稿**：P6-04 API / 像素路径已由 browser 测试覆盖；默认用户 UI 只发布 lock alpha / clipping，不把 mask UI 作为正式能力承诺。
+- [x] **Mask 状态定稿**：P6-04 API / 像素路径已由 browser 测试覆盖；P6-06 默认用户 UI 已发布 lock alpha / clipping / mask controls。
 - [x] **文档同步**：`README`、`docs/guide/`、`site` 文案统一到 `saier` / `@saier/*`，旧 `pixi-painter` 只保留为 legacy alias 说明。
 - [x] **自定义笔刷说明**：已补 [Custom Brushes](../guide/custom-brushes)，覆盖 `createCustomPreset()` / `registerPreset()` / `.myb` 映射，并说明当前是运行时自定义，持久化需由宿主保存 preset 数据。
 - [x] **发布 alias 策略**：正式发布主包 `saier`；旧 npm 包 `pixi-painter` 仅作为 deprecated compatibility alias 处理。发布步骤：先发布同版本 `saier`，再发布/更新 `pixi-painter` alias 包或执行 `npm deprecate pixi-painter@"<目标版本范围>" "pixi-painter has moved to saier; install saier instead"`；文档与站点不再推荐旧包名。
@@ -24,7 +24,7 @@ title: Public Beta Checklist
 
 - [x] **笔刷持久化示例**：site 已提供账号级 localStorage fallback；2026-07-03 真实账号浏览器 smoke 已验证 YunLeFun shared storage 路径：保存自定义笔刷后上传 brush library，清本地缓存刷新可从云端拉回；删除后同步空库，清缓存刷新不再出现。
 - [ ] **浏览器兼容矩阵**：Chrome / Edge / Safari 当前可用性与已知限制。
-- [ ] **性能基线截图**：记录 1024² / 4096² 下 dab throughput、tile 数、内存估算。
+- [x] **性能基线截图 / 留档**：2026-07-06 已通过 `pnpm perf:baseline` 生成并提交 `docs/design/performance-baseline/latest.{json,md,png}`，覆盖 1024² / 4096² 下 dab throughput、tile 数、内存估算与长时间绘画稳定性曲线；自动化同时覆盖 4096² 稀疏 tile + 内存估算、tile buffer / GPU texture 内存快照、同帧多 dab 合并上传、5000 dab 下 tile sprite / upload 不随 dab 数线性增长。
 - [ ] **错误提示**：backend 不支持 sampler、外部 engine 未加载、项目导入失败时有明确 UI 文案。
 
 ## Experimental

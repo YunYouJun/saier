@@ -35,10 +35,7 @@ export class PainterBoard {
    * reset board position to center
    */
   resetToCenter() {
-    this.container.x = this.painter.app.canvas.width / this.painter.app.renderer.resolution / 2
-    this.container.y = this.painter.app.canvas.height / this.painter.app.renderer.resolution / 2
-
-    this.container.scale.set(1)
+    this.painter.resetViewport()
   }
 
   destroy() {

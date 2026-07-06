@@ -1,0 +1,262 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-06T08:29:40.721Z",
+  "environment": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.7827.55 Safari/537.36",
+    "devicePixelRatio": 1
+  },
+  "cases": [
+    {
+      "id": "1024-square",
+      "label": "1024 x 1024",
+      "canvas": {
+        "width": 1024,
+        "height": 1024,
+        "viewportSize": 512
+      },
+      "brushSize": 32,
+      "strokeCount": 32,
+      "inputPointCount": 3136,
+      "dabCount": 13140,
+      "drawDurationMs": 659.2000001072884,
+      "dabThroughput": 19933.25242394022,
+      "uploadCount": 128,
+      "tileSize": 256,
+      "allocatedTileCount": 4,
+      "displayTileCount": 4,
+      "derivedTileCount": 0,
+      "memory": {
+        "riskLevel": "normal",
+        "totalEstimatedBytes": 54525952,
+        "surfaceEstimatedBytes": 2097152,
+        "undoEstimatedBytes": 52428800,
+        "browserBytes": 91700000
+      },
+      "longSession": {
+        "samples": [
+          {
+            "strokeCount": 4,
+            "elapsedMs": 86.90000003576279,
+            "totalEstimatedBytes": 10485760,
+            "surfaceEstimatedBytes": 2097152,
+            "undoEstimatedBytes": 8388608,
+            "undoCount": 4,
+            "allocatedTileCount": 4,
+            "displayTileCount": 4,
+            "derivedTileCount": 0
+          },
+          {
+            "strokeCount": 8,
+            "elapsedMs": 164.60000002384186,
+            "totalEstimatedBytes": 18874368,
+            "surfaceEstimatedBytes": 2097152,
+            "undoEstimatedBytes": 16777216,
+            "undoCount": 8,
+            "allocatedTileCount": 4,
+            "displayTileCount": 4,
+            "derivedTileCount": 0
+          },
+          {
+            "strokeCount": 12,
+            "elapsedMs": 251.30000007152557,
+            "totalEstimatedBytes": 27262976,
+            "surfaceEstimatedBytes": 2097152,
+            "undoEstimatedBytes": 25165824,
+            "undoCount": 12,
+            "allocatedTileCount": 4,
+            "displayTileCount": 4,
+            "derivedTileCount": 0
+          },
+          {
+            "strokeCount": 16,
+            "elapsedMs": 337.20000010728836,
+            "totalEstimatedBytes": 35651584,
+            "surfaceEstimatedBytes": 2097152,
+            "undoEstimatedBytes": 33554432,
+            "undoCount": 16,
+            "allocatedTileCount": 4,
+            "displayTileCount": 4,
+            "derivedTileCount": 0
+          },
+          {
+            "strokeCount": 20,
+            "elapsedMs": 420.70000010728836,
+            "totalEstimatedBytes": 44040192,
+            "surfaceEstimatedBytes": 2097152,
+            "undoEstimatedBytes": 41943040,
+            "undoCount": 20,
+            "allocatedTileCount": 4,
+            "displayTileCount": 4,
+            "derivedTileCount": 0
+          },
+          {
+            "strokeCount": 24,
+            "elapsedMs": 496.60000014305115,
+            "totalEstimatedBytes": 52428800,
+            "surfaceEstimatedBytes": 2097152,
+            "undoEstimatedBytes": 50331648,
+            "undoCount": 24,
+            "allocatedTileCount": 4,
+            "displayTileCount": 4,
+            "derivedTileCount": 0
+          },
+          {
+            "strokeCount": 28,
+            "elapsedMs": 584.1000001430511,
+            "totalEstimatedBytes": 54525952,
+            "surfaceEstimatedBytes": 2097152,
+            "undoEstimatedBytes": 52428800,
+            "undoCount": 25,
+            "allocatedTileCount": 4,
+            "displayTileCount": 4,
+            "derivedTileCount": 0
+          },
+          {
+            "strokeCount": 32,
+            "elapsedMs": 659.2000001072884,
+            "totalEstimatedBytes": 54525952,
+            "surfaceEstimatedBytes": 2097152,
+            "undoEstimatedBytes": 52428800,
+            "undoCount": 25,
+            "allocatedTileCount": 4,
+            "displayTileCount": 4,
+            "derivedTileCount": 0
+          }
+        ],
+        "summary": {
+          "undoCapacity": 25,
+          "stableFromStrokeCount": 28,
+          "memoryDriftAfterUndoCapacityBytes": 0,
+          "maxTotalEstimatedBytes": 54525952,
+          "stableWithinFourTiles": true
+        }
+      }
+    },
+    {
+      "id": "4096-square",
+      "label": "4096 x 4096",
+      "canvas": {
+        "width": 4096,
+        "height": 4096,
+        "viewportSize": 512
+      },
+      "brushSize": 32,
+      "strokeCount": 32,
+      "inputPointCount": 3136,
+      "dabCount": 13140,
+      "drawDurationMs": 636.6999999284744,
+      "dabThroughput": 20637.66295190218,
+      "uploadCount": 128,
+      "tileSize": 256,
+      "allocatedTileCount": 4,
+      "displayTileCount": 4,
+      "derivedTileCount": 0,
+      "memory": {
+        "riskLevel": "normal",
+        "totalEstimatedBytes": 54525952,
+        "surfaceEstimatedBytes": 2097152,
+        "undoEstimatedBytes": 52428800,
+        "browserBytes": 91700000
+      },
+      "longSession": {
+        "samples": [
+          {
+            "strokeCount": 4,
+            "elapsedMs": 76.89999997615814,
+            "totalEstimatedBytes": 10485760,
+            "surfaceEstimatedBytes": 2097152,
+            "undoEstimatedBytes": 8388608,
+            "undoCount": 4,
+            "allocatedTileCount": 4,
+            "displayTileCount": 4,
+            "derivedTileCount": 0
+          },
+          {
+            "strokeCount": 8,
+            "elapsedMs": 154.0999999642372,
+            "totalEstimatedBytes": 18874368,
+            "surfaceEstimatedBytes": 2097152,
+            "undoEstimatedBytes": 16777216,
+            "undoCount": 8,
+            "allocatedTileCount": 4,
+            "displayTileCount": 4,
+            "derivedTileCount": 0
+          },
+          {
+            "strokeCount": 12,
+            "elapsedMs": 238.5999999642372,
+            "totalEstimatedBytes": 27262976,
+            "surfaceEstimatedBytes": 2097152,
+            "undoEstimatedBytes": 25165824,
+            "undoCount": 12,
+            "allocatedTileCount": 4,
+            "displayTileCount": 4,
+            "derivedTileCount": 0
+          },
+          {
+            "strokeCount": 16,
+            "elapsedMs": 321.39999997615814,
+            "totalEstimatedBytes": 35651584,
+            "surfaceEstimatedBytes": 2097152,
+            "undoEstimatedBytes": 33554432,
+            "undoCount": 16,
+            "allocatedTileCount": 4,
+            "displayTileCount": 4,
+            "derivedTileCount": 0
+          },
+          {
+            "strokeCount": 20,
+            "elapsedMs": 395.39999997615814,
+            "totalEstimatedBytes": 44040192,
+            "surfaceEstimatedBytes": 2097152,
+            "undoEstimatedBytes": 41943040,
+            "undoCount": 20,
+            "allocatedTileCount": 4,
+            "displayTileCount": 4,
+            "derivedTileCount": 0
+          },
+          {
+            "strokeCount": 24,
+            "elapsedMs": 471.69999998807907,
+            "totalEstimatedBytes": 52428800,
+            "surfaceEstimatedBytes": 2097152,
+            "undoEstimatedBytes": 50331648,
+            "undoCount": 24,
+            "allocatedTileCount": 4,
+            "displayTileCount": 4,
+            "derivedTileCount": 0
+          },
+          {
+            "strokeCount": 28,
+            "elapsedMs": 560.5999999642372,
+            "totalEstimatedBytes": 54525952,
+            "surfaceEstimatedBytes": 2097152,
+            "undoEstimatedBytes": 52428800,
+            "undoCount": 25,
+            "allocatedTileCount": 4,
+            "displayTileCount": 4,
+            "derivedTileCount": 0
+          },
+          {
+            "strokeCount": 32,
+            "elapsedMs": 636.6999999284744,
+            "totalEstimatedBytes": 54525952,
+            "surfaceEstimatedBytes": 2097152,
+            "undoEstimatedBytes": 52428800,
+            "undoCount": 25,
+            "allocatedTileCount": 4,
+            "displayTileCount": 4,
+            "derivedTileCount": 0
+          }
+        ],
+        "summary": {
+          "undoCapacity": 25,
+          "stableFromStrokeCount": 28,
+          "memoryDriftAfterUndoCapacityBytes": 0,
+          "maxTotalEstimatedBytes": 54525952,
+          "stableWithinFourTiles": true
+        }
+      }
+    }
+  ]
+}

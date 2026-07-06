@@ -152,13 +152,13 @@ const tools = computed(() => [
     id: 'scale-up',
     icon: 'i-ph-magnifying-glass-plus',
     title: text.value.zoomIn,
-    onClick: () => props.painter.canvas.scaleUp(),
+    onClick: () => props.painter.zoomIn(),
   },
   {
     id: 'scale-down',
     icon: 'i-ph-magnifying-glass-minus',
     title: text.value.zoomOut,
-    onClick: () => props.painter.canvas.scaleDown(),
+    onClick: () => props.painter.zoomOut(),
   },
   {
     id: 'extract',

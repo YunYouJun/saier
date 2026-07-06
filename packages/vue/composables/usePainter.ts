@@ -14,12 +14,14 @@ import type {
   PainterDocumentState,
   PainterInputSnapshot,
   PainterOptions,
+  PainterViewportSnapshot,
 } from 'saier'
 import type { ComputedRef, Ref, ShallowRef } from 'vue'
 import { createPainter } from 'saier'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 
 type MaybeFactory<T> = T | (() => T)
+export type PainterPaintTarget = Painter['paintTarget']
 
 export interface UsePainterOptions extends Omit<PainterOptions, 'boardSize' | 'pixiOptions' | 'size' | 'view'> {
   boardSize?: MaybeFactory<PainterOptions['boardSize']>
@@ -40,6 +42,10 @@ export interface UsePainterReturn {
   layerTree: ComputedRef<PainterLayerNodeState[]>
   activeLayerId: ComputedRef<string | null>
   layerThumbnails: ShallowRef<Record<string, string>>
+  layerMaskThumbnails: ShallowRef<Record<string, string>>
+  navigatorThumbnail: ShallowRef<string>
+  paintTarget: ShallowRef<PainterPaintTarget>
+  viewport: ShallowRef<PainterViewportSnapshot | undefined>
   layerActions: {
     add: (options?: CreateLayerOptions) => void
     addGroup: (options?: CreateLayerGroupOptions) => void
@@ -54,6 +60,10 @@ export interface UsePainterReturn {
     setLabel: (id: string, label: string) => void
     setLockAlpha: (id: string, lockAlpha: boolean) => void
     setClip: (id: string, clip: boolean) => void
+    addMask: (id: string) => void
+    removeMask: (id: string) => void
+    setMaskEnabled: (id: string, enabled: boolean) => void
+    setPaintTarget: (target: PainterPaintTarget) => void
     setGroupCollapsed: (id: string, collapsed: boolean) => void
   }
   documentActions: {
@@ -63,7 +73,13 @@ export interface UsePainterReturn {
     rename: (id: string, name: string) => void
   }
   refreshLayerThumbnails: () => Promise<void>
+  refreshNavigatorThumbnail: () => Promise<void>
   refreshMemory: () => Promise<void>
+  navigatorActions: {
+    refreshThumbnail: () => Promise<void>
+    reset: () => void
+    setCenter: (point: { x: number, y: number }) => void
+  }
 }
 
 export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
@@ -74,6 +90,10 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
   const input = shallowRef<PainterInputSnapshot>()
   const documents = shallowRef<PainterDocumentState[]>([])
   const layerThumbnails = shallowRef<Record<string, string>>({})
+  const layerMaskThumbnails = shallowRef<Record<string, string>>({})
+  const navigatorThumbnail = shallowRef('')
+  const paintTarget = shallowRef<PainterPaintTarget>('content')
+  const viewport = shallowRef<PainterViewportSnapshot>()
 
   const layers = computed(() => state.value?.layers ?? [])
   const layerTree = computed(() => state.value?.layerTree ?? [])
@@ -84,15 +104,22 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
   let removePainterListeners: (() => void) | undefined
   let resizeObserver: ResizeObserver | undefined
   let thumbnailRun = 0
+  let navigatorThumbnailRun = 0
+  let navigatorThumbnailTimer: ReturnType<typeof setTimeout> | undefined
   let memoryRun = 0
   let memoryRefreshQueued = false
 
   function syncState(p: Painter): void {
     state.value = p.controller.getState()
+    normalizePaintTarget(p)
   }
 
   function syncDocuments(p: Painter): void {
     documents.value = p.getDocuments()
+  }
+
+  function syncViewport(p: Painter, snapshot?: PainterViewportSnapshot): void {
+    viewport.value = snapshot ?? p.getViewportSnapshot()
   }
 
   async function refreshLayerThumbnails(): Promise<void> {
@@ -100,11 +127,13 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     const currentLayers = state.value?.layers ?? []
     if (!p || currentLayers.length === 0) {
       layerThumbnails.value = {}
+      layerMaskThumbnails.value = {}
       return
     }
 
     const run = ++thumbnailRun
     const next: Record<string, string> = {}
+    const nextMasks: Record<string, string> = {}
     await Promise.all(currentLayers.map(async (layer) => {
       try {
         next[layer.id] = await p.extractLayerThumbnail(layer.id, 40)
@@ -112,10 +141,41 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
       catch {
         next[layer.id] = layerThumbnails.value[layer.id] ?? ''
       }
+
+      if (!layer.mask)
+        return
+
+      try {
+        nextMasks[layer.mask.id] = await p.extractLayerThumbnail(layer.mask.id, 40)
+      }
+      catch {
+        nextMasks[layer.mask.id] = layerMaskThumbnails.value[layer.mask.id] ?? ''
+      }
     }))
 
-    if (run === thumbnailRun)
+    if (run === thumbnailRun) {
       layerThumbnails.value = next
+      layerMaskThumbnails.value = nextMasks
+    }
+  }
+
+  async function refreshNavigatorThumbnail(): Promise<void> {
+    const p = painter.value
+    if (!p) {
+      navigatorThumbnail.value = ''
+      return
+    }
+
+    const run = ++navigatorThumbnailRun
+    try {
+      const next = await p.extractDocumentThumbnail(192)
+      if (run === navigatorThumbnailRun)
+        navigatorThumbnail.value = next
+    }
+    catch {
+      if (run === navigatorThumbnailRun && !navigatorThumbnail.value)
+        navigatorThumbnail.value = ''
+    }
   }
 
   async function refreshMemory(): Promise<void> {
@@ -140,6 +200,16 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
       memoryRefreshQueued = false
       void refreshMemory()
     })
+  }
+
+  function scheduleNavigatorThumbnailRefresh(delay = 160): void {
+    if (navigatorThumbnailTimer !== undefined)
+      clearTimeout(navigatorThumbnailTimer)
+
+    navigatorThumbnailTimer = setTimeout(() => {
+      navigatorThumbnailTimer = undefined
+      void refreshNavigatorThumbnail()
+    }, delay)
   }
 
   function bindController(p: Painter, updateLayers: () => void): void {
@@ -171,6 +241,7 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
       syncDocuments(p)
       scheduleMemoryRefresh()
       void refreshLayerThumbnails()
+      scheduleNavigatorThumbnailRefresh()
     }
     const handleCanvasClear = () => {
       bindController(p, updateLayers)
@@ -179,12 +250,19 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     const updateInput = (snapshot: PainterInputSnapshot) => {
       input.value = snapshot
     }
+    const updateViewport = (snapshot: PainterViewportSnapshot) => {
+      syncViewport(p, snapshot)
+    }
     const updateDocuments = () => {
       syncDocuments(p)
       syncState(p)
+      syncViewport(p)
       layerThumbnails.value = {}
+      layerMaskThumbnails.value = {}
+      navigatorThumbnail.value = ''
       scheduleMemoryRefresh()
       void refreshLayerThumbnails()
+      scheduleNavigatorThumbnailRefresh(0)
     }
 
     bindController(p, updateLayers)
@@ -192,6 +270,7 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     p.emitter.on('eraser:up', updateLayers)
     p.emitter.on('canvas:clear', handleCanvasClear)
     p.emitter.on('input:pointer', updateInput)
+    p.emitter.on('viewport:change', updateViewport)
     p.emitter.on('documents:change', updateDocuments)
     p.emitter.on('active-document:change', updateDocuments)
 
@@ -200,6 +279,7 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
       p.emitter.off('eraser:up', updateLayers)
       p.emitter.off('canvas:clear', handleCanvasClear)
       p.emitter.off('input:pointer', updateInput)
+      p.emitter.off('viewport:change', updateViewport)
       p.emitter.off('documents:change', updateDocuments)
       p.emitter.off('active-document:change', updateDocuments)
     }
@@ -207,6 +287,34 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
 
   function requirePainter(): Painter | undefined {
     return painter.value
+  }
+
+  function activeLayerCanPaintMask(): boolean {
+    const id = activeLayerId.value
+    if (!id)
+      return false
+    return Boolean(layers.value.find(layer => layer.id === id)?.mask?.enabled)
+  }
+
+  function normalizePaintTarget(p: Painter): void {
+    const next = paintTarget.value === 'mask' && !activeLayerCanPaintMask()
+      ? 'content'
+      : paintTarget.value
+    if (p.paintTarget !== next)
+      p.setPaintTarget(next)
+    paintTarget.value = next
+  }
+
+  function setPaintTarget(target: PainterPaintTarget): void {
+    const p = requirePainter()
+    if (!p)
+      return
+
+    const next = target === 'mask' && !activeLayerCanPaintMask()
+      ? 'content'
+      : target
+    p.setPaintTarget(next)
+    paintTarget.value = next
   }
 
   const layerActions = {
@@ -265,6 +373,39 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     setClip: (id: string, clip: boolean) => {
       requirePainter()?.controller.layer.setClip(id, clip)
     },
+    addMask: (id: string) => {
+      const p = requirePainter()
+      const layer = layers.value.find(item => item.id === id)
+      if (!p || !layer)
+        return
+      p.controller.layer.setActive(id)
+      p.controller.layer.addMask(id)
+      p.setPaintTarget('mask')
+      paintTarget.value = 'mask'
+      syncState(p)
+      void refreshLayerThumbnails()
+    },
+    removeMask: (id: string) => {
+      const p = requirePainter()
+      if (!p)
+        return
+      if (activeLayerId.value === id)
+        setPaintTarget('content')
+      p.controller.layer.removeMask(id)
+      syncState(p)
+      void refreshLayerThumbnails()
+    },
+    setMaskEnabled: (id: string, enabled: boolean) => {
+      const p = requirePainter()
+      if (!p)
+        return
+      if (activeLayerId.value === id && !enabled)
+        setPaintTarget('content')
+      p.controller.layer.setMaskEnabled(id, enabled)
+      syncState(p)
+      void refreshLayerThumbnails()
+    },
+    setPaintTarget,
     setGroupCollapsed: (id: string, collapsed: boolean) => {
       requirePainter()?.controller.layer.setGroupCollapsed(id, collapsed)
     },
@@ -282,6 +423,16 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     },
     rename: (id: string, name: string) => {
       requirePainter()?.renameDocument(id, name)
+    },
+  }
+
+  const navigatorActions = {
+    refreshThumbnail: refreshNavigatorThumbnail,
+    reset: () => {
+      requirePainter()?.resetViewport()
+    },
+    setCenter: (point: { x: number, y: number }) => {
+      requirePainter()?.setViewportCenter(point)
     },
   }
 
@@ -308,11 +459,14 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     bindPainter(p)
     syncState(p)
     syncDocuments(p)
+    syncViewport(p)
     await afterInit?.(p)
     syncState(p)
     syncDocuments(p)
+    syncViewport(p)
     painter.value = p
     void refreshLayerThumbnails()
+    scheduleNavigatorThumbnailRefresh(0)
     void refreshMemory()
   })
 
@@ -321,6 +475,10 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     resizeObserver = undefined
     removePainterListeners?.()
     removeControllerListeners?.()
+    if (navigatorThumbnailTimer !== undefined) {
+      clearTimeout(navigatorThumbnailTimer)
+      navigatorThumbnailTimer = undefined
+    }
     painter.value?.destroy()
     painter.value = undefined
     state.value = undefined
@@ -328,6 +486,10 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     input.value = undefined
     documents.value = []
     layerThumbnails.value = {}
+    layerMaskThumbnails.value = {}
+    navigatorThumbnail.value = ''
+    paintTarget.value = 'content'
+    viewport.value = undefined
   })
 
   return {
@@ -342,10 +504,16 @@ export function usePainter(options: UsePainterOptions = {}): UsePainterReturn {
     layerTree,
     activeLayerId,
     layerThumbnails,
+    layerMaskThumbnails,
+    navigatorThumbnail,
+    paintTarget,
+    viewport,
     layerActions,
     documentActions,
     refreshLayerThumbnails,
+    refreshNavigatorThumbnail,
     refreshMemory,
+    navigatorActions,
   }
 }
 

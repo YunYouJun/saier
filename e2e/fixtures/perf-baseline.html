@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Saier Performance Baseline</title>
+    <style>
+      :root {
+        color: #17202a;
+        background: #f7f8fb;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+      }
+
+      body {
+        margin: 0;
+      }
+
+      main {
+        box-sizing: border-box;
+        min-height: 100vh;
+        padding: 32px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+        font-weight: 720;
+      }
+
+      p {
+        margin: 0;
+        color: #586170;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(320px, 512px) minmax(520px, 1fr);
+        gap: 24px;
+        margin-top: 24px;
+        align-items: start;
+      }
+
+      .layout.is-complete {
+        grid-template-columns: minmax(640px, 1fr);
+      }
+
+      .layout.is-complete #canvas-host {
+        display: none;
+      }
+
+      #canvas-host {
+        width: 512px;
+        height: 512px;
+        overflow: hidden;
+        border: 1px solid #d7dce5;
+        background: #fff;
+      }
+
+      canvas {
+        display: block;
+        width: 512px;
+        height: 512px;
+      }
+
+      #status {
+        margin-top: 12px;
+        color: #3366cc;
+        font-weight: 650;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border: 1px solid #d7dce5;
+      }
+
+      th,
+      td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #e7eaf0;
+        text-align: right;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      th:first-child,
+      td:first-child {
+        text-align: left;
+      }
+
+      th {
+        color: #485366;
+        background: #eef2f7;
+        font-weight: 700;
+      }
+
+      code {
+        color: #1b4e8a;
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      }
+
+      .meta {
+        margin-top: 16px;
+        display: grid;
+        gap: 6px;
+        color: #586170;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Saier Performance Baseline</h1>
+      <p>
+        Tiled backend benchmark for dab throughput, sparse tile allocation, memory estimates, and long-session
+        stability.
+      </p>
+      <p id="status">Idle</p>
+      <div class="layout">
+        <div id="canvas-host" aria-label="Benchmark canvas"></div>
+        <section>
+          <div id="results"></div>
+          <div id="meta" class="meta"></div>
+        </section>
+      </div>
+    </main>
+
+    <script type="module">
+      import { PixiTileTextureBackend } from '@saier/pixi'
+      import { createPainter } from 'saier'
+
+      const DEFAULT_CASES = [
+        {
+          id: '1024-square',
+          label: '1024 x 1024',
+          width: 1024,
+          height: 1024,
+          viewportSize: 512,
+          brushSize: 32,
+          strokeCount: 32,
+          movesPerStroke: 96,
+          sampleEveryStrokes: 4,
+          paintArea: 384,
+        },
+        {
+          id: '4096-square',
+          label: '4096 x 4096',
+          width: 4096,
+          height: 4096,
+          viewportSize: 512,
+          brushSize: 32,
+          strokeCount: 32,
+          movesPerStroke: 96,
+          sampleEveryStrokes: 4,
+          paintArea: 384,
+        },
+      ]
+
+      const status = document.querySelector('#status')
+      const results = document.querySelector('#results')
+      const meta = document.querySelector('#meta')
+      const canvasHost = document.querySelector('#canvas-host')
+      const layout = document.querySelector('.layout')
+
+      function setStatus(text) {
+        status.textContent = text
+      }
+
+      function formatNumber(value, digits = 0) {
+        return new Intl.NumberFormat('en-US', {
+          maximumFractionDigits: digits,
+          minimumFractionDigits: digits,
+        }).format(value)
+      }
+
+      function formatBytes(bytes) {
+        if (bytes < 1024) return `${bytes} B`
+
+        const units = ['KiB', 'MiB', 'GiB']
+        let value = bytes / 1024
+        for (let index = 0; index < units.length; index++) {
+          if (value < 1024 || index === units.length - 1)
+            return `${formatNumber(value, value < 10 ? 2 : 1)} ${units[index]}`
+          value /= 1024
+        }
+
+        return `${formatNumber(value, 1)} GiB`
+      }
+
+      function createCanvas(size) {
+        canvasHost.textContent = ''
+        const canvas = document.createElement('canvas')
+        canvas.width = size
+        canvas.height = size
+        canvasHost.append(canvas)
+        return canvas
+      }
+
+      function instrumentDabs(surface) {
+        const originalPaintDab = surface.paintDab.bind(surface)
+        let dabCount = 0
+
+        surface.paintDab = (layerId, dab, mode) => {
+          dabCount += 1
+          return originalPaintDab(layerId, dab, mode)
+        }
+
+        return {
+          get count() {
+            return dabCount
+          },
+          restore() {
+            surface.paintDab = originalPaintDab
+          },
+        }
+      }
+
+      function pointFor(config, strokeIndex, stepIndex, time) {
+        const paintArea = Math.min(config.paintArea, config.width - config.brushSize * 2)
+        const originX = Math.floor((config.width - paintArea) / 2)
+        const originY = Math.floor((config.height - paintArea) / 2)
+        const phase = strokeIndex * 0.73
+        const x = originX + ((stepIndex * 5 + strokeIndex * 29) % paintArea)
+        const wave = Math.sin(stepIndex * 0.09 + phase) * 0.5 + 0.5
+        const y = originY + Math.round(wave * (paintArea - 1))
+
+        return {
+          x,
+          y,
+          pressure: 1,
+          time,
+          hasPressure: true,
+          pointerType: 'pen',
+        }
+      }
+
+      function drawStroke(painter, config, strokeIndex, timeBase) {
+        const pointerId = strokeIndex + 1
+        const first = pointFor(config, strokeIndex, 0, timeBase)
+        painter.brush.beginDocumentStroke(first, pointerId)
+
+        for (let step = 1; step <= config.movesPerStroke; step++) {
+          const point = pointFor(config, strokeIndex, step, timeBase + step * 4)
+          painter.brush.moveDocumentStroke(point, pointerId)
+        }
+
+        const finalPoint = pointFor(
+          config,
+          strokeIndex,
+          config.movesPerStroke,
+          timeBase + (config.movesPerStroke + 1) * 4,
+        )
+        painter.brush.endDocumentStroke(pointerId, finalPoint)
+      }
+
+      function captureSample(painter, strokeCount, elapsedMs) {
+        const snapshot = painter.getMemorySnapshot()
+        const surfaceMetadata = snapshot.surface.metadata || {}
+
+        return {
+          strokeCount,
+          elapsedMs,
+          totalEstimatedBytes: snapshot.totalEstimatedBytes,
+          surfaceEstimatedBytes: snapshot.surface.totalEstimatedBytes,
+          undoEstimatedBytes: snapshot.undo.totalEstimatedBytes,
+          undoCount: snapshot.undo.undoCount,
+          allocatedTileCount: surfaceMetadata.allocatedTileCount || 0,
+          displayTileCount: surfaceMetadata.displayTileCount || 0,
+          derivedTileCount: surfaceMetadata.derivedTileCount || 0,
+        }
+      }
+
+      function summarizeStability(samples, undoCapacity, bytesPerTile) {
+        const stableSamples = samples.filter((sample) => sample.undoCount >= undoCapacity)
+        const baseline = stableSamples[0] || samples[0]
+        const last = samples[samples.length - 1]
+        const maxTotalEstimatedBytes = Math.max(...samples.map((sample) => sample.totalEstimatedBytes))
+        const memoryDriftAfterUndoCapacityBytes = last.totalEstimatedBytes - baseline.totalEstimatedBytes
+
+        return {
+          undoCapacity,
+          stableFromStrokeCount: baseline.strokeCount,
+          memoryDriftAfterUndoCapacityBytes,
+          maxTotalEstimatedBytes,
+          stableWithinFourTiles: Math.abs(memoryDriftAfterUndoCapacityBytes) <= bytesPerTile * 4,
+        }
+      }
+
+      async function runCase(config) {
+        setStatus(`Running ${config.label}...`)
+        const canvas = createCanvas(config.viewportSize)
+        const painter = createPainter({
+          backend: 'tiled',
+          view: canvas,
+          size: { width: config.viewportSize, height: config.viewportSize },
+          boardSize: { width: config.width, height: config.height },
+          pixiOptions: {
+            backgroundAlpha: 0,
+          },
+        })
+
+        await painter.init()
+        const dabs = instrumentDabs(painter.surface)
+        let drawDurationMs = 0
+        const samples = []
+        const bytesPerTile = 256 * 256 * 4
+
+        try {
+          painter.useTool('brush')
+          painter.brush.setPreset('pen')
+          painter.brush.setColor(0x1a1a1a)
+          painter.brush.setSize(config.brushSize)
+          painter.brush.setSpacing(0.25)
+          painter.brush.setStabilizerStrength(0)
+          painter.brush.setPressureEnabled(true)
+
+          for (let stroke = 0; stroke < config.strokeCount; stroke++) {
+            const started = performance.now()
+            drawStroke(painter, config, stroke, stroke * (config.movesPerStroke + 4) * 4)
+            painter.flushSurfaceUploads()
+            drawDurationMs += performance.now() - started
+
+            const strokeCount = stroke + 1
+            if (strokeCount % config.sampleEveryStrokes === 0 || strokeCount === config.strokeCount)
+              samples.push(captureSample(painter, strokeCount, drawDurationMs))
+          }
+
+          const snapshot = await painter.measureMemory()
+          const layerId = painter.document.activeLayerId
+          const surface =
+            painter.surface instanceof PixiTileTextureBackend && layerId
+              ? painter.surface.getSurface(layerId)
+              : undefined
+          const surfaceMetadata = snapshot.surface.metadata || {}
+          const uploadCount = painter.surface.uploadCount || 0
+          const dabThroughput = dabs.count / (drawDurationMs / 1000)
+
+          return {
+            id: config.id,
+            label: config.label,
+            canvas: {
+              width: config.width,
+              height: config.height,
+              viewportSize: config.viewportSize,
+            },
+            brushSize: config.brushSize,
+            strokeCount: config.strokeCount,
+            inputPointCount: config.strokeCount * (config.movesPerStroke + 2),
+            dabCount: dabs.count,
+            drawDurationMs,
+            dabThroughput,
+            uploadCount,
+            tileSize: surfaceMetadata.tileSize || 256,
+            allocatedTileCount: surface?.allocatedTileCount || surfaceMetadata.allocatedTileCount || 0,
+            displayTileCount: surfaceMetadata.displayTileCount || 0,
+            derivedTileCount: surfaceMetadata.derivedTileCount || 0,
+            memory: {
+              riskLevel: snapshot.riskLevel,
+              totalEstimatedBytes: snapshot.totalEstimatedBytes,
+              surfaceEstimatedBytes: snapshot.surface.totalEstimatedBytes,
+              undoEstimatedBytes: snapshot.undo.totalEstimatedBytes,
+              browserBytes: snapshot.browser?.bytes,
+            },
+            longSession: {
+              samples,
+              summary: summarizeStability(samples, snapshot.undo.capacity, bytesPerTile),
+            },
+          }
+        } finally {
+          dabs.restore()
+          painter.destroy()
+        }
+      }
+
+      function render(result) {
+        layout.classList.add('is-complete')
+        results.innerHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>Case</th>
+                <th>Dabs</th>
+                <th>Duration</th>
+                <th>Dabs/s</th>
+                <th>Tiles</th>
+                <th>Uploads</th>
+                <th>Surface</th>
+                <th>Undo</th>
+                <th>Total</th>
+                <th>Stable drift</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${result.cases
+                .map(
+                  (item) => `
+                <tr>
+                  <td><code>${item.label}</code></td>
+                  <td>${formatNumber(item.dabCount)}</td>
+                  <td>${formatNumber(item.drawDurationMs, 1)} ms</td>
+                  <td>${formatNumber(item.dabThroughput, 1)}</td>
+                  <td>${item.allocatedTileCount}</td>
+                  <td>${item.uploadCount}</td>
+                  <td>${formatBytes(item.memory.surfaceEstimatedBytes)}</td>
+                  <td>${formatBytes(item.memory.undoEstimatedBytes)}</td>
+                  <td>${formatBytes(item.memory.totalEstimatedBytes)}</td>
+                  <td>${formatBytes(Math.abs(item.longSession.summary.memoryDriftAfterUndoCapacityBytes))}</td>
+                </tr>
+              `,
+                )
+                .join('')}
+            </tbody>
+          </table>
+        `
+        meta.innerHTML = `
+          <span>Generated: <code>${result.generatedAt}</code></span>
+          <span>User agent: <code>${result.environment.userAgent}</code></span>
+          <span>Device pixel ratio: <code>${result.environment.devicePixelRatio}</code></span>
+        `
+      }
+
+      async function runSaierPerformanceBaseline(options = {}) {
+        const cases = options.cases || DEFAULT_CASES
+        const result = {
+          schemaVersion: 1,
+          generatedAt: new Date().toISOString(),
+          environment: {
+            userAgent: navigator.userAgent,
+            devicePixelRatio: window.devicePixelRatio,
+          },
+          cases: [],
+        }
+
+        for (const config of cases) result.cases.push(await runCase(config))
+
+        render(result)
+        setStatus('Complete')
+        return result
+      }
+
+      window.__SAIER_RUN_PERF_BASELINE__ = runSaierPerformanceBaseline
+    </script>
+  </body>
+</html>

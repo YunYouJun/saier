@@ -130,6 +130,24 @@ export interface PainterExtractCanvasOptions {
   mode?: PainterExtractCanvasMode
 }
 
+export interface PainterViewportRect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export interface PainterViewportSnapshot {
+  x: number
+  y: number
+  scale: number
+  viewWidth: number
+  viewHeight: number
+  documentWidth: number
+  documentHeight: number
+  visibleRect: PainterViewportRect
+}
+
 export interface ExportPainterProjectOptions {
   metadata?: SaierProjectMetadata
 }
@@ -334,6 +352,7 @@ export class Painter {
     if (box) {
       const { width, height } = box
       this.app.renderer.resize(width, height)
+      this.emitViewportChange()
     }
   }
 
@@ -427,6 +446,7 @@ export class Painter {
       this.boundingBoxes.position.x + dx,
       this.boundingBoxes.position.y + dy,
     )
+    this.emitViewportChange()
   }
 
   zoomViewportAt(point: ViewportPoint, scaleFactor: number): void {
@@ -437,6 +457,83 @@ export class Painter {
     board.position.set(point.x - docX * scale, point.y - docY * scale)
     this.boundingBoxes.position.set(board.position.x, board.position.y)
     this.canvas.scaleTo(scale)
+    this.emitViewportChange()
+  }
+
+  resetViewport(): void {
+    const { width, height } = this.viewportViewSize()
+    this.setViewportTransform({
+      x: width / 2,
+      y: height / 2,
+      scale: 1,
+    })
+  }
+
+  getViewportSnapshot(): PainterViewportSnapshot {
+    const board = this.board.container
+    const { width: viewWidth, height: viewHeight } = this.viewportViewSize()
+    const documentWidth = this.surface.width
+    const documentHeight = this.surface.height
+    const scale = board.scale.x || 1
+    const left = (0 - board.position.x) / scale + documentWidth / 2
+    const top = (0 - board.position.y) / scale + documentHeight / 2
+    const right = (viewWidth - board.position.x) / scale + documentWidth / 2
+    const bottom = (viewHeight - board.position.y) / scale + documentHeight / 2
+    const x = clamp(left, 0, documentWidth)
+    const y = clamp(top, 0, documentHeight)
+    const clampedRight = clamp(right, 0, documentWidth)
+    const clampedBottom = clamp(bottom, 0, documentHeight)
+
+    return {
+      x: board.position.x,
+      y: board.position.y,
+      scale,
+      viewWidth,
+      viewHeight,
+      documentWidth,
+      documentHeight,
+      visibleRect: {
+        x,
+        y,
+        width: Math.max(0, clampedRight - x),
+        height: Math.max(0, clampedBottom - y),
+      },
+    }
+  }
+
+  setViewportCenter(point: ViewportPoint): void {
+    const snapshot = this.getViewportSnapshot()
+    const scale = snapshot.scale || 1
+    const visibleWidth = snapshot.viewWidth / scale
+    const visibleHeight = snapshot.viewHeight / scale
+    const centerX = clampViewportCenter(point.x, snapshot.documentWidth, visibleWidth)
+    const centerY = clampViewportCenter(point.y, snapshot.documentHeight, visibleHeight)
+
+    this.setViewportTransform({
+      x: snapshot.viewWidth / 2 - (centerX - snapshot.documentWidth / 2) * scale,
+      y: snapshot.viewHeight / 2 - (centerY - snapshot.documentHeight / 2) * scale,
+      scale,
+    })
+  }
+
+  async extractDocumentThumbnail(maxSize = 192): Promise<string> {
+    const session = this.requireActiveSession()
+    const width = Math.max(1, Math.round(session.width))
+    const height = Math.max(1, Math.round(session.height))
+    const scale = Math.min(maxSize / width, maxSize / height, 1)
+    const thumbWidth = Math.max(1, Math.round(width * scale))
+    const thumbHeight = Math.max(1, Math.round(height * scale))
+    const canvas = await this.extractCanvas('canvas', { mode: 'content' }) as HTMLCanvasElement
+    const thumb = document.createElement('canvas')
+    thumb.width = thumbWidth
+    thumb.height = thumbHeight
+    const context = thumb.getContext('2d')
+    if (context) {
+      context.fillStyle = '#ffffff'
+      context.fillRect(0, 0, thumbWidth, thumbHeight)
+      context.drawImage(canvas as unknown as CanvasImageSource, 0, 0, thumbWidth, thumbHeight)
+    }
+    return thumb.toDataURL('image/png')
   }
 
   setupRasterPipeline() {
@@ -946,11 +1043,19 @@ export class Painter {
 
   // helper
   zoomIn() {
-    this.canvas.scaleUp()
+    const viewport = this.getViewportSnapshot()
+    this.zoomViewportAt({
+      x: viewport.viewWidth / 2,
+      y: viewport.viewHeight / 2,
+    }, 1.1)
   }
 
   zoomOut() {
-    this.canvas.scaleDown()
+    const viewport = this.getViewportSnapshot()
+    this.zoomViewportAt({
+      x: viewport.viewWidth / 2,
+      y: viewport.viewHeight / 2,
+    }, 0.9)
   }
 
   // 缩小画笔尺寸
@@ -1151,9 +1256,31 @@ export class Painter {
   }
 
   private restoreViewport(session: PainterDocumentSession): void {
-    this.board.container.position.set(session.viewport.x, session.viewport.y)
-    this.boundingBoxes.position.set(session.viewport.x, session.viewport.y)
-    this.canvas.scaleTo(session.viewport.scale)
+    this.setViewportTransform(session.viewport)
+  }
+
+  private setViewportTransform(viewport: PainterViewportState): void {
+    this.board.container.position.set(viewport.x, viewport.y)
+    this.boundingBoxes.position.set(viewport.x, viewport.y)
+    this.canvas.scaleTo(Math.max(viewport.scale, this.board.minScale))
+    this.emitViewportChange()
+  }
+
+  private viewportViewSize(): { width: number, height: number } {
+    return {
+      width: this.app.canvas.width / this.app.renderer.resolution,
+      height: this.app.canvas.height / this.app.renderer.resolution,
+    }
+  }
+
+  private emitViewportChange(): void {
+    try {
+      this.saveViewport(this.requireActiveSession())
+      this.emitter.emit('viewport:change', this.getViewportSnapshot())
+    }
+    catch {
+      // The viewport can be touched during init before a document is active.
+    }
   }
 
   private cancelActiveStroke(): void {
@@ -1337,6 +1464,20 @@ function normalizeDocumentDimension(value: number): number {
   if (next <= 0)
     throw new Error('Document dimensions must be positive')
   return next
+}
+
+function clampViewportCenter(center: number, documentSize: number, visibleSize: number): number {
+  if (visibleSize >= documentSize)
+    return documentSize / 2
+  return clamp(center, visibleSize / 2, documentSize - visibleSize / 2)
+}
+
+function clamp(value: number, min: number, max: number): number {
+  if (value < min)
+    return min
+  if (value > max)
+    return max
+  return value
 }
 
 function createFallbackSurfaceMemorySnapshot(surface: SurfaceBackend): SurfaceMemorySnapshot {

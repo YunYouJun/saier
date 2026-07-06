@@ -15,10 +15,15 @@ export function usePixiPainter() {
     activeLayerId,
     canvas: srcCanvas,
     layerActions,
+    layerMaskThumbnails,
     layerThumbnails,
     layerTree,
     layers,
+    navigatorActions,
+    navigatorThumbnail,
+    paintTarget,
     painter,
+    viewport,
   } = usePainter({
     debug: import.meta.env.DEV,
     size: () => ({
@@ -93,12 +98,17 @@ export function usePixiPainter() {
     activeLayerId,
     data,
     layerActions,
+    layerMaskThumbnails,
     layerThumbnails,
     layerTree,
     layers,
+    navigatorActions,
+    navigatorThumbnail,
     onExtract,
+    paintTarget,
     painter,
     srcCanvas,
     targetCanvas,
+    viewport,
   }
 }

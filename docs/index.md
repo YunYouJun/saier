@@ -58,7 +58,7 @@ saier is under active architectural evolution — from a PixiJS brush demo into 
 **elegant, multi-inspiration web painting runtime** (synthesizing SAI / Procreate / Krita). The full plan lives in the [Design](/design/) section,
 written to be executed phase-by-phase by humans or coding agents.
 
-- 🗺️ [Roadmap (P0–P9)](/design/roadmap) — the ordered execution plan
+- 🗺️ [Roadmap (P0–P13)](/design/roadmap) — the ordered execution plan
 - 🖌️ [Custom Brushes](/guide/custom-brushes) — runtime custom presets, external engines, and `.myb` mapping
 - 🧩 [Core Interfaces](/design/interfaces) — the contracts between `core` and the Pixi adapter
 - 🧭 [Decisions (ADR)](/design/decisions) — key architectural calls and why

@@ -14,6 +14,7 @@ export const SITE_PAINTER_COMMANDS = [
   { id: 'file:open-project', category: 'file' },
   { id: 'file:save-project', category: 'file' },
   { id: 'file:cloud-sync', category: 'file' },
+  { id: 'file:cloud-room', category: 'file' },
   { id: 'file:import-image', category: 'file' },
   { id: 'file:import-brush', category: 'file' },
   { id: 'file:export-preview', category: 'file' },
@@ -39,6 +40,15 @@ export const SITE_PAINTER_COMMANDS = [
   { id: 'layer:move-up', category: 'layers' },
   { id: 'layer:move-down', category: 'layers' },
   { id: 'layer:remove', category: 'layers' },
+  { id: 'recording:toggle', category: 'recording' },
+  { id: 'recording:replay-last', category: 'recording' },
+  { id: 'recording:clear', category: 'recording' },
+  { id: 'recording:export-log', category: 'recording' },
+  { id: 'recording:import-log', category: 'recording' },
+  { id: 'recording:pause', category: 'recording' },
+  { id: 'recording:play', category: 'recording' },
+  { id: 'recording:seek-start', category: 'recording' },
+  { id: 'recording:step-forward', category: 'recording' },
   { id: 'app:keyboard-shortcuts', category: 'app' },
 ] as const satisfies readonly SitePainterCommandDefinition[]
 

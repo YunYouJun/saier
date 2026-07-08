@@ -44,8 +44,9 @@ import { importImageSprite } from './import'
 import { PainterPointerInput } from './input'
 import { Keyboard } from './keyboard'
 import { EditableLayer } from './layers'
-
 import { statement } from './statement'
+
+import { PainterStrokeRecording } from './stroke-recording'
 import { painterColorToRGBA } from './utils/color'
 import 'pixi.js/math-extras'
 
@@ -218,6 +219,7 @@ export class Painter {
   inputPointerSource: PainterPointerSource = 'pixi'
   inputDiagnostics = false
   store!: PainterStore
+  strokeRecording = new PainterStrokeRecording(this)
 
   history = new PainterHistory(this)
 
@@ -1391,7 +1393,7 @@ export class Painter {
   }
 
   /** Recompute derived clip / mask display textures after pixels change. */
-  private refreshDerivedDisplays(dirtyRect?: StrokePatch['rect']): void {
+  refreshDerivedDisplays(dirtyRect?: StrokePatch['rect']): void {
     const session = this.requireActiveSession()
     if (isDisplayMaskCapableBackend(session.surface))
       session.surface.refreshDerivedDisplays(dirtyRect)

@@ -7,6 +7,19 @@ import PainterCheckbox from './PainterCheckbox.vue'
 import PainterSlider from './PainterSlider.vue'
 
 type BrushPresetLabelMap = Partial<Record<BrushPresetId, string>>
+type UnavailablePresetReason = 'missing-engine' | 'missing-surface-sampler'
+
+interface UnavailablePresetInfo {
+  reason: UnavailablePresetReason
+  message: string
+}
+
+interface UnavailablePresetPayload {
+  presetId: BrushPresetId
+  presetName: string
+  reason: UnavailablePresetReason
+  message: string
+}
 
 interface PainterOptionsBarLabels {
   pressure: string
@@ -24,6 +37,7 @@ interface PainterOptionsBarLabels {
   density: string
   paperTexture: string
   paperTextureStrength: string
+  missingEngine: string
   requiresTileBackend: string
   unavailablePreset: string
   addBrush: string
@@ -41,6 +55,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  'unavailablePreset': [payload: UnavailablePresetPayload]
   'update:stabilizerStrength': [strength: number]
 }>()
 
@@ -60,6 +75,7 @@ const DEFAULT_LABELS: PainterOptionsBarLabels = {
   density: 'Density',
   paperTexture: 'Paper',
   paperTextureStrength: 'Grain',
+  missingEngine: 'External brush engine is not loaded',
   requiresTileBackend: 'Requires tiled backend',
   unavailablePreset: 'Preset unavailable for the current backend',
   addBrush: 'Save current brush',
@@ -102,12 +118,43 @@ const stabilizerStrength = shallowRef(normalizeStabilizerStrength(
 const activePreset = computed(() => presets.value.find(preset => preset.id === presetId.value))
 const showMixingControls = computed(() => activePreset.value?.supportsMixingControls ?? activePreset.value?.engine === 'smudge')
 const canRemoveActivePreset = computed(() => Boolean(activePreset.value?.custom))
-const disabledPresetIds = computed(() => presets.value
-  .filter(preset => preset.engineAvailable === false || (requiresSurfaceSampler(preset) && !props.painter.surface.sampleRegion))
-  .map(preset => preset.id))
+const unavailablePresets = computed(() => {
+  const unavailable = new Map<BrushPresetId, UnavailablePresetInfo>()
+  for (const preset of presets.value) {
+    const reason = unavailablePresetReason(preset)
+    if (reason) {
+      unavailable.set(preset.id, {
+        reason,
+        message: unavailablePresetMessage(reason),
+      })
+    }
+  }
+  return unavailable
+})
+const disabledPresetIds = computed(() => [...unavailablePresets.value.keys()])
+const disabledPresetTitles = computed<Partial<Record<BrushPresetId, string>>>(() => {
+  const titles: Partial<Record<BrushPresetId, string>> = {}
+  for (const [id, info] of unavailablePresets.value)
+    titles[id] = info.message
+  return titles
+})
 
 function requiresSurfaceSampler(preset: PainterBrushState['presets'][number]): boolean {
   return preset.requiresSurfaceSampler ?? preset.engine === 'smudge'
+}
+
+function unavailablePresetReason(preset: PainterBrushState['presets'][number]): UnavailablePresetReason | undefined {
+  if (preset.engineAvailable === false)
+    return 'missing-engine'
+  if (requiresSurfaceSampler(preset) && !props.painter.surface.sampleRegion)
+    return 'missing-surface-sampler'
+  return undefined
+}
+
+function unavailablePresetMessage(reason: UnavailablePresetReason): string {
+  return reason === 'missing-engine'
+    ? text.value.missingEngine
+    : text.value.requiresTileBackend
 }
 
 function handleBrushChange(brush: PainterBrushState) {
@@ -283,6 +330,20 @@ function handleRemoveActivePreset(): void {
   props.painter.brush.removePreset(preset.id)
 }
 
+function handleSelectUnavailablePreset(id: BrushPresetId): void {
+  const preset = presets.value.find(item => item.id === id)
+  const info = unavailablePresets.value.get(id)
+  if (!preset || !info)
+    return
+
+  emit('unavailablePreset', {
+    presetId: id,
+    presetName: presetLabel(preset),
+    reason: info.reason,
+    message: info.message,
+  })
+}
+
 function handleCreateBrushGroup(): void {
   const name = nextCustomBrushGroupName()
   customGroups.value = [...customGroups.value, name]
@@ -358,6 +419,10 @@ function groupLabelForPreset(preset: PainterBrushState['presets'][number] | unde
   return preset?.group ?? preset?.engineLabel ?? (preset ? String(preset.engine) : undefined)
 }
 
+function presetLabel(preset: PainterBrushState['presets'][number]): string {
+  return text.value.presetLabels[preset.id] ?? preset.name
+}
+
 function normalizeGroupLabel(label: string | undefined, fallback: string): string {
   return label?.trim() || fallback
 }
@@ -382,6 +447,7 @@ function normalizeStabilizerStrength(strength: number): number {
       :brush-hardness="hardness"
       :custom-groups="customGroups"
       :disabled-preset-ids="disabledPresetIds"
+      :disabled-preset-titles="disabledPresetTitles"
       :disabled-title="text.unavailablePreset || text.requiresTileBackend"
       :preset-labels="text.presetLabels"
       :add-title="text.addBrush"
@@ -394,6 +460,7 @@ function normalizeStabilizerStrength(strength: number): number {
       @remove-active="handleRemoveActivePreset"
       @remove-group="handleRemoveBrushGroup"
       @select="presetId = $event"
+      @select-disabled="handleSelectUnavailablePreset"
     />
 
     <div class="painter-options__params">

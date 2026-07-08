@@ -1,0 +1,26 @@
+{
+  "name": "saier-mobile",
+  "type": "module",
+  "version": "0.1.6-beta.1",
+  "private": true,
+  "scripts": {
+    "add:android": "cap add android",
+    "add:ios": "cap add ios",
+    "check": "node --check scripts/prepare-web.mjs && cap config",
+    "copy": "pnpm run prepare:web && cap copy",
+    "dev": "pnpm --dir ../../site run dev -- --host 0.0.0.0",
+    "open:android": "cap open android",
+    "open:ios": "cap open ios",
+    "prepare:web": "node scripts/prepare-web.mjs",
+    "sync": "pnpm run prepare:web && cap sync"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/share": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.4.1"
+  }
+}

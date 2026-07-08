@@ -25,6 +25,7 @@ interface SitePainterMenubarLabels {
   openProject: string
   saveProject: string
   cloudSync: string
+  cloudRoom: string
   importBrush: string
   importImage: string
   exportPreview: string
@@ -180,6 +181,12 @@ function shortcutLabel(command: SitePainterCommand): string {
             <span class="site-menubar__item-main">
               <span class="i-ph-cloud-arrow-up" />
               <span>{{ labels.cloudSync }}</span>
+            </span>
+          </MenubarItem>
+          <MenubarItem class="site-menubar__item" :disabled="disabled" @select="emit('command', 'file:cloud-room')">
+            <span class="site-menubar__item-main">
+              <span class="i-ph-broadcast" />
+              <span>{{ labels.cloudRoom }}</span>
             </span>
           </MenubarItem>
           <MenubarSeparator class="site-menubar__separator" />

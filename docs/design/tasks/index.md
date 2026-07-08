@@ -184,15 +184,15 @@ title: Tasks
 
 ## P8 — 文件 / 序列化（里程碑 M5）
 
-> 目标：工程文件保存 / 读取还原图层；笔迹以 `{X,Y,T,P}` + 操作流格式可存储并确定性回放。PSD 导出是 Roadmap P8 的可选项，不阻塞本阶段验收。
+> 目标：工程文件保存 / 读取还原图层；笔迹以 [`saier.stroke-log.v1`](../stroke-recording) + 操作流格式可存储并确定性回放。PSD 导出是 Roadmap P8 的可选项，不阻塞本阶段验收。
 >
-> **进度（2026-06-30）**：✅ P8-01 `saier.project` v1 schema（Document + sparse tile surfaces）· ✅ P8-02 `Painter.exportProject()` / `importProject()` tiled backend API · ✅ P8-03 shodo stroke record + replay · ✅ P8-04 Node + browser 验收。
+> **进度（2026-06-30）**：✅ P8-01 `saier.project` v1 schema（Document + sparse tile surfaces）· ✅ P8-02 `Painter.exportProject()` / `importProject()` tiled backend API · ✅ P8-03 legacy shodo replay groundwork · ✅ P8-04 Node + browser 验收。**后续调整（2026-07-08）**：P8-03 的长期公共协议升级为 `saier.stroke-log.v1`，`Shodo*` 只作为兼容 codec。
 
 | ID                                     | 卡片                                       | 包    | Depends on       | Effort |
 | -------------------------------------- | ------------------------------------------ | ----- | ---------------- | ------ |
 | [P8-01](./P8-01-project-format-schema) | 工程文件格式（Document + tile surfaces）   | core  | P2-01, P5-01, P7 | M      |
 | [P8-02](./P8-02-saier-project-api)     | saier 工程导出 / 导入 API                  | saier | P8-01, P7-00     | M      |
-| [P8-03](./P8-03-stroke-replay-format)  | 笔迹回放格式（shodo `{X,Y,T,P}` 收割）     | core  | P3-04, P7-08     | M      |
+| [P8-03](./P8-03-stroke-replay-format)  | 笔迹录制 / 回放协议（`saier.stroke-log`）  | core  | P3-04, P7-08     | M      |
 | [P8-04](./P8-04-verify-files)          | P8 验收（工程 round-trip / replay pixels） | test  | P8-01..03        | M      |
 
 **P8 出口（里程碑 M5 核心）目标**：保存 → 读取还原图层；同一笔迹回放像素一致。
@@ -217,14 +217,62 @@ title: Tasks
 
 ## P10 — Beta 运营 / 云端笔刷库 / 持久化加固
 
-> 目标：P9 public beta 之后，把账号级持久化和 YunLeFun 云同步补成可长期使用的闭环。P10 首先交付自定义笔刷云同步，并补齐项目库基础管理与本地草稿恢复。
+> 目标：P9 public beta 之后，把账号级持久化和 YunLeFun 云同步补成可长期使用的闭环。P10 交付自定义笔刷云同步、项目库管理、本地草稿恢复，并补齐发布前的浏览器矩阵 / 性能基线 / 发布流程。
 
 | ID                                         | 卡片                      | 包        | Depends on                   | Effort |
 | ------------------------------------------ | ------------------------- | --------- | ---------------------------- | ------ |
 | [P10-01](./P10-01-brush-cloud-sync)        | 自定义笔刷云同步          | core+site | P9-06, YunLeFun storage gate | M      |
 | [P10-02](./P10-02-cloud-project-library)   | 云端项目库增强            | site      | P10-01                       | M      |
 | [P10-03](./P10-03-autosave-crash-recovery) | autosave / crash recovery | site      | P8, P10-02                   | M      |
+| [P10-04](./P10-04-browser-compatibility)   | 浏览器兼容矩阵与性能基线  | docs      | P9-00, P10-03                | S      |
+| [P10-05](./P10-05-release-flow)            | 发布流程收口              | docs      | P10-04                       | S      |
 
 **P10-01 出口目标**：账号 A 保存 / 删除自定义笔刷后跨刷新、跨浏览器同步；账号 B 不可见；笔刷库文件占用 shared quota 但不混入项目文件列表。
 
 **P10-02 / P10-03 出口目标**：云端项目库能按最近更新时间展示、重命名、删除前确认、导入失败提示；本地草稿优先保护 dirty 工程，云同步失败不丢数据。
+
+**P10-04 / P10-05 出口目标**：Chrome / Edge / Safari 当前可用性、已知限制和 1024² / 4096² 性能基线有公开记录；发布 gate、npm 包清单、`pixi-painter` deprecated alias 和 changelog 步骤有固定流程。
+
+## P11 — 平台感知 UI shell / 移动端前置解耦
+
+> 目标：先拆 shell 和平台边界，不直接做 Electron 客户端；保持 `/` 是唯一入口，按 shell mode 自动选择 desktop / mobile。移动端先落 app-like shell 骨架，最终触控面板组件留到后续增量。
+
+| ID                                         | 卡片                      | 包   | Depends on | Effort |
+| ------------------------------------------ | ------------------------- | ---- | ---------- | ------ |
+| [P11-00](./P11-00-platform-shell-contract) | 平台边界与 shell contract | site | P10-05     | S      |
+| [P11-01](./P11-01-desktop-shell-split)     | Desktop shell split       | site | P11-00     | M      |
+| [P11-02](./P11-02-mobile-shell-skeleton)   | Mobile shell skeleton     | site | P11-01     | M      |
+
+**P11 出口目标**：D12 固化 Web / Electron / Capacitor 边界；桌面浮动面板迁为 `SiteDesktopPainterShell`；`useDesktopPainterPanels()` 承接桌面 panel 状态机；`index.vue` 通过 shell component 选择承载同一批 slots；移动端先具备 app-like shell 骨架和底部 panel sheet。
+
+## P12 — Native packaging / platform adapter spike
+
+> 目标：不改 painter core，先定义 platform adapter，再验证 Electron PC 客户端和 Capacitor/Ionic 移动端 app 打包路径。
+
+| ID                                           | 卡片                      | 包       | Depends on | Effort |
+| -------------------------------------------- | ------------------------- | -------- | ---------- | ------ |
+| [P12-00](./P12-00-platform-adapter-contract) | Platform adapter contract | site     | P11        | M      |
+| [P12-01](./P12-01-electron-packaging-spike)  | Electron packaging spike  | app+site | P12-00     | M      |
+| [P12-02](./P12-02-capacitor-ionic-spike)     | Capacitor / Ionic spike   | app+site | P12-00     | M      |
+
+**P12 出口目标**：Web / Electron / Capacitor 通过 platform adapter 接入文件、分享、生命周期、状态栏 / 安全区等 native 能力；`@saier/*` 不引入 native runtime 依赖。
+
+## P13 — 云端房间共享画布
+
+> 目标：把云同步之后的多人共享画布拆成可逐步交付的协作子系统。第一批先完成协议、只读房间和房主绘制广播，再开放多人编辑。Saier 协作后端使用 dedicated `saier-room-api`，不复用已有 YunLeFun `room-api`。
+>
+> **进度（2026-07-08）**：✅ P13-00 协议 · ✅ P13-01 前端入口 + `saier-room-api` snapshot viewer 源码 / 单测 · ✅ production backend gate（`saier-room-api` 已部署到 `yunlefun-8g7ybcxc7345c490`，`saier_room_*` 集合已创建并应用 client-deny 规则）· ✅ P13-02..05 committed patch polling、layer/document command replay、snapshotRequired 重连恢复、presence heartbeat、permission scaffolding · ✅ P13-06 真实双账号矩阵（snapshot join、stroke sync、layer command sync、read-only guard、第三会话 snapshot+ops replay、canvas hash）和测试数据清理命令。低延迟 ghost preview、owner 管理 UI 和语义 stroke replay 优化移入后续增强，不阻塞 P13 v1 收口。
+
+| ID                                          | 卡片                       | 包       | Depends on | Effort |
+| ------------------------------------------- | -------------------------- | -------- | ---------- | ------ |
+| [P13-00](./P13-00-collaboration-protocol)   | Collaboration protocol     | docs     | P8,P10,P11 | M      |
+| [P13-01](./P13-01-room-snapshot-viewer)     | Room snapshot viewer       | site+api | P13-00     | M      |
+| [P13-02](./P13-02-host-stroke-broadcast)    | Host stroke broadcast      | site+api | P13-01     | L      |
+| [P13-03](./P13-03-room-command-sync)        | Room command sync          | site+api | P13-02     | L      |
+| [P13-04](./P13-04-reconnect-snapshots)      | Reconnect and snapshots    | site+api | P13-03     | M      |
+| [P13-05](./P13-05-multi-editor-permissions) | Multi-editor permissions   | site+api | P13-04     | L      |
+| [P13-06](./P13-06-verify-collaboration)     | Collaboration verification | test     | P13-01..05 | M      |
+
+**P13-00 出口目标**：D13 和 [Cloud Rooms](../cloud-rooms) 固化 server authoritative operation log、snapshot checkpoint、presence / persistent op 分离、权限和重连策略。
+
+**P13 出口目标**：房间链接可加入；只读成员可看到当前画布；房主绘制和图层命令按服务端 revision 同步；断线重连不重复应用 pending op；多人编辑有权限和冲突边界。

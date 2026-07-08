@@ -8,6 +8,8 @@ const rootDir = dirname(fileURLToPath(import.meta.url))
 const alias = {
   '@saier/core': resolve(rootDir, 'packages/core/src/index.ts'),
   '@saier/pixi': resolve(rootDir, 'packages/pixi/src/index.ts'),
+  '@saier/vue': resolve(rootDir, 'packages/vue'),
+  '~': resolve(rootDir, 'site/app'),
 }
 
 export default defineConfig({
@@ -49,6 +51,7 @@ export default defineConfig({
             'packages/vue/test/**/*.browser.spec.ts',
             'packages/saier/test/**/*.browser.spec.ts',
             'packages/pixi/test/**/*.browser.spec.ts',
+            'site/app/**/*.browser.spec.ts',
           ],
           // Browser specs drive real WebGL; running files in parallel exhausts
           // GPU / browser resources and makes heavy specs (e.g. 5000-dab) flake

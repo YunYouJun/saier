@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.1.6-beta.1",
   "private": true,
-  "packageManager": "pnpm@11.10.0+sha512.0b7f8b98060031904c017e3a41eb187a16d40eeb829b95c4f8cb03681761fc4ab53dd219115b9b447f4dce1a05a214764461e7d3703392a9f32f9511ce8c86c8",
+  "packageManager": "pnpm@11.10.0",
   "description": "Elegant online painting runtime powered by PixiJS",
   "author": {
     "email": "me@yunyoujun.cn",
@@ -14,6 +14,10 @@
   "keywords": [],
   "scripts": {
     "build": "pnpm build:lib && pnpm build:site",
+    "build:electron": "pnpm build:site && pnpm -C apps/electron run check",
+    "build:mobile": "pnpm generate:site && pnpm -C apps/mobile run prepare:web && pnpm -C apps/mobile run check",
+    "check:cloudbase": "node --check cloudbase/functions/saier-room-api/room-core.cjs && node --check cloudbase/functions/saier-room-api/cloudbase-runtime.cjs && node --check cloudbase/functions/saier-room-api/handler.cjs && node --check cloudbase/functions/saier-room-api/index.js",
+    "cleanup:yunlefun-test-data": "node scripts/cleanup-yunlefun-test-data.mjs",
     "generate": "pnpm -C site run generate",
     "build:react": "pnpm -C examples/react run build",
     "build:vue": "pnpm -C examples/vue run build",
@@ -21,6 +25,8 @@
     "build:site": "pnpm -C site run build",
     "generate:site": "pnpm -C site run generate",
     "dev": "pnpm -C site run dev",
+    "dev:electron": "pnpm -C apps/electron run dev",
+    "dev:mobile": "pnpm -C apps/mobile run dev",
     "dev:site": "pnpm -C site run dev",
     "dev:vue": "pnpm -C examples/vue run dev",
     "docs:dev": "pnpm -C docs run docs:dev",
@@ -47,13 +53,13 @@
     "@vitest/browser-playwright": "4.1.9",
     "bumpp": "^11.1.0",
     "consola": "^3.4.2",
-    "eslint": "^10.5.0",
+    "eslint": "^10.6.0",
     "eslint-plugin-format": "^2.0.1",
     "lint-staged": "^17.0.8",
     "simple-git-hooks": "^2.13.1",
     "typescript": "^5.9.3",
-    "unocss": "^66.7.2",
-    "vitest": "^4.1.9"
+    "unocss": "^66.7.5",
+    "vitest": "^4.1.10"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged"

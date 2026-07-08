@@ -14,6 +14,7 @@ const props = withDefaults(defineProps<{
   canRemoveActive?: boolean
   customGroups?: string[]
   disabledPresetIds?: BrushPresetId[]
+  disabledPresetTitles?: Partial<Record<BrushPresetId, string>>
   disabledTitle?: string
   presetLabels?: Partial<Record<BrushPresetId, string>>
   presets: BrushPresetSummary[]
@@ -30,6 +31,7 @@ const props = withDefaults(defineProps<{
   canRemoveActive: false,
   customGroups: () => [],
   disabledPresetIds: () => [],
+  disabledPresetTitles: () => ({}),
   disabledTitle: '',
   presetLabels: () => ({}),
   removeGroupTitle: 'Remove brush group',
@@ -42,6 +44,7 @@ const emit = defineEmits<{
   'removeActive': []
   'removeGroup': [groupLabel: string]
   'select': [id: BrushPresetId]
+  'selectDisabled': [id: BrushPresetId]
   'update:activeGroupLabel': [groupLabel: string]
 }>()
 
@@ -136,13 +139,20 @@ function isDisabled(preset: BrushPresetSummary): boolean {
   return props.disabledPresetIds.includes(preset.id)
 }
 
+function disabledTitle(preset: BrushPresetSummary): string {
+  return props.disabledPresetTitles[preset.id] ?? props.disabledTitle
+}
+
 function handleSelect(preset: BrushPresetSummary): void {
-  if (!isDisabled(preset)) {
-    const groupLabel = groupLabelForPreset(preset)
-    if (groupLabel)
-      emit('update:activeGroupLabel', groupLabel)
-    emit('select', preset.id)
+  if (isDisabled(preset)) {
+    emit('selectDisabled', preset.id)
+    return
   }
+
+  const groupLabel = groupLabelForPreset(preset)
+  if (groupLabel)
+    emit('update:activeGroupLabel', groupLabel)
+  emit('select', preset.id)
 }
 
 function handleSelectGroup(group: PresetGroup): void {
@@ -366,12 +376,12 @@ function clamp(value: number, min: number, max: number): number {
           :key="preset.id"
           type="button"
           class="brush-preset-card"
-          :class="{ 'is-active': preset.id === props.activePresetId }"
+          :class="{ 'is-active': preset.id === props.activePresetId, 'is-disabled': isDisabled(preset) }"
+          :aria-disabled="isDisabled(preset)"
           :aria-label="presetLabel(preset)"
           :aria-selected="preset.id === props.activePresetId"
-          :disabled="isDisabled(preset)"
           role="option"
-          :title="isDisabled(preset) ? props.disabledTitle : presetLabel(preset)"
+          :title="isDisabled(preset) ? disabledTitle(preset) : presetLabel(preset)"
           @blur="handlePreviewLeave(preset.id)"
           @click="handleSelect(preset)"
           @focus="previewPresetId = preset.id"
@@ -669,9 +679,14 @@ function clamp(value: number, min: number, max: number): number {
   background: rgb(255 255 255 / 8%);
 }
 
-.brush-preset-card:disabled {
+.brush-preset-card.is-disabled {
   cursor: not-allowed;
   opacity: 0.42;
+}
+
+.brush-preset-card.is-disabled:hover {
+  border-color: rgb(255 255 255 / 7%);
+  background: rgb(255 255 255 / 4%);
 }
 
 .brush-preset-card__icon {

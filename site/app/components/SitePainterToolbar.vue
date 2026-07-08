@@ -15,6 +15,7 @@ interface SitePainterToolbarLabels {
   openProject: string
   saveProject: string
   cloudSync: string
+  cloudRoom: string
   importImage: string
   exportPreview: string
   download: string
@@ -29,14 +30,21 @@ interface SitePainterToolbarLabels {
   image: string
   selection: string
   stabilizer: string
+  recordingStart: string
+  recordingStop: string
+  recordingReplay: string
+  recordingClear: string
 }
 
 const props = defineProps<{
   activeTool: SitePainterTool
   canRedo: boolean
+  canReplayRecording: boolean
   canUndo: boolean
   disabled: boolean
   labels: SitePainterToolbarLabels
+  recordingCount: number
+  recordingEnabled: boolean
   stabilizerStrength: number
 }>()
 
@@ -57,11 +65,12 @@ const stabilizerStrengthModel = computed({
   },
 })
 
-const fileActions: { command: SitePainterMenuCommand, labelKey: 'newCanvas' | 'openProject' | 'saveProject' | 'cloudSync' | 'importImage', icon: string }[] = [
+const fileActions: { command: SitePainterMenuCommand, labelKey: 'cloudRoom' | 'cloudSync' | 'importImage' | 'newCanvas' | 'openProject' | 'saveProject', icon: string }[] = [
   { command: 'file:new', labelKey: 'newCanvas', icon: 'i-ph-file-plus' },
   { command: 'file:open-project', labelKey: 'openProject', icon: 'i-ph-folder-open' },
   { command: 'file:save-project', labelKey: 'saveProject', icon: 'i-ph-floppy-disk' },
   { command: 'file:cloud-sync', labelKey: 'cloudSync', icon: 'i-ph-cloud-arrow-up' },
+  { command: 'file:cloud-room', labelKey: 'cloudRoom', icon: 'i-ph-broadcast' },
   { command: 'file:import-image', labelKey: 'importImage', icon: 'i-ph-image' },
 ]
 
@@ -73,6 +82,11 @@ const viewActions: { command: SitePainterMenuCommand, labelKey: 'zoomOut' | 'zoo
 const exportActions: { command: SitePainterMenuCommand, labelKey: 'exportPreview' | 'download', icon: string }[] = [
   { command: 'file:export-preview', labelKey: 'exportPreview', icon: 'i-ph-export' },
   { command: 'file:download', labelKey: 'download', icon: 'i-ph-download' },
+]
+
+const recordingActions: { command: SitePainterMenuCommand, labelKey: 'recordingReplay' | 'recordingClear', icon: string, disabled: () => boolean }[] = [
+  { command: 'recording:replay-last', labelKey: 'recordingReplay', icon: 'i-ph-play', disabled: () => !props.canReplayRecording },
+  { command: 'recording:clear', labelKey: 'recordingClear', icon: 'i-ph-trash', disabled: () => props.recordingCount <= 0 },
 ]
 
 const toolItems: { value: SitePainterTool, labelKey: 'brush' | 'eraser' | 'pan' | 'image' | 'selection', icon: string }[] = [
@@ -182,6 +196,29 @@ function normalizeStabilizerStrength(strength: number): number {
       :title="labels.stabilizer"
       variant="compact"
     />
+
+    <ToolbarSeparator class="site-toolbar__separator" />
+
+    <ToolbarButton
+      class="site-toolbar__button"
+      :aria-pressed="recordingEnabled ? 'true' : 'false'"
+      :data-state="recordingEnabled ? 'on' : undefined"
+      :disabled="disabled"
+      :title="recordingEnabled ? labels.recordingStop : labels.recordingStart"
+      @click="emit('command', 'recording:toggle')"
+    >
+      <span class="i-ph-record" />
+    </ToolbarButton>
+    <ToolbarButton
+      v-for="action in recordingActions"
+      :key="action.command"
+      class="site-toolbar__button"
+      :disabled="disabled || action.disabled()"
+      :title="labels[action.labelKey]"
+      @click="emit('command', action.command)"
+    >
+      <span :class="action.icon" />
+    </ToolbarButton>
 
     <ToolbarSeparator class="site-toolbar__separator" />
 

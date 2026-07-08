@@ -8,19 +8,23 @@ title: Decisions (ADR)
 
 ## 决策速查
 
-| #   | 决策            | 推荐                                                                                  | 备选 / 触发切换的条件                                                   |
-| --- | --------------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| D1  | 显示 / 存储后端 | **P1 用每图层 RenderTexture；P2 再上 256×256 tile**                                   | 若一开始就要 20k×20k 画布 / smudge，则直接上 tile（更重）               |
-| D2  | 笔刷运算坐标系  | **一律 document space**，与 zoom / DPR 解耦                                           | 无                                                                      |
-| D3  | Pixi 版本       | **先迁 v8（WebGL renderer 生产稳定）**                                                | WebGPU 仅作实验开关                                                     |
-| D4  | 撤销粒度        | P1 笔迹区域快照；**P2 tile before / after patch**                                     | 单张全画布快照 = 禁止                                                   |
-| D5  | backend 可替换  | `SurfaceBackend` 接口从 P1 就抽象出来                                                 | 无（这是不返工的关键）                                                  |
-| D6  | 输入采集        | Pixi federated event 够用；**另留 DOM `getCoalescedEvents()` 接入点**给极致采样       | 无                                                                      |
-| D7  | UI 分层         | **面板→Vue/DOM；overlay→pixi；输入+状态→core(headless controller)**                   | UI 状态的事实来源禁止搬进框架响应式                                     |
-| D8  | 品牌 / 包分层   | **品牌 = `saier`；scope 统一 `@saier/*`；可复用 UI 拆包、`site` 只消费**              | 已发布包实际改名（republish）须维护者确认                               |
-| D9  | 蒙版语义        | **图层蒙版按灰度亮度（luminance）显隐；剪贴（clip）按下层 alpha**                     | 纯 alpha 蒙版与主流软件相反、无法表达灰阶柔边                           |
-| D10 | 取色读回路径    | ✅ **已定**：`SurfaceSampler.sampleRegion` 注入笔刷、CPU tile 原生实现、逐 dab 交错采 | 纯协调器交错为备选（业界均逐 dab 串行）                                 |
-| D11 | 混色后端        | ✅ **已定（方案 A）**：**tile 升为默认绘画后端**；CPU tile = 像素真相、GPU 仅显示     | GPU 混色须自研 renderer（见[末尾](#何时才值得彻底脱离-pixi纯原生重写)） |
+| #   | 决策            | 推荐                                                                                    | 备选 / 触发切换的条件                                                   |
+| --- | --------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| D1  | 显示 / 存储后端 | **P1 用每图层 RenderTexture；P2 再上 256×256 tile**                                     | 若一开始就要 20k×20k 画布 / smudge，则直接上 tile（更重）               |
+| D2  | 笔刷运算坐标系  | **一律 document space**，与 zoom / DPR 解耦                                             | 无                                                                      |
+| D3  | Pixi 版本       | **先迁 v8（WebGL renderer 生产稳定）**                                                  | WebGPU 仅作实验开关                                                     |
+| D4  | 撤销粒度        | P1 笔迹区域快照；**P2 tile before / after patch**                                       | 单张全画布快照 = 禁止                                                   |
+| D5  | backend 可替换  | `SurfaceBackend` 接口从 P1 就抽象出来                                                   | 无（这是不返工的关键）                                                  |
+| D6  | 输入采集        | Pixi federated event 够用；**另留 DOM `getCoalescedEvents()` 接入点**给极致采样         | 无                                                                      |
+| D7  | UI 分层         | **面板→Vue/DOM；overlay→pixi；输入+状态→core(headless controller)**                     | UI 状态的事实来源禁止搬进框架响应式                                     |
+| D8  | 品牌 / 包分层   | ✅ **已落地**：品牌 = `saier`；scope 统一 `@saier/*`；可复用 UI 拆包、`site` 只消费     | 旧 npm `pixi-painter` deprecated alias 仍属首次 republish 的发布期工作  |
+| D9  | 蒙版语义        | **图层蒙版按灰度亮度（luminance）显隐；剪贴（clip）按下层 alpha**                       | 纯 alpha 蒙版与主流软件相反、无法表达灰阶柔边                           |
+| D10 | 取色读回路径    | ✅ **已定**：`SurfaceSampler.sampleRegion` 注入笔刷、CPU tile 原生实现、逐 dab 交错采   | 纯协调器交错为备选（业界均逐 dab 串行）                                 |
+| D11 | 混色后端        | ✅ **已定（方案 A）**：**tile 升为默认绘画后端**；CPU tile = 像素真相、GPU 仅显示       | GPU 混色须自研 renderer（见[末尾](#何时才值得彻底脱离-pixi纯原生重写)） |
+| D12 | 平台 shell      | ✅ **已定**：Web / Electron / Capacitor 只接 UI shell + platform adapter，不改 core     | 若 native 功能需要改工程格式，先新增 adapter / capability，不改 painter |
+| D13 | 云端房间协作    | ✅ **已定**：server authoritative op log + snapshot，不做像素级 CRDT                    | 真正离线多人编辑再评估 CRDT / OT，但不作为在线绘画 v1                   |
+| D14 | 房间 API 边界   | ✅ **已定**：Saier 房间独立 API，共用 CloudBase primitive，不共用产品 room API          | 有第二个本地消费者后再抽 internal package                               |
+| D15 | 笔迹录制 / 回放 | ✅ **已定**：snapshot 为主真相，stroke log 为语义 sidecar，录制 canonical replay events | 跨 engine major 漂移时用 patch fallback / checkpoint snapshot 对齐      |
 
 ## D1 — RenderTexture 先行，Tile 后置 {#d1}
 
@@ -113,13 +117,13 @@ export function usePainter(painter: Painter) {
 
 **命名（已决定）**：品牌 = **`saier`**（赛尔，独立开源品牌，与 PaintTool SAI 无关，取刀锋 / 笔锋意象）。scope 统一 `@saier/*`：
 
-| 包             | 角色                                                       | 状态                                                                                   |
-| -------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `saier`        | 品牌 / umbrella 整装包（re-export core + pixi + 默认装配） | 由现 `pixi-painter` 迁移（restructure；过渡期保留 `pixi-painter` 作 deprecated alias） |
-| `@saier/core`  | 引擎，**无 Pixi**                                          | P1 新建                                                                                |
-| `@saier/pixi`  | Pixi 后端（与未来 `@saier/canvas` / `webgpu` 并列）        | P1 新建                                                                                |
-| `@saier/vue`   | Vue UI 面板                                                | 由 `@pixi-painter/controls` 迁移                                                       |
-| `@saier/shodo` | 书法引擎                                                   | **已改名**（原 `plugin-shado` 拼写错）                                                 |
+| 包             | 角色                                                       | 状态                                                            |
+| -------------- | ---------------------------------------------------------- | --------------------------------------------------------------- |
+| `saier`        | 品牌 / umbrella 整装包（re-export core + pixi + 默认装配） | **已由 `pixi-painter` 迁移**；过渡期仅保留旧 npm alias 发布策略 |
+| `@saier/core`  | 引擎，**无 Pixi**                                          | P1 新建                                                         |
+| `@saier/pixi`  | Pixi 后端（与未来 `@saier/canvas` / `webgpu` 并列）        | P1 新建                                                         |
+| `@saier/vue`   | Vue UI 面板                                                | **已由 `@pixi-painter/controls` 迁移**                          |
+| `@saier/shodo` | 书法引擎                                                   | **已改名**（原 `plugin-shado` 拼写错）                          |
 
 目录约定 `packages/{core,pixi,vue,shodo,saier}`（dir 与包名后缀一致）。**品牌张力已消解**：核心刻意与 Pixi 无关，而 `saier` 本就不含 pixi，名实相符。
 
@@ -174,6 +178,81 @@ export function usePainter(painter: Painter) {
 
 **触发改为 GPU 混色**：满足 [decisions 末尾](#何时才值得彻底脱离-pixi纯原生重写)「自定义 GPU blend / compute brush」条件、且愿维护自研 renderer 时再议。
 
+## D12 — 平台感知 UI shell 与 native packaging 边界 {#d12}
+
+> ✅ **已定（2026-07-07）**。涉及 [P11-00](./tasks/P11-00-platform-shell-contract) / [P11-01](./tasks/P11-01-desktop-shell-split) / [P11-02](./tasks/P11-02-mobile-shell-skeleton) / [P12-00](./tasks/P12-00-platform-adapter-contract) / [P12-01](./tasks/P12-01-electron-packaging-spike)，后续 Capacitor 打包继续进入 P12 spike。
+
+**背景**：站点入口 `/` 已是完整绘画工作台，后续要支持移动端 app-like UI、Electron 桌面客户端和 Capacitor/Ionic 移动端 app。如果直接在现有桌面浮动面板上做响应式，移动端会被桌面布局牵制；如果先做 native packaging，又会过早引入文件系统、生命周期、构建产物路径等复杂度。
+
+**决策**：
+
+1. `/` 仍是唯一主入口。入口层按 `SitePainterShellMode = 'desktop' | 'mobile'` 选择 shell；P11-02 起按 viewport / pointer 自动选择。
+2. 当前桌面浮动面板系统命名为 `SiteDesktopPainterShell`，不再把 “SitePainterShell” 等同于桌面布局。
+3. shell contract 是 site 内部边界：固定 slots（account / menubar / toolbar / documents / canvas / options / controls / layers / navigator / diagnostics）、固定 props/events（文案、loading、preview、panel visibility、panel labels、`setPanelVisible` / `toggleLocale` / `closePreview`）。
+4. Electron / Capacitor 只通过 platform adapter 接入 native 能力：文件打开/保存、窗口菜单、状态栏、安全区、app lifecycle、分享/下载等。**不得**要求 `@saier/core`、`@saier/pixi`、`saier` 或 `@saier/vue` 引入 native runtime 依赖。
+5. MobileShell 可以大胆不同于 DesktopShell，但复用同一 painter 状态编排、工程格式、云同步、草稿恢复和 shell slot contract。
+6. `SitePlatformAdapter` 是 site 内部边界。Web 默认 adapter 使用浏览器文件选择 / 下载 / share / beforeunload；Electron / Capacitor 后续通过注入 adapter 替换这些能力，`/` 页面不直接检测 native runtime。
+
+**理由**：core 已经是普通 TS runtime，站点页面也已经承担 orchestration。把平台差异限制在 shell + adapter 层，可以同时保留桌面专业工具布局、移动端 app-like 布局和 native 打包能力，而不污染绘制热路径。
+
+**非目标**：P11 不引入 Electron / Capacitor / Ionic 依赖，不做 native 打包脚手架；这些进入 P12 spike。P11-02 只落移动 shell 骨架和 slot 承载，不重写最终移动端触控面板组件。P12-00 只定义并接入 adapter contract。P12-01 只验证 Electron shell、preload adapter 和 native open/save，不产出签名安装包。
+
+## D13 — 云端房间共享画布协议边界 {#d13}
+
+> ✅ **已定（2026-07-07）**。涉及 [P13-00](./tasks/P13-00-collaboration-protocol) 和 [Cloud Rooms](./cloud-rooms)，后续按 P13-01..06 逐步实现。
+
+**背景**：P10 已经完成账号级项目 / 笔刷云同步，但云同步是文件状态同步，不是多人实时协作。共享画布需要房间、成员、权限、实时消息、服务端排序、快照和断线恢复。如果直接把协作逻辑塞进 painter core 或像素层，会污染绘制热路径，也会让 Electron / mobile shell 难以复用。
+
+**决策**：
+
+1. 协作采用 **server authoritative operation log**。客户端提交带 `clientOpId + baseRevision` 的操作，服务端分配单调递增 `revision` 后广播。
+2. 不做像素级 CRDT。绘画操作按服务端顺序 replay；smudge / water / sampler 类笔刷必须严格按 revision 顺序应用。
+3. Snapshot 使用现有 `SaierProjectFile`，存入 shared storage 或 room 专用 storage。加入 / 重连流程是“最近 snapshot + snapshot 后增量 ops”。
+4. 持久化 op 与临时 presence 分离。光标、视口、在线状态、in-progress stroke preview 不进入持久 log。
+5. 第一版功能顺序是：只读房间 snapshot viewer → 房主绘制广播 → layer / document command 同步 → 断线重连和 snapshot 压缩 → 多人编辑权限。
+6. 协作层属于 site / platform adapter / dedicated `saier-room-api`，不得要求 `@saier/core`、`@saier/pixi`、`saier` 或 `@saier/vue` 引入 YunLeFun / CloudBase / WebSocket 依赖。
+
+**理由**：raster 绘画的状态演化高度依赖操作顺序，尤其是混色和取色笔刷。服务端排序 + deterministic replay 比像素级 CRDT 更贴近绘画软件的实际成本；snapshot checkpoint 则避免长房间无限重放。把协作放在 orchestration 和平台 adapter 层，可以复用 Web / Electron / mobile shell，也能保持 painter core 的纯 TS 可测性。
+
+**非目标**：P13-00 不实现实时后端，不接 WebSocket / CloudBase realtime SDK，不开放多人编辑 UI，不支持离线多人合并。真正离线合并或像素 CRDT 只有在产品明确需要“多人离线编辑同一图层再合并”时重新评估。
+
+## D14 — 云端房间共用 primitive，不共用产品 room API {#d14}
+
+> ✅ **已定（2026-07-07）**。涉及 `saier-room-api`、现有 YunLeFun `room-api`、后续其它 app 的房间能力。
+
+**背景**：YunLeFun 已有 `room-api`，但该函数服务非 Saier shared spaces；Saier 房间需要 project snapshot、revisioned operation log、committed stroke patch、图层 / 文档命令 replay 和绘画权限。二者都叫“room”，但产品语义和数据生命周期不同。
+
+**决策**：
+
+1. 各产品保留独立云函数入口和集合命名空间：Saier 使用 `saier-room-api` + `saier_room_*`；Wenta / 其它应用继续使用自己的 room API 与集合。
+2. 可复用层只抽 CloudBase room primitive：调用者 uid 归一化、room error code、invite/share URL、hash/random id、严格参数解析、collection store helpers、snapshot download adapter。
+3. 不把 Saier 的 `stroke:commit`、tile patch、`SaierProjectFile` snapshot、layer/document command schema 放入通用层。
+4. 共享代码先保持在 `saier-room-api` 函数目录内，保证 Event Function 部署包自包含。等第二个产品源码也迁入同仓或有明确部署打包策略后，再提升为私有 npm/internal package。
+
+**理由**：共享一个大而全的 `room-api` 会把产品协议、权限矩阵、索引和迁移耦合在一起，后续难以独立演进。抽 primitive 可以减少重复错误处理和 CloudBase runtime 代码，同时保留每个产品的协议自主权。
+
+**非目标**：不把现有 Wenta `room-api` 改造成 Saier 后端，不要求 Saier 兼容 Wenta room schema，不在没有第二个本地消费者前建立跨函数 sibling require 或未打包的共享目录依赖。
+
+## D15 — 笔迹录制是语义 sidecar，不是工程文件唯一真相 {#d15}
+
+> ✅ **已定（2026-07-08）**。涉及 [Stroke Recording](./stroke-recording)、[P8-03](./tasks/P8-03-stroke-replay-format) 与 [P13-02](./tasks/P13-02-host-stroke-broadcast)。
+
+**背景**：P8 已有 shodo `{X,Y,T,P}` 回放雏形，P13 协作也需要 `stroke:commit`。如果让工程文件只保存笔迹、不保存像素，会把打开文件的正确性绑死在 brush engine、混色 sampler、版本和执行顺序上；反过来如果只同步 tile patch，又会丢掉教学回放、问题复现、带宽优化和协作语义。
+
+**决策**：
+
+1. `SaierProjectFile` 的 tile pixels / snapshot 仍是工程打开的主事实来源。
+2. stroke log 是可选语义 sidecar：用于 replay、timelapse、协作优化、测试和诊断。
+3. 默认录制点位是 document space、压感归一、stabilizer 处理之后、`BrushEngine.addPoint()` 之前的 canonical replay events。
+4. 回放不再运行 `PointerSampler` / `Stabilizer`，而是直接喂 `BrushEngine`；airbrush 等 tickable engine 必须记录 `tick` event。
+5. 每笔固化 `brushEngine id/version`、`brushPresetSnapshot`、`brushContextSnapshot` 和可选 seed；缺失 engine 或不兼容版本时明确失败。
+6. `patchHash` 只做一致性检查。语义 replay 漂移时，优先使用 committed patch fallback；没有 fallback 时请求 checkpoint snapshot。
+7. 公共格式命名为 `saier.stroke.v1` / `saier.stroke-log.v1`；现有 `ShodoStrokeRecord` 保留为兼容 codec，不作为长期公共 API 名称。
+
+**理由**：这保留了绘画软件文件的可靠性，同时给协作和回放留下语义层。录制 canonical replay events 可以避开浏览器事件差异、viewport / DPR 差异和未来 stabilizer 改动；snapshot checkpoint 则避免长会话无限重放和跨版本漂移。
+
+**非目标**：不录制原始 DOM/Pixi 事件作为权威数据；不把本地 undo stack 当持久历史；不承诺跨 brush engine major version 逐像素一致；不在 v1 处理离线多人合并。
+
 ---
 
 ## 明确的非目标 / 暂不做
@@ -181,6 +260,7 @@ export function usePainter(painter: Painter) {
 - 不在早期做 16-bit / float / HDR 管线、不自研 WebGL / WebGPU renderer（满足「放弃 Pixi」条件前不碰）。
 - 不把绘制核心搬进 Worker（P7 之后再评估）。
 - 不追求 PSD 完整兼容（P8 仅可选导出）。
+- 不做离线多人协作合并（P13 先做在线房间 + 服务端排序）。
 - 不在 P1 引入 tile（避免过度工程，按 D1）。
 
 ### 何时才值得彻底脱离 Pixi、纯原生重写

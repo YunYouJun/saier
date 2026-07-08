@@ -4,6 +4,9 @@ export default antfu(
   {
     unocss: true,
     formatters: true,
+    ignores: [
+      'apps/mobile/www/**',
+    ],
   },
   {
     rules: {

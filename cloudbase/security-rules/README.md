@@ -13,13 +13,19 @@ listStorageFiles({ appId, kind, slotKey })
 
 ## Resources
 
-| Resource                                                         | Rule file                         | Permission |
-| ---------------------------------------------------------------- | --------------------------------- | ---------- |
-| NoSQL collection `user_memberships`                              | `no-sql/user_memberships.json`    | `CUSTOM`   |
-| NoSQL collection `user_storage_quotas`                           | `no-sql/user_storage_quotas.json` | `CUSTOM`   |
-| NoSQL collection `user_storage_files`                            | `no-sql/user_storage_files.json`  | `CUSTOM`   |
-| Legacy NoSQL collection `saier_cloud_files`                      | `no-sql/saier_cloud_files.json`   | `CUSTOM`   |
-| Cloud Storage bucket `7975-yunlefun-8g7ybcxc7345c490-1325586649` | `storage/saier-projects.json`     | `CUSTOM`   |
+| Resource                                                         | Rule file                                      | Permission |
+| ---------------------------------------------------------------- | ---------------------------------------------- | ---------- |
+| NoSQL collection `user_memberships`                              | `no-sql/user_memberships.json`                 | `CUSTOM`   |
+| NoSQL collection `user_storage_quotas`                           | `no-sql/user_storage_quotas.json`              | `CUSTOM`   |
+| NoSQL collection `user_storage_files`                            | `no-sql/user_storage_files.json`               | `CUSTOM`   |
+| Legacy NoSQL collection `saier_cloud_files`                      | `no-sql/saier_cloud_files.json`                | `CUSTOM`   |
+| NoSQL collection `saier_room_rooms`                              | `no-sql/saier_room_rooms.json`                 | `CUSTOM`   |
+| NoSQL collection `saier_room_members`                            | `no-sql/saier_room_members.json`               | `CUSTOM`   |
+| NoSQL collection `saier_room_snapshot_reservations`              | `no-sql/saier_room_snapshot_reservations.json` | `CUSTOM`   |
+| NoSQL collection `saier_room_snapshots`                          | `no-sql/saier_room_snapshots.json`             | `CUSTOM`   |
+| NoSQL collection `saier_room_operations`                         | `no-sql/saier_room_operations.json`            | `CUSTOM`   |
+| NoSQL collection `yunlefun_test_accounts`                        | `no-sql/yunlefun_test_accounts.json`           | `CUSTOM`   |
+| Cloud Storage bucket `7975-yunlefun-8g7ybcxc7345c490-1325586649` | `storage/saier-projects.json`                  | `CUSTOM`   |
 
 ## Runtime Policy
 
@@ -35,6 +41,19 @@ listStorageFiles({ appId, kind, slotKey })
 - Cloud Storage avatar and legacy project paths use supported `.test()` regular expressions plus `resource.openid` ownership checks. CloudBase storage rules do not support dynamic uid path-prefix checks (`indexOf` / `startsWith` / `includes` are invalid), so Web Auth avatar uploads are owned by `www.yunle.fun`'s backend `account-api.uploadAvatar` flow instead of direct browser storage writes.
 - New `user-storage/**` browser uploads and downloads are intentionally gated by signed-in auth, a `user-storage/` path segment, and the Saier business-file suffix (`.saier.project.json` or `brush-library.saier.brushes.json`). CloudBase storage upload/download preflight may pass either object paths or `cloud://.../user-storage/...` file ids, and it does not expose enough stable business metadata to prove the `uid/appId/reservationId/fileId` contract at this layer. Exact binding, owner-visible listing, the 200 MiB single-file limit, shared quota, singleton brush replacement, and cleanup are enforced by `user-storage-api` during reserve/finalize/delete.
 
+## YunLeFun Test Account Registry
+
+Formal production test accounts use the `ylf_test_` username prefix and are
+registered in `yunlefun_test_accounts`. The collection is backend-private and is
+only a registry for account-api / user-storage-api / smoke tooling; browser
+clients must not read or mutate it. See `docs/design/test-accounts.md` for the
+slot list, marker schema, secret handling, and reset policy.
+
+Production status (2026-07-08): the `yunlefun_test_accounts` collection exists
+in `yunlefun-8g7ybcxc7345c490`, has client-deny `CUSTOM` permissions, and stores
+the four active `saier:{owner,editor,viewer,member}` fixture documents with UID
+bindings. Passwords are stored outside CloudBase documents and outside git.
+
 ## Shared Storage Backend Gate
 
 The security rules are not sufficient by themselves. Before enabling P10 brush cloud sync in production, deploy a dedicated `user-storage-api` storage state machine. It owns shared storage quota, reservations, file listing, finalize, delete, and app/kind policy. `account-api` remains responsible for account/profile/membership concerns only; `user-storage-api` may read account entitlements, but Saier clients must not call storage actions through `account-api`.
@@ -49,6 +68,26 @@ The app/kind policy is storage metadata only. `user-storage-api` must not parse 
 The existing project uploads should keep writing `kind: 'project'` and no `slotKey`. `listStorageFiles({ appId: 'saier' })` may return all Saier business files, but clients only display files normalized as project files.
 
 2026-07-02 browser smoke found production gaps: production storage actions still lived behind `account-api`, brush sync needed generic `kind/slotKey` policy and singleton replacement support, and `getStorageQuota` intermittently returned `同步云空间配额并发冲突，请重试`. Treat deployment of `user-storage-api` plus those fixes as blockers for real brush cloud sync.
+
+## Saier Room Backend Gate
+
+P13 cloud rooms use a dedicated `saier-room-api` CloudBase Event Function. The
+existing YunLeFun `room-api` function is reserved for non-Saier shared spaces and
+must not be overloaded with painting room behavior.
+
+The room collections are intentionally client-private:
+
+- `saier_room_rooms`
+- `saier_room_members`
+- `saier_room_snapshot_reservations`
+- `saier_room_snapshots`
+- `saier_room_operations`
+
+All reads and writes go through `saier-room-api`, which enforces YunLeFun auth,
+invite-token checks, owner/editor/viewer roles, server-side revision assignment,
+and `clientOpId` idempotency. Browser clients may upload snapshot blobs only
+after the function reserves a storage key; they must never list or mutate room
+documents directly.
 
 ## Apply With CloudBase MCP
 
@@ -92,6 +131,23 @@ managePermissions({
   permission: 'CUSTOM',
   securityRule: JSON.stringify(saierCloudFilesRule),
 })
+
+for (const [resourceId, securityRule] of [
+  ['saier_room_rooms', saierRoomRoomsRule],
+  ['saier_room_members', saierRoomMembersRule],
+  ['saier_room_snapshot_reservations', saierRoomSnapshotReservationsRule],
+  ['saier_room_snapshots', saierRoomSnapshotsRule],
+  ['saier_room_operations', saierRoomOperationsRule],
+  ['yunlefun_test_accounts', yunlefunTestAccountsRule],
+]) {
+  managePermissions({
+    action: 'updateResourcePermission',
+    resourceType: 'noSqlDatabase',
+    resourceId,
+    permission: 'CUSTOM',
+    securityRule: JSON.stringify(securityRule),
+  })
+}
 ```
 
 Storage rule:
@@ -123,6 +179,10 @@ After applying:
 9. `finalizeStorageUpload` replaces the previous active brush library for the same `userId + appId + kind + slotKey` and releases the old file's quota.
 10. Saier project lists only show `kind: 'project'` or legacy `.saier.project.json` rows; `kind: 'brush-library'` rows stay hidden from the project table.
 11. `renameStorageFile` updates project display names only for the current owner and never accepts `kind: 'brush-library'`.
+12. Browser clients cannot directly read or write any `saier_room_*` collection.
+13. `saier-room-api` rejects forged room membership, invite token, `storageKey`, and duplicate `clientOpId` writes.
+14. `yunlefun_test_accounts` is backend-private; clients cannot list fixture users or credentials.
+15. `room-storage/saier/**.saier.room-snapshot.json` uploads are allowed only for signed-in users and remain capped at 200 MiB.
 
 Official references:
 

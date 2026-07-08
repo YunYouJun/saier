@@ -11,6 +11,7 @@ export type SitePainterCommandCategory
     | 'file'
     | 'filter'
     | 'layers'
+    | 'recording'
     | 'selection'
     | 'tools'
     | 'view'
@@ -23,6 +24,17 @@ export type SitePainterSelectionCommand = 'selection:cancel'
 
 export type SitePainterFilterCommand = 'filter:grayscale' | 'filter:invert'
 
+export type SitePainterRecordingCommand
+  = | 'recording:toggle'
+    | 'recording:replay-last'
+    | 'recording:clear'
+    | 'recording:export-log'
+    | 'recording:import-log'
+    | 'recording:pause'
+    | 'recording:play'
+    | 'recording:seek-start'
+    | 'recording:step-forward'
+
 export type SitePainterViewCommand = 'view:reset' | 'view:zoom-in' | 'view:zoom-out'
 
 export type SitePainterToolCommand = `tool:${SitePainterTool}`
@@ -32,6 +44,7 @@ export type SitePainterCommand
     | 'file:open-project'
     | 'file:save-project'
     | 'file:cloud-sync'
+    | 'file:cloud-room'
     | 'file:import-image'
     | 'file:import-brush'
     | 'file:export-preview'
@@ -46,6 +59,7 @@ export type SitePainterCommand
     | 'layer:move-up'
     | 'layer:move-down'
     | 'layer:remove'
+    | SitePainterRecordingCommand
     | SitePainterToolCommand
     | SitePainterBrushCommand
     | SitePainterSelectionCommand

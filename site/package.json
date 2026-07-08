@@ -16,20 +16,24 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@cloudbase/js-sdk": "^3.5.4",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/share": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2",
+    "@cloudbase/js-sdk": "^3.6.2",
     "@yunlefun/sso": "^0.3.1",
     "reka-ui": "^2.10.1"
   },
   "devDependencies": {
-    "@iconify-json/carbon": "^1.2.23",
+    "@iconify-json/carbon": "^1.2.24",
     "@iconify-json/ph": "^1.2.2",
     "@iconify-json/ri": "^1.2.10",
     "@iconify-json/twemoji": "^1.2.5",
     "@nuxt/devtools": "^3.2.4",
     "@nuxtjs/color-mode": "^4.0.1",
     "@pinia/nuxt": "^0.11.3",
-    "@unocss/eslint-config": "^66.7.2",
-    "@unocss/nuxt": "^66.7.2",
+    "@unocss/eslint-config": "^66.7.5",
+    "@unocss/nuxt": "^66.7.5",
     "@vite-pwa/nuxt": "^1.1.1",
     "@vueuse/nuxt": "^14.3.0",
     "axios": "^1.18.1",
@@ -38,9 +42,9 @@
     "nuxt-security": "^2.6.0",
     "pinia": "^3.0.4",
     "sass": "^1.101.0",
-    "vue": "^3.5.38",
+    "vue": "^3.5.39",
     "vue-router": "^5.1.0",
-    "vue-tsc": "^3.3.5",
+    "vue-tsc": "^3.3.7",
     "workbox-build": "^7.4.1",
     "workbox-window": "^7.4.1"
   }

@@ -8,7 +8,7 @@ title: P1-04 · Document / RasterLayer / UndoManager
 - **Depends on**: P1-02
 - **Files**: `packages/core/src/document/**`、`test/`
 - **Effort**: M
-- **Status**: 🔴
+- **Status**: ✅ 已完成
 
 ## Context
 
@@ -29,10 +29,10 @@ title: P1-04 · Document / RasterLayer / UndoManager
 
 ## Acceptance
 
-- [ ] `test/undo.spec.ts`：用 fake backend，record→undo→redo 后「画布」状态与各时刻一致。
-- [ ] `Document` 增删 / 排序 / 改 opacity 触发 `layers:change`。
-- [ ] 容量上限生效；redo 在新 record 后被清空。
-- [ ] 仍无 pixi.js。
+- [x] `test/undo.spec.ts`：用 fake backend，record→undo→redo 后「画布」状态与各时刻一致。
+- [x] `Document` 增删 / 排序 / 改 opacity 触发 `layers:change`。
+- [x] 容量上限生效；redo 在新 record 后被清空。
+- [x] 仍无 pixi.js。
 
 ## Out of scope
 

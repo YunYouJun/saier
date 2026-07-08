@@ -8,7 +8,7 @@ title: P1-01 · 脚手架 core + pixi
 - **Depends on**: —（可与 P0 并行起步）
 - **Files**: `packages/core/**`、`packages/pixi/**`、`pnpm-workspace.yaml`、`tsconfig.json`
 - **Effort**: M
-- **Status**: 🔴 P1 地基
+- **Status**: ✅ 已完成
 
 ## Context
 
@@ -29,9 +29,9 @@ P1 把绘画核心从 `pixi-painter` 里抽出来：`core`（**与 Pixi 无关**
 
 ## Acceptance
 
-- [ ] `pnpm -F @saier/core build` 与 `pnpm -F @saier/pixi build` 均通过。
-- [ ] `core` 的 `package.json` / lockfile 中**不出现 pixi.js**（依赖隔离）。
-- [ ] `pnpm typecheck`、`pnpm test` 全绿。
+- [x] `pnpm -F @saier/core build` 与 `pnpm -F @saier/pixi build` 均通过。
+- [x] `core` 的 `package.json` / lockfile 中**不出现 pixi.js**（依赖隔离）。
+- [x] `pnpm typecheck`、`pnpm test` 全绿。
 
 ## Out of scope
 

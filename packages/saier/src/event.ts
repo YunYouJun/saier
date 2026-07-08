@@ -1,3 +1,4 @@
+import type { SaierStrokeCommit } from '@saier/core'
 import type { PainterAction } from './features/history'
 import type { PainterInputSnapshot } from './input'
 import type { EditableLayer } from './layers'
@@ -31,6 +32,9 @@ export function createEmitter() {
 
     // input
     'input:pointer': PainterInputSnapshot
+
+    // stroke recording
+    'stroke:commit': SaierStrokeCommit
 
     // document
     'canvas:clear': void

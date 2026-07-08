@@ -1,0 +1,15 @@
+{
+  "name": "saier-electron",
+  "type": "module",
+  "version": "0.1.6-beta.1",
+  "private": true,
+  "main": "main.cjs",
+  "scripts": {
+    "check": "node --check main.cjs && node --check preload.cjs && node --check scripts/dev.mjs",
+    "dev": "node scripts/dev.mjs",
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^43.1.0"
+  }
+}

@@ -1,30 +1,19 @@
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react-swc'
-// for windows
-import { resolve } from 'pathe'
 import UnoCSS from 'unocss/vite'
 
 import { defineConfig } from 'vite'
 
-const __dirname = path.dirname(new URL(import.meta.url).pathname)
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  optimizeDeps: {
-    include: [
-      'consola',
-      'hotkeys-js',
-      'mitt',
-      'pixi.js',
-      'pixi.js/math-extras',
-    ],
-  },
-
   resolve: {
     alias: {
-      '@saier/core': resolve(__dirname, '../../packages/core/src/index.ts'),
-      '@saier/pixi': resolve(__dirname, '../../packages/pixi/src/index.ts'),
-      'saier': resolve(__dirname, '../../packages/saier/src/index.ts'),
+      '@saier/core': path.resolve(__dirname, '../../packages/core/src/index.ts'),
+      '@saier/pixi': path.resolve(__dirname, '../../packages/pixi/src/index.ts'),
+      'saier': path.resolve(__dirname, '../../packages/saier/src/index.ts'),
     },
   },
 

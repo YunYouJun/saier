@@ -1,3 +1,7 @@
+minimumReleaseAgeExclude:
+  - '@vue/language-core@3.3.7'
+  - electron@43.1.0
+  - vue-tsc@3.3.7
 shellEmulator: true
 trustPolicy: no-downgrade
 trustPolicyExclude:
@@ -6,6 +10,7 @@ trustPolicyExclude:
   # pnpm no-downgrade currently compares semver trust evidence across majors for this legacy transitive version.
   - semver@6.3.1
 packages:
+  - apps/*
   - docs
   - examples/*
   - packages/*
@@ -14,19 +19,19 @@ overrides:
   typescript: 5.9.3
 catalog:
   '@iconify-json/svg-spinners': ^1.2.4
-  '@shikijs/vitepress-twoslash': ^4.2.0
-  '@unocss/reset': ^66.7.0
+  '@shikijs/vitepress-twoslash': ^4.3.1
+  '@unocss/reset': ^66.7.5
   '@vueuse/core': ^14.3.0
   '@yunyoujun/docs': ^0.1.14
   floating-vue: ^5.2.2
   pinia: ^3.0.4
-  unocss: ^66.7.0
+  unocss: ^66.7.5
   unplugin-vue-components: ^32.1.0
   vite: ^7.3.6
-  vite-plugin-vue-devtools: ^8.1.2
-  vitepress: ^2.0.0-alpha.17
+  vite-plugin-vue-devtools: ^8.1.5
+  vitepress: ^2.0.0-alpha.18
   vitepress-plugin-group-icons: ^1.7.5
-  vue: ^3.5.35
+  vue: ^3.5.39
 allowBuilds:
   '@parcel/watcher': true
   '@swc/core': true

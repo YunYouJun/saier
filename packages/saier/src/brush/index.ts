@@ -1,6 +1,7 @@
 import type {
   BrushDab,
   BrushEngine,
+  BrushEngineFromPresetOptions,
   BrushInputPoint,
   BrushPreset,
   BrushPresetId,
@@ -151,8 +152,10 @@ export class PainterBrush {
     const { brush } = this.painter.controller.getState()
     this.engine = this.createEngine()
     this.stabilizer = this.createStabilizer()
-    this.engine.beginStroke({ color: brush.color, baseSize: brush.size })
+    const context = { color: brush.color, baseSize: brush.size }
+    this.engine.beginStroke(context)
     this.painter.surface.beginStroke(layerId)
+    this.painter.strokeRecording.beginStroke(this.createRecordingOptions(layerId, context))
     this.strokeLayerId = layerId
     this.activePointerId = getPointerId(event)
     this.dragging = true
@@ -168,8 +171,10 @@ export class PainterBrush {
     const { brush } = this.painter.controller.getState()
     this.engine = this.createEngine()
     this.stabilizer = this.createStabilizer()
-    this.engine.beginStroke({ color: brush.color, baseSize: brush.size })
+    const context = { color: brush.color, baseSize: brush.size }
+    this.engine.beginStroke(context)
     this.painter.surface.beginStroke(layerId)
+    this.painter.strokeRecording.beginStroke(this.createRecordingOptions(layerId, context))
     this.strokeLayerId = layerId
     this.activePointerId = pointerId
     this.dragging = true
@@ -226,12 +231,14 @@ export class PainterBrush {
     this.activePointerId = null
 
     for (const point of this.stabilizer.flush()) {
+      this.painter.strokeRecording.recordPoint(point)
       this.paintDabs(layerId, this.engine.addPoint(point))
     }
     this.paintDabs(layerId, this.engine.endStroke())
     const patch = this.painter.surface.endStroke(layerId)
     this.painter.emitter.emit('brush:up')
     this.painter.recordStrokePatch(patch)
+    this.painter.strokeRecording.commitStroke(patch)
   }
 
   pointerEnter(event: PIXI.FederatedPointerEvent) {
@@ -407,8 +414,10 @@ export class PainterBrush {
     if (!layerId)
       return
 
-    for (const sampled of this.stabilizer.push(this.normalizeDocumentPoint(point)))
+    for (const sampled of this.stabilizer.push(this.normalizeDocumentPoint(point))) {
+      this.painter.strokeRecording.recordPoint(sampled)
       this.paintDabs(layerId, this.engine.addPoint(sampled))
+    }
   }
 
   toDocumentPoint(
@@ -455,27 +464,59 @@ export class PainterBrush {
     this.strokeLayerId = null
     this.stabilizer.reset()
     this.engine = this.createEngine()
+    this.painter.strokeRecording.cancelActiveStroke()
   }
 
   createEngine(): BrushEngine {
+    const { preset, options } = this.resolveEngineConfig()
+    return createBrushEngineFromPreset(preset, options, this.painter.brushEngineRegistry)
+  }
+
+  private resolveEngineConfig(): { preset: BrushPreset, options: BrushEngineFromPresetOptions } {
     const { brush } = this.painter.controller.getState()
     const preset = this.painter.brushRegistry.require(brush.presetId)
-    return createBrushEngineFromPreset(preset, {
-      opacity: brush.opacity,
-      spacing: brush.spacing,
-      hardness: brush.hardness,
-      flow: brush.flow,
-      baseSize: brush.size,
-      pressureFallback: PainterBrush.enablePressure ? preset.pressureFallback : 'none',
-      smudge: brush.smudge,
-      colorAmount: brush.colorAmount,
-      dilution: brush.dilution,
-      persistence: brush.persistence,
-      wetEdge: brush.wetEdge,
-      density: brush.density,
-      paperTextureId: brush.paperTextureId,
-      paperTextureStrength: brush.paperTextureStrength,
-    }, this.painter.brushEngineRegistry)
+    return {
+      preset,
+      options: {
+        opacity: brush.opacity,
+        spacing: brush.spacing,
+        hardness: brush.hardness,
+        flow: brush.flow,
+        baseSize: brush.size,
+        pressureFallback: PainterBrush.enablePressure ? preset.pressureFallback : 'none',
+        smudge: brush.smudge,
+        colorAmount: brush.colorAmount,
+        dilution: brush.dilution,
+        persistence: brush.persistence,
+        wetEdge: brush.wetEdge,
+        density: brush.density,
+        paperTextureId: brush.paperTextureId,
+        paperTextureStrength: brush.paperTextureStrength,
+      },
+    }
+  }
+
+  private createRecordingOptions(
+    layerId: string,
+    context: { color: RGBA, baseSize: number },
+  ) {
+    const { preset, options } = this.resolveEngineConfig()
+    return {
+      layerId,
+      tool: 'brush' as const,
+      compositeMode: 'normal' as const,
+      brushEngineId: preset.engine,
+      brushPresetId: preset.id,
+      brushPresetSnapshot: {
+        kind: 'brush' as const,
+        preset,
+        options,
+      },
+      brushContextSnapshot: {
+        color: { ...context.color },
+        baseSize: context.baseSize,
+      },
+    }
   }
 
   createStabilizer() {
@@ -565,8 +606,12 @@ export class PainterBrush {
     this.animationFrameId = null
 
     const layerId = this.strokeLayerId
-    if (this.dragging && layerId && isTickableBrushEngine(this.engine))
-      this.paintDabs(layerId, this.engine.tick(now))
+    if (this.dragging && layerId && isTickableBrushEngine(this.engine)) {
+      const dabs = this.engine.tick(now)
+      if (dabs.length > 0)
+        this.painter.strokeRecording.recordTick(now)
+      this.paintDabs(layerId, dabs)
+    }
 
     if (this.dragging)
       this.startTicker()

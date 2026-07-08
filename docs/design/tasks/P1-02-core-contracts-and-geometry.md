@@ -8,7 +8,7 @@ title: P1-02 · core 契约 + 几何
 - **Depends on**: P1-01
 - **Files**: `packages/core/src/{types,math}/**`、`src/index.ts`、`test/`
 - **Effort**: M
-- **Status**: 🔴 P1 公共语言
+- **Status**: ✅ 已完成
 
 ## Context
 
@@ -26,9 +26,9 @@ title: P1-02 · core 契约 + 几何
 
 ## Acceptance
 
-- [ ] `pnpm -F @saier/core build` + `typecheck` 通过，导出上述类型与工具。
-- [ ] `test/math.spec.ts`：dirty rect 合并 / 由圆生成 / 裁剪到画布边界，断言通过。
-- [ ] 仍无 pixi.js 依赖。
+- [x] `pnpm -F @saier/core build` + `typecheck` 通过，导出上述类型与工具。
+- [x] `test/math.spec.ts`：dirty rect 合并 / 由圆生成 / 裁剪到画布边界，断言通过。
+- [x] 仍无 pixi.js 依赖。
 
 ## Out of scope
 

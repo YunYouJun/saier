@@ -1,26 +1,36 @@
 import type { MaybeRefOrGetter } from 'vue'
+import type { SitePlatformBeforeUnloadEvent, SitePlatformLifecycleAdapter } from '~/types/platform-adapter'
 import { onBeforeUnmount, onMounted, toValue } from 'vue'
 
 export interface UseBeforeUnloadGuardOptions {
+  lifecycle?: SitePlatformLifecycleAdapter
   onBeforeUnload?: () => void
 }
 
 export function useBeforeUnloadGuard(enabled: MaybeRefOrGetter<boolean>, options: UseBeforeUnloadGuardOptions = {}): void {
-  const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+  let removeBeforeUnloadListener: (() => void) | undefined
+
+  const handleBeforeUnload = (event: SitePlatformBeforeUnloadEvent) => {
     runBeforeUnloadGuard(event, toValue(enabled), options)
   }
 
   onMounted(() => {
+    if (options.lifecycle) {
+      removeBeforeUnloadListener = options.lifecycle.onBeforeUnload(handleBeforeUnload)
+      return
+    }
+
     window.addEventListener('beforeunload', handleBeforeUnload)
+    removeBeforeUnloadListener = () => window.removeEventListener('beforeunload', handleBeforeUnload)
   })
 
   onBeforeUnmount(() => {
-    window.removeEventListener('beforeunload', handleBeforeUnload)
+    removeBeforeUnloadListener?.()
   })
 }
 
 export function runBeforeUnloadGuard(
-  event: BeforeUnloadEvent,
+  event: SitePlatformBeforeUnloadEvent,
   enabled: boolean,
   options: UseBeforeUnloadGuardOptions = {},
 ): boolean {
@@ -29,7 +39,7 @@ export function runBeforeUnloadGuard(
   return applyBeforeUnloadGuard(event, enabled)
 }
 
-export function applyBeforeUnloadGuard(event: BeforeUnloadEvent, enabled: boolean): boolean {
+export function applyBeforeUnloadGuard(event: SitePlatformBeforeUnloadEvent, enabled: boolean): boolean {
   if (!enabled)
     return false
 

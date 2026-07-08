@@ -7,6 +7,7 @@ import PainterOptionsBar from '../components/PainterOptionsBar.vue'
 interface MountedOptionsBar {
   el: HTMLDivElement
   painter: ReturnType<typeof createFakePainter>
+  unavailablePreset: ReturnType<typeof vi.fn>
   unmount: () => void
 }
 
@@ -139,15 +140,17 @@ function createFakePainter(options: { presetId?: BrushPresetId, hasSampler?: boo
 
 function mountOptionsBar(options?: Parameters<typeof createFakePainter>[0]): MountedOptionsBar {
   const painter = createFakePainter(options)
+  const unavailablePreset = vi.fn()
   const el = document.createElement('div')
   document.body.appendChild(el)
 
-  const app = createApp(PainterOptionsBar, { painter })
+  const app = createApp(PainterOptionsBar, { painter, onUnavailablePreset: unavailablePreset })
   app.mount(el)
 
   const item = {
     el,
     painter,
+    unavailablePreset,
     unmount: () => {
       app.unmount()
       el.remove()
@@ -186,31 +189,47 @@ describe('painter options bar P7 controls', () => {
   })
 
   it('disables smudge-family presets when sampleRegion is unavailable', async () => {
-    const { el, painter } = mountOptionsBar({ hasSampler: false })
+    const { el, painter, unavailablePreset } = mountOptionsBar({ hasSampler: false })
 
     buttonByText(el, 'Painting').click()
     await nextTick()
     const watercolor = buttonByLabel(el, 'Watercolor')
 
-    expect(watercolor.disabled).toBe(true)
+    expect(watercolor.disabled).toBe(false)
+    expect(watercolor.getAttribute('aria-disabled')).toBe('true')
+    expect(watercolor.title).toBe('Requires tiled backend')
     watercolor.click()
     await nextTick()
 
     expect(painter.brush.setPreset).not.toHaveBeenCalled()
+    expect(unavailablePreset).toHaveBeenCalledWith({
+      presetId: 'watercolor',
+      presetName: 'Watercolor',
+      reason: 'missing-surface-sampler',
+      message: 'Requires tiled backend',
+    })
   })
 
   it('disables external presets while their engine is unavailable', async () => {
-    const { el, painter } = mountOptionsBar({ includeExternalPreset: true })
+    const { el, painter, unavailablePreset } = mountOptionsBar({ includeExternalPreset: true })
 
     buttonByText(el, 'External').click()
     await nextTick()
     const external = buttonByLabel(el, 'MyPaint WASM')
 
-    expect(external.disabled).toBe(true)
+    expect(external.disabled).toBe(false)
+    expect(external.getAttribute('aria-disabled')).toBe('true')
+    expect(external.title).toBe('External brush engine is not loaded')
     external.click()
     await nextTick()
 
     expect(painter.brush.setPreset).not.toHaveBeenCalled()
+    expect(unavailablePreset).toHaveBeenCalledWith({
+      presetId: 'myb-wasm',
+      presetName: 'MyPaint WASM',
+      reason: 'missing-engine',
+      message: 'External brush engine is not loaded',
+    })
   })
 
   it('renders P7 mixing controls for smudge-family presets', () => {

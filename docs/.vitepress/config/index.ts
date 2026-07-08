@@ -15,10 +15,13 @@ const GUIDES: DefaultTheme.NavItemWithLink[] = [
 // follow. Keep this list in sync with the `/design/` sidebar below.
 const DESIGN: DefaultTheme.NavItemWithLink[] = [
   { text: 'Overview', link: '/design/' },
-  { text: 'Roadmap (P0–P9)', link: '/design/roadmap' },
+  { text: 'Roadmap (P0–P13)', link: '/design/roadmap' },
   { text: 'Core Interfaces', link: '/design/interfaces' },
   { text: 'Decisions (ADR)', link: '/design/decisions' },
   { text: 'Testing & Determinism', link: '/design/testing' },
+  { text: 'Stroke Recording', link: '/design/stroke-recording' },
+  { text: 'Cloud Rooms', link: '/design/cloud-rooms' },
+  { text: 'YunLeFun Test Accounts', link: '/design/test-accounts' },
 ]
 
 // Per-phase task cards executing agents pick up one at a time.

@@ -64,6 +64,35 @@ describe('cloudbase security rules', () => {
     }
   })
 
+  it('keeps Saier room collaboration collections private to saier-room-api', () => {
+    const paths = [
+      'cloudbase/security-rules/no-sql/saier_room_members.json',
+      'cloudbase/security-rules/no-sql/saier_room_operations.json',
+      'cloudbase/security-rules/no-sql/saier_room_rooms.json',
+      'cloudbase/security-rules/no-sql/saier_room_snapshot_reservations.json',
+      'cloudbase/security-rules/no-sql/saier_room_snapshots.json',
+    ]
+
+    for (const path of paths) {
+      const rule = readRule(path)
+      expect(rule.read).toBe(false)
+      expect(rule.create).toBe(false)
+      expect(rule.update).toBe(false)
+      expect(rule.delete).toBe(false)
+      expectExpressionLengthsWithinLimit(rule)
+    }
+  })
+
+  it('keeps YunLeFun test account registry private to backend tooling', () => {
+    const rule = readRule('cloudbase/security-rules/no-sql/yunlefun_test_accounts.json')
+
+    expect(rule.read).toBe(false)
+    expect(rule.create).toBe(false)
+    expect(rule.update).toBe(false)
+    expect(rule.delete).toBe(false)
+    expectExpressionLengthsWithinLimit(rule)
+  })
+
   it('allows owned avatars, reserved user storage writes, and legacy Saier project storage only', () => {
     const rule = readRule('cloudbase/security-rules/storage/saier-projects.json')
 
@@ -71,19 +100,25 @@ describe('cloudbase security rules', () => {
     expect(rule.read).toContain('resource.openid == auth.openid')
     expect(rule.read).toContain('/^avatars\\//.test(resource.path)')
     expect(rule.read).toContain('/user-storage\\//.test(resource.path)')
+    expect(rule.read).toContain('/room-storage\\/saier\\//.test(resource.path)')
     expect(rule.read).toContain('/\\.saier\\.project\\.json$/.test(resource.path)')
     expect(rule.read).toContain('/brush-library\\.saier\\.brushes\\.json$/.test(resource.path)')
+    expect(rule.read).toContain('/\\.saier\\.room-snapshot\\.json$/.test(resource.path)')
     expect(rule.read).toContain('/^saier\\/projects\\//.test(resource.path)')
     expect(rule.read).toContain('/\\.saier\\.project\\.json$/.test(resource.path)')
     expect(rule.write).toContain('resource.openid == auth.uid')
     expect(rule.write).toContain('resource.openid == auth.openid')
     expect(rule.write).toContain('/user-storage\\//.test(resource.path)')
+    expect(rule.write).toContain('/room-storage\\/saier\\//.test(resource.path)')
     expect(rule.write).toContain('/\\.saier\\.project\\.json$/.test(resource.path)')
     expect(rule.write).toContain('/brush-library\\.saier\\.brushes\\.json$/.test(resource.path)')
+    expect(rule.write).toContain('/\\.saier\\.room-snapshot\\.json$/.test(resource.path)')
     expect(rule.write).toContain(`resource.size <= ${maxAvatarBytes}`)
     expect(rule.write).toContain(`resource.size <= ${maxCloudFileBytes}`)
     expect(rule.write).toContain('/^avatars\\//.test(resource.path)')
     expect(rule.write).toContain('/^saier\\/projects\\//.test(resource.path)')
+    expect(rule.read).toContain('/room-storage\\/saier\\//.test(resource.path) == true')
+    expect(rule.write).toContain('/room-storage\\/saier\\//.test(resource.path) == true')
     expect(rule.read).not.toContain('.indexOf(')
     expect(rule.write).not.toContain('.indexOf(')
     expectExpressionLengthsWithinLimit(rule)
@@ -101,5 +136,8 @@ describe('cloudbase security rules', () => {
     expect(readme).toContain('256 KiB')
     expect(readme).toContain('shared storage')
     expect(readme).toContain('must not parse `saier.brush-library.v1`')
+    expect(readme).toContain('saier-room-api')
+    expect(readme).toContain('saier_room_operations')
+    expect(readme).toContain('yunlefun_test_accounts')
   })
 })

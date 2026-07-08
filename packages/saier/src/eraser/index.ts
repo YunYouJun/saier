@@ -88,11 +88,13 @@ export class PainterEraser {
     const layerId = this.requireActiveLayerId()
     this.engine = this.createEngine()
     this.stabilizer = this.createStabilizer()
-    this.engine.beginStroke({
+    const context = {
       color: { r: 1, g: 1, b: 1, a: 1 },
       baseSize: PainterEraser.size,
-    })
+    }
+    this.engine.beginStroke(context)
     this.painter.surface.beginStroke(layerId)
+    this.painter.strokeRecording.beginStroke(this.createRecordingOptions(layerId, context))
     this.strokeLayerId = layerId
     this.activePointerId = getPointerId(event)
     this.dragging = true
@@ -106,11 +108,13 @@ export class PainterEraser {
     const layerId = this.requireActiveLayerId()
     this.engine = this.createEngine()
     this.stabilizer = this.createStabilizer()
-    this.engine.beginStroke({
+    const context = {
       color: { r: 1, g: 1, b: 1, a: 1 },
       baseSize: PainterEraser.size,
-    })
+    }
+    this.engine.beginStroke(context)
     this.painter.surface.beginStroke(layerId)
+    this.painter.strokeRecording.beginStroke(this.createRecordingOptions(layerId, context))
     this.strokeLayerId = layerId
     this.activePointerId = pointerId
     this.dragging = true
@@ -165,12 +169,14 @@ export class PainterEraser {
     this.activePointerId = null
 
     for (const point of this.stabilizer.flush()) {
+      this.painter.strokeRecording.recordPoint(point)
       this.paintDabs(layerId, this.engine.addPoint(point))
     }
     this.paintDabs(layerId, this.engine.endStroke())
     const patch = this.painter.surface.endStroke(layerId)
     this.painter.emitter.emit('eraser:up')
     this.painter.recordStrokePatch(patch)
+    this.painter.strokeRecording.commitStroke(patch)
   }
 
   pointerEnter(event: PIXI.FederatedPointerEvent) {
@@ -227,8 +233,10 @@ export class PainterEraser {
     if (!layerId)
       return
 
-    for (const sampled of this.stabilizer.push(this.normalizeDocumentPoint(point)))
+    for (const sampled of this.stabilizer.push(this.normalizeDocumentPoint(point))) {
+      this.painter.strokeRecording.recordPoint(sampled)
       this.paintDabs(layerId, this.engine.addPoint(sampled))
+    }
   }
 
   toDocumentPoint(
@@ -269,12 +277,38 @@ export class PainterEraser {
     this.strokeLayerId = null
     this.stabilizer.reset()
     this.engine = this.createEngine()
+    this.painter.strokeRecording.cancelActiveStroke()
   }
 
   createEngine() {
-    return new SimpleBrushEngine({
-      pressureFallback: PainterEraser.enablePressure ? 'velocity' : 'none',
-    })
+    return new SimpleBrushEngine(this.createEngineOptions())
+  }
+
+  private createEngineOptions() {
+    return {
+      pressureFallback: PainterEraser.enablePressure ? 'velocity' as const : 'none' as const,
+    }
+  }
+
+  private createRecordingOptions(
+    layerId: string,
+    context: { color: { r: number, g: number, b: number, a: number }, baseSize: number },
+  ) {
+    return {
+      layerId,
+      tool: 'eraser' as const,
+      compositeMode: 'erase' as const,
+      brushEngineId: 'simple',
+      brushPresetId: 'eraser',
+      brushPresetSnapshot: {
+        kind: 'eraser' as const,
+        options: this.createEngineOptions(),
+      },
+      brushContextSnapshot: {
+        color: { ...context.color },
+        baseSize: context.baseSize,
+      },
+    }
   }
 
   createStabilizer() {

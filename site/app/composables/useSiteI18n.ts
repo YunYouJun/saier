@@ -17,6 +17,9 @@ interface SiteMessages {
     projectDraftReadFailed: string
     projectDraftRestoreFailed: string
     projectDraftSaveFailed: string
+    brushPresetMissingEngine: string
+    brushPresetRequiresSampler: string
+    brushPresetUnavailable: string
     brushImportFailed: string
     brushImportInvalidMyPaint: string
     brushImportSavedLocally: string
@@ -24,6 +27,9 @@ interface SiteMessages {
     brushImportUnsupported: string
     brushImportUnsupportedSai: string
     projectImportFailed: string
+    projectImportInvalidJson: string
+    projectImportInvalidProject: string
+    projectImportReadFailed: string
   }
   account: {
     checking: string
@@ -80,12 +86,51 @@ interface SiteMessages {
     uploadCurrent: string
     uploading: string
   }
+  cloudRooms: {
+    backendGated: string
+    backendUnavailable: string
+    close: string
+    copyFailed: string
+    copyLink: string
+    copySucceeded: string
+    create: string
+    createTitle: string
+    creating: string
+    errorTitle: string
+    forbidden: string
+    invalidSnapshot: string
+    join: string
+    joinInput: string
+    joinTitle: string
+    joining: string
+    leave: string
+    members: string
+    notAuthenticated: string
+    owner: string
+    readOnly: string
+    readOnlyBlocked: string
+    readOnlyTitle: string
+    revisionConflict: string
+    roleEditor: string
+    roleOwner: string
+    roleViewer: string
+    roomNotFound: string
+    share: string
+    shareFailed: string
+    shareLink: string
+    shareTitle: string
+    signIn: string
+    status: string
+    title: string
+    tooLarge: string
+  }
   menu: {
     file: string
     newCanvas: string
     openProject: string
     saveProject: string
     cloudSync: string
+    cloudRoom: string
     importBrush: string
     importImage: string
     exportPreview: string
@@ -128,6 +173,10 @@ interface SiteMessages {
     pan: string
     image: string
     selection: string
+    recordingStart: string
+    recordingStop: string
+    recordingReplay: string
+    recordingClear: string
     layers: string
     addLayer: string
     addGroup: string
@@ -144,6 +193,20 @@ interface SiteMessages {
     refresh: string
     resetView: string
     title: string
+  }
+  recording: {
+    exportFailed: string
+    exportLog: string
+    importFailed: string
+    importLog: string
+    imported: string
+    invalidLog: string
+    pause: string
+    play: string
+    position: string
+    reset: string
+    speed: string
+    step: string
   }
   shortcuts: {
     title: string
@@ -205,7 +268,9 @@ interface SiteMessages {
     density: string
     paperTexture: string
     paperTextureStrength: string
+    missingEngine: string
     requiresTileBackend: string
+    unavailablePreset: string
     addGroup: string
     customGroupName: string
     removeGroup: string
@@ -313,6 +378,9 @@ const messages: Record<SiteLocale, SiteMessages> = {
       projectDraftReadFailed: 'Could not read the local draft.',
       projectDraftRestoreFailed: 'Could not restore the local draft.',
       projectDraftSaveFailed: 'Could not save the local draft.',
+      brushPresetMissingEngine: 'The external brush engine for this preset is not loaded.',
+      brushPresetRequiresSampler: 'This brush needs surface sampling. Switch to the tiled backend to use smudge and watercolor presets.',
+      brushPresetUnavailable: 'Brush unavailable',
       brushImportFailed: 'Could not import this brush.',
       brushImportInvalidMyPaint: 'This .myb file does not look like a MyPaint brush preset.',
       brushImportSavedLocally: 'Brush imported locally. Cloud sync failed.',
@@ -320,6 +388,9 @@ const messages: Record<SiteLocale, SiteMessages> = {
       brushImportUnsupported: 'Import a MyPaint .myb brush file.',
       brushImportUnsupportedSai: 'SAI brush presets are not an open import format yet. Import MyPaint .myb for now.',
       projectImportFailed: 'Could not open this project.',
+      projectImportInvalidJson: 'The selected file is not valid JSON.',
+      projectImportInvalidProject: 'The JSON file is not a valid Saier project.',
+      projectImportReadFailed: 'Could not read the selected file.',
     },
     account: {
       checking: 'Syncing',
@@ -376,12 +447,51 @@ const messages: Record<SiteLocale, SiteMessages> = {
       uploadCurrent: 'Upload current',
       uploading: 'Uploading...',
     },
+    cloudRooms: {
+      backendGated: 'Requires the saier-room-api backend. The UI is wired, but real sharing depends on deployment.',
+      backendUnavailable: 'Cloud room backend is not available yet. Deploy saier-room-api before real sharing.',
+      close: 'Close',
+      copyFailed: 'Could not copy the room link.',
+      copyLink: 'Copy link',
+      copySucceeded: 'Room link copied',
+      create: 'Create room',
+      createTitle: 'Create from current canvas',
+      creating: 'Creating room...',
+      errorTitle: 'Cloud room error',
+      forbidden: 'You do not have access to this room.',
+      invalidSnapshot: 'The room snapshot is not a valid Saier project.',
+      join: 'Join room',
+      joinInput: 'Room link or ID',
+      joinTitle: 'Join shared room',
+      joining: 'Joining room...',
+      leave: 'Leave room',
+      members: 'Members',
+      notAuthenticated: 'Sign in with YunLeFun to use cloud rooms.',
+      owner: 'Owner',
+      readOnly: 'Read-only',
+      readOnlyBlocked: 'This shared room is read-only. Download or save a copy before editing.',
+      readOnlyTitle: 'Room is read-only',
+      revisionConflict: 'The room changed remotely. Sync finished; try the command again.',
+      roleEditor: 'Editor',
+      roleOwner: 'Owner',
+      roleViewer: 'Viewer',
+      roomNotFound: 'Room not found or the invite link expired.',
+      share: 'Share',
+      shareFailed: 'Could not share this room link.',
+      shareLink: 'Share link',
+      shareTitle: 'Saier shared canvas',
+      signIn: 'Sign in',
+      status: 'Room active',
+      title: 'Cloud room',
+      tooLarge: 'The project is larger than the room snapshot limit.',
+    },
     menu: {
       file: 'File',
       newCanvas: 'New canvas',
       openProject: 'Open project',
       saveProject: 'Save project',
       cloudSync: 'Cloud sync...',
+      cloudRoom: 'Cloud room...',
       importBrush: 'Import brush...',
       importImage: 'Import image',
       exportPreview: 'Preview export',
@@ -424,6 +534,10 @@ const messages: Record<SiteLocale, SiteMessages> = {
       pan: 'Pan',
       image: 'Image',
       selection: 'Selection',
+      recordingStart: 'Start stroke recording',
+      recordingStop: 'Stop stroke recording',
+      recordingReplay: 'Replay last stroke',
+      recordingClear: 'Clear recorded strokes',
       layers: 'Layers',
       addLayer: 'New layer',
       addGroup: 'New group',
@@ -440,6 +554,20 @@ const messages: Record<SiteLocale, SiteMessages> = {
       refresh: 'Refresh preview',
       resetView: 'Reset view',
       title: 'Navigator',
+    },
+    recording: {
+      exportFailed: 'Could not export the stroke log.',
+      exportLog: 'Export stroke log',
+      importFailed: 'Could not import this stroke log.',
+      importLog: 'Import stroke log',
+      imported: 'Stroke log imported',
+      invalidLog: 'The selected file is not a valid Saier stroke log.',
+      pause: 'Pause replay',
+      play: 'Play replay',
+      position: 'Replay position',
+      reset: 'Reset replay position',
+      speed: 'Replay speed',
+      step: 'Step replay',
     },
     shortcuts: {
       title: 'Keyboard Shortcuts',
@@ -459,6 +587,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
         file: 'File',
         filter: 'Filter',
         layers: 'Layers',
+        recording: 'Recording',
         selection: 'Selection',
         tools: 'Tools',
         view: 'View',
@@ -470,6 +599,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
         'edit:redo': 'Redo',
         'edit:undo': 'Undo',
         'file:download': 'Download PNG',
+        'file:cloud-room': 'Cloud room',
         'file:cloud-sync': 'Cloud sync',
         'file:export-preview': 'Preview export',
         'file:import-brush': 'Import brush',
@@ -485,6 +615,15 @@ const messages: Record<SiteLocale, SiteMessages> = {
         'layer:move-down': 'Move active layer down',
         'layer:move-up': 'Move active layer up',
         'layer:remove': 'Delete active layer',
+        'recording:toggle': 'Toggle stroke recording',
+        'recording:replay-last': 'Replay last stroke',
+        'recording:clear': 'Clear recorded strokes',
+        'recording:export-log': 'Export stroke log',
+        'recording:import-log': 'Import stroke log',
+        'recording:pause': 'Pause replay',
+        'recording:play': 'Play replay',
+        'recording:seek-start': 'Reset replay position',
+        'recording:step-forward': 'Step replay',
         'selection:cancel': 'Cancel selection',
         'tool:brush': 'Brush',
         'tool:drag': 'Pan',
@@ -542,7 +681,9 @@ const messages: Record<SiteLocale, SiteMessages> = {
       density: 'Density',
       paperTexture: 'Paper',
       paperTextureStrength: 'Grain',
+      missingEngine: 'External brush engine is not loaded',
       requiresTileBackend: 'Requires tiled backend',
+      unavailablePreset: 'Preset unavailable',
       addGroup: 'New brush group',
       customGroupName: 'Custom Group',
       removeGroup: 'Remove brush group',
@@ -667,6 +808,9 @@ const messages: Record<SiteLocale, SiteMessages> = {
       projectDraftReadFailed: '无法读取本地草稿。',
       projectDraftRestoreFailed: '无法恢复本地草稿。',
       projectDraftSaveFailed: '无法保存本地草稿。',
+      brushPresetMissingEngine: '这个预设依赖的外部笔刷引擎尚未加载。',
+      brushPresetRequiresSampler: '这个笔刷需要画布取色采样；请使用 tile 后端后再选择涂抹 / 水彩类笔刷。',
+      brushPresetUnavailable: '笔刷不可用',
       brushImportFailed: '无法导入这个笔刷。',
       brushImportInvalidMyPaint: '这个 .myb 文件不像有效的 MyPaint 笔刷预设。',
       brushImportSavedLocally: '笔刷已导入本地，但云同步失败。',
@@ -674,6 +818,9 @@ const messages: Record<SiteLocale, SiteMessages> = {
       brushImportUnsupported: '请导入 MyPaint .myb 笔刷文件。',
       brushImportUnsupportedSai: 'SAI 笔刷预设暂时没有开放导入格式；请先导入 MyPaint .myb。',
       projectImportFailed: '无法打开这个工程。',
+      projectImportInvalidJson: '所选文件不是有效 JSON。',
+      projectImportInvalidProject: '这个 JSON 不是有效的赛尔工程。',
+      projectImportReadFailed: '无法读取所选文件。',
     },
     account: {
       checking: '同步中',
@@ -730,12 +877,51 @@ const messages: Record<SiteLocale, SiteMessages> = {
       uploadCurrent: '上传当前文件',
       uploading: '上传中...',
     },
+    cloudRooms: {
+      backendGated: '需要部署 saier-room-api 后端。前端入口已接好，真实共享依赖后端上线。',
+      backendUnavailable: '云端房间后端暂不可用，请先部署 saier-room-api。',
+      close: '关闭',
+      copyFailed: '房间链接复制失败。',
+      copyLink: '复制链接',
+      copySucceeded: '房间链接已复制',
+      create: '创建房间',
+      createTitle: '从当前画布创建',
+      creating: '正在创建房间...',
+      errorTitle: '云端房间错误',
+      forbidden: '你没有权限访问这个房间。',
+      invalidSnapshot: '房间快照不是有效的赛尔工程。',
+      join: '加入房间',
+      joinInput: '房间链接或 ID',
+      joinTitle: '加入共享房间',
+      joining: '正在加入房间...',
+      leave: '离开房间',
+      members: '成员',
+      notAuthenticated: '登录云乐坊后可使用云端房间。',
+      owner: '房主',
+      readOnly: '只读',
+      readOnlyBlocked: '当前共享房间为只读，请下载或另存副本后再编辑。',
+      readOnlyTitle: '房间为只读',
+      revisionConflict: '房间已被远端更新，同步完成后请重试该操作。',
+      roleEditor: '编辑者',
+      roleOwner: '房主',
+      roleViewer: '观看者',
+      roomNotFound: '房间不存在或邀请链接已失效。',
+      share: '分享',
+      shareFailed: '房间链接分享失败。',
+      shareLink: '分享链接',
+      shareTitle: 'Saier 共享画布',
+      signIn: '登录',
+      status: '房间已连接',
+      title: '云端房间',
+      tooLarge: '工程文件超过房间快照上限。',
+    },
     menu: {
       file: '文件',
       newCanvas: '新建画布',
       openProject: '打开工程',
       saveProject: '保存工程',
       cloudSync: '云同步...',
+      cloudRoom: '云端房间...',
       importBrush: '导入笔刷...',
       importImage: '导入图片',
       exportPreview: '预览导出',
@@ -778,6 +964,10 @@ const messages: Record<SiteLocale, SiteMessages> = {
       pan: '平移',
       image: '图片',
       selection: '选择',
+      recordingStart: '开始笔迹录制',
+      recordingStop: '停止笔迹录制',
+      recordingReplay: '回放上一笔',
+      recordingClear: '清空录制笔迹',
       layers: '图层',
       addLayer: '新建图层',
       addGroup: '新建图层组',
@@ -794,6 +984,20 @@ const messages: Record<SiteLocale, SiteMessages> = {
       refresh: '刷新预览',
       resetView: '重置视图',
       title: '导航器',
+    },
+    recording: {
+      exportFailed: '无法导出笔迹日志。',
+      exportLog: '导出笔迹日志',
+      importFailed: '无法导入这个笔迹日志。',
+      importLog: '导入笔迹日志',
+      imported: '笔迹日志已导入',
+      invalidLog: '所选文件不是有效的赛尔笔迹日志。',
+      pause: '暂停回放',
+      play: '播放回放',
+      position: '回放位置',
+      reset: '重置回放位置',
+      speed: '回放速度',
+      step: '步进回放',
     },
     shortcuts: {
       title: '快捷键设置',
@@ -813,6 +1017,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
         file: '文件',
         filter: '滤镜',
         layers: '图层',
+        recording: '笔迹录制',
         selection: '选择',
         tools: '工具',
         view: '视图',
@@ -824,6 +1029,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
         'edit:redo': '重做',
         'edit:undo': '撤销',
         'file:download': '下载 PNG',
+        'file:cloud-room': '云端房间',
         'file:cloud-sync': '云同步',
         'file:export-preview': '预览导出',
         'file:import-brush': '导入笔刷',
@@ -839,6 +1045,15 @@ const messages: Record<SiteLocale, SiteMessages> = {
         'layer:move-down': '当前图层下移',
         'layer:move-up': '当前图层上移',
         'layer:remove': '删除当前图层',
+        'recording:toggle': '切换笔迹录制',
+        'recording:replay-last': '回放上一笔',
+        'recording:clear': '清空录制笔迹',
+        'recording:export-log': '导出笔迹日志',
+        'recording:import-log': '导入笔迹日志',
+        'recording:pause': '暂停回放',
+        'recording:play': '播放回放',
+        'recording:seek-start': '重置回放位置',
+        'recording:step-forward': '步进回放',
         'selection:cancel': '取消选择',
         'tool:brush': '画笔',
         'tool:drag': '平移',
@@ -896,7 +1111,9 @@ const messages: Record<SiteLocale, SiteMessages> = {
       density: '浓度',
       paperTexture: '纸纹',
       paperTextureStrength: '颗粒',
+      missingEngine: '外部笔刷引擎尚未加载',
       requiresTileBackend: '需要 tile 后端',
+      unavailablePreset: '当前无法使用此笔刷',
       addGroup: '新建画笔分组',
       customGroupName: '自定义分组',
       removeGroup: '删除画笔分组',

@@ -8,6 +8,13 @@ import Components from 'unplugin-vue-components/vite'
 
 import { defineConfig } from 'vite'
 
+const exampleSrcDir = path.resolve(__dirname, 'src').replaceAll(path.sep, '/')
+const exampleSrcPattern = new RegExp(`^${escapeRegExp(exampleSrcDir)}/.*\\.(?:[cm]?[jt]sx?|vue)$`)
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
   server: {
@@ -18,19 +25,6 @@ export default defineConfig({
         rewrite: path => path.replace(/^\/api/, ''),
       },
     },
-  },
-
-  optimizeDeps: {
-    include: [
-      '@ctrl/tinycolor',
-      'axios',
-      'consola',
-      'hotkeys-js',
-      'mitt',
-      'pixi.js/advanced-blend-modes',
-      'pixi.js',
-      'pixi.js/math-extras',
-    ],
   },
 
   resolve: {
@@ -61,6 +55,7 @@ export default defineConfig({
 
     // https://github.com/antfu/unplugin-auto-import
     AutoImport({
+      include: [exampleSrcPattern],
       imports: [
         'vue',
         'vue-i18n',

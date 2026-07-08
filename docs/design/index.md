@@ -12,6 +12,9 @@ title: Design Overview
 > - 想知道**接口契约** → 看 [Core Interfaces](./interfaces)。
 > - 想知道**关键取舍** → 看 [Decisions](./decisions)。
 > - 想知道**怎么验收** → 看 [Testing & Determinism](./testing)。
+> - 想知道**笔迹录制 / 回放怎么做** → 看 [Stroke Recording](./stroke-recording)。
+> - 想知道**云端房间协作怎么做** → 看 [Cloud Rooms](./cloud-rooms)。
+> - 想知道**YunLeFun 测试账号怎么建、怎么标记、怎么清理** → 看 [YunLeFun Test Accounts](./test-accounts)。
 
 ## 给执行 Agent 的使用约定
 
@@ -73,7 +76,7 @@ packages/
     brush/                 # BrushEngine 接口 + SimpleBrushEngine + (收割 shodo) CalligraphyEngine
     surface/               # SurfaceBackend 接口, DirtyRect, (P2) TiledSurface/Tile
     document/              # Document, RasterLayer, LayerGroup, Mask, Selection, UndoManager
-    format/                # 笔迹序列化 / 回放（收割 shodo 格式）, 工程文件
+    format/                # 笔迹录制 / 回放（saier.stroke-log）, 工程文件
     math/                  # 坐标变换、包围盒
 
   pixi/            # ★ core <-> Pixi 的唯一桥
@@ -101,4 +104,4 @@ packages/
 - **画布内 overlay**（笔刷光标、选区、变换手柄）→ **pixi**（Pixi，随缩放变换、逐帧重绘）。
 - **落笔输入热路径**（`pointermove → dab`）+ **状态事实来源** → **core**（headless controller）。Vue 只做薄皮镜像，不持有事实来源。
 
-下一步 → [Roadmap (P0–P9)](./roadmap)
+下一步 → [Roadmap (P0–P13)](./roadmap)

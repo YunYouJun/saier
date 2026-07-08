@@ -17,19 +17,20 @@ title: Public Beta Checklist
 - [x] **YunLeFun 云同步前端 / 规则 gate**：2026-07-02 已切到 YunLeFun 统一云空间：普通用户 100MiB、会员 1GiB、单文件 200MiB，Saier 新上传走 `user-storage-api` 的 `reserveStorageUpload -> uploadFile -> finalizeStorageUpload`，删除走 `deleteStorageFile`；本地规则补齐 `user_storage_quotas` / `user_storage_files` 只读、`avatars/` 10MiB 兼容、`user-storage/` 200MiB、legacy `saier/projects/` 过渡访问。
 - [x] **YunLeFun `user-storage-api` 后端 gate**：2026-07-03 已上线独立 `user-storage-api`，不把 Saier 项目文件或笔刷库动作放进 `account-api`；通用 shared storage 动作支持 `kind/slotKey` policy：`listStorageFiles` 可按 `kind: 'brush-library'` + `slotKey: 'default'` 过滤，`reserveStorageUpload` 按 app/kind 限制 `brush-library` 为 JSON 且不超过 256KiB，`finalizeStorageUpload` 支持同一 `userId + appId + kind + slotKey` 的 singleton replacement；`getStorageQuota` 并发冲突已读回同步结果兜底；下载走通用 `downloadStorageFile`，后端只校验 owner / active / maxBytes，不解析 Saier 业务格式。
 - [x] **YunLeFun 云同步真实账号 smoke**：使用真实普通账号验证 50MiB 上传成功、120MiB 因 100MiB 配额失败；使用真实会员账号验证 150MiB 上传、刷新列表、下载导入、删除；使用绕过前端的请求验证 `>200MiB`、伪造 `storageKey`、伪造 `fileID` 均被后端拒绝；确认 `www.yunle.fun` 头像上传仍可用。2026-07-03 P10 scoped 浏览器 smoke 通过：用 `https://saier.yunle.fun` 代理本地 production build，真实账号完成项目上传 / 刷新 / 下载导入 / 删除，笔刷库保存 / 清本地缓存后刷新拉回 / 删除后刷新不再出现，且项目列表未混入 brush library。2026-07-03 真实普通账号大文件 / 权限 smoke 通过：`>200MiB` 预留拒绝，伪造 `storageKey` / `fileID` finalize 拒绝，50MiB 上传 finalize 成功，随后 120MiB 因 100MiB 普通配额拒绝，删除 50MiB 文件后 quota 回到基线。2026-07-03 `www.yunle.fun` 头像回归改为后端 `account-api.uploadAvatar` 上传并通过真实 Web Auth smoke，测试文件已清理。2026-07-03 已后台创建专用会员测试账号 `ylfmembertest`（uid `2073046148889456642`，不在文档记录密码），会员 quota 懒同步为 1GiB；真实浏览器完成 150MiB project reserve / upload / finalize，列表可见 active 文件，`downloadStorageFile` 返回下载 URL，随后删除释放配额，最终 `usedBytes` / `reservedBytes` 回到 0。
+- [x] **YunLeFun 测试账号机制**：2026-07-08 建立 [YunLeFun Test Accounts](./test-accounts) 规范，固定 `ylf_test_` 用户名前缀、owner/editor/viewer/member 四个槽位、`yunlefun.test-account.v1` marker、`yunlefun_test_accounts` backend-private registry、E2E secret 环境变量和重置策略；legacy `ylfmembertest` 仅保留为过渡会员 smoke 账号。
 - [x] **云存储路线定稿**：当前 beta 使用 CloudBase Storage + `user-storage-api` 后端预留 / 确认 / 删除状态机，不直接接裸 COS；扩容购买以后再做，quota 文档预留 `addonQuotaBytes`。
 - [x] **笔刷云同步路线定稿**：自定义笔刷库作为 `saier.brush-library.v1` JSON 文件进入 YunLeFun shared storage，共用项目文件 quota，单个笔刷库额外限制 256KiB；前端使用通用 storage actions + `kind: 'brush-library'` + `slotKey: 'default'`，项目列表按 `kind: 'project'` 过滤，避免笔刷库混入工程文件列表。
 
 ## Should
 
 - [x] **笔刷持久化示例**：site 已提供账号级 localStorage fallback；2026-07-03 真实账号浏览器 smoke 已验证 YunLeFun shared storage 路径：保存自定义笔刷后上传 brush library，清本地缓存刷新可从云端拉回；删除后同步空库，清缓存刷新不再出现。
-- [ ] **浏览器兼容矩阵**：Chrome / Edge / Safari 当前可用性与已知限制。
+- [x] **浏览器兼容矩阵**：已补 [Browser compatibility matrix](./browser-compatibility-matrix)，覆盖 Chrome / Edge / Safari / iPadOS Safari 当前可用性、自动化覆盖边界、发布前手动 smoke 要求与已知限制。
 - [x] **性能基线截图 / 留档**：2026-07-06 已通过 `pnpm perf:baseline` 生成并提交 `docs/design/performance-baseline/latest.{json,md,png}`，覆盖 1024² / 4096² 下 dab throughput、tile 数、内存估算与长时间绘画稳定性曲线；自动化同时覆盖 4096² 稀疏 tile + 内存估算、tile buffer / GPU texture 内存快照、同帧多 dab 合并上传、5000 dab 下 tile sprite / upload 不随 dab 数线性增长。
-- [ ] **错误提示**：backend 不支持 sampler、外部 engine 未加载、项目导入失败时有明确 UI 文案。
+- [x] **错误提示**：backend 不支持 sampler 时，涂抹 / 水彩类 preset 会提示需要取色采样 / tile 后端；外部 engine 未加载时提示对应引擎缺失；项目导入失败区分文件读取失败、JSON 无效、非 Saier 工程。
 
 ## Experimental
 
 - [ ] 真实 `MyPaintBrushEngineWasm`。
 - [ ] `.myb` 像素级 parity。
 - [ ] PSD 完整兼容。
-- [ ] 多人协作。
+- [x] **多人协作 v1 gate**：进入 [P13 cloud rooms](./cloud-rooms)，`saier-room-api` 已部署到 `yunlefun-8g7ybcxc7345c490`；P13-06 真实双账号验收已覆盖 snapshot join、committed stroke sync、layer command sync、只读 guard、第三会话 snapshot+ops replay 和 canvas hash。低延迟 ghost preview、owner 管理 UI 和语义 replay 优化作为后续增强。

@@ -16,7 +16,17 @@ packages:
   - packages/*
   - site
 overrides:
+  '@vue/compiler-core': 3.5.39
+  '@vue/compiler-dom': 3.5.39
+  '@vue/compiler-sfc': 3.5.39
+  '@vue/compiler-ssr': 3.5.39
+  '@vue/reactivity': 3.5.39
+  '@vue/runtime-core': 3.5.39
+  '@vue/runtime-dom': 3.5.39
+  '@vue/server-renderer': 3.5.39
+  '@vue/shared': 3.5.39
   typescript: 5.9.3
+  vue: 3.5.39
 catalog:
   '@iconify-json/svg-spinners': ^1.2.4
   '@shikijs/vitepress-twoslash': ^4.3.1

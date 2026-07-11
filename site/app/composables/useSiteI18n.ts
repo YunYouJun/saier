@@ -2,7 +2,23 @@ import type { BlendMode, BuiltinBrushPresetId, MemoryRiskLevel } from '@saier/co
 import type { SitePainterCommand, SitePainterCommandCategory } from '~/types/painter-app'
 import { computed, shallowRef } from 'vue'
 
-export type SiteLocale = 'en' | 'zh'
+export const SITE_LOCALE_OPTIONS = [
+  {
+    code: 'en',
+    label: 'English',
+    shortLabel: 'EN',
+    htmlLang: 'en',
+  },
+  {
+    code: 'zh',
+    label: '中文',
+    shortLabel: '中',
+    htmlLang: 'zh-CN',
+  },
+] as const
+
+export type SiteLocale = typeof SITE_LOCALE_OPTIONS[number]['code']
+export type SiteLocaleOption = typeof SITE_LOCALE_OPTIONS[number]
 
 interface SiteMessages {
   appName: string
@@ -96,6 +112,7 @@ interface SiteMessages {
     create: string
     createTitle: string
     creating: string
+    driverEditor: string
     errorTitle: string
     forbidden: string
     invalidSnapshot: string
@@ -105,8 +122,13 @@ interface SiteMessages {
     joining: string
     leave: string
     members: string
+    modeDriver: string
+    modeMultiEditor: string
+    modeViewer: string
+    noEditorAvailable: string
     notAuthenticated: string
     owner: string
+    ownerTools: string
     readOnly: string
     readOnlyBlocked: string
     readOnlyTitle: string
@@ -115,6 +137,10 @@ interface SiteMessages {
     roleOwner: string
     roleViewer: string
     roomNotFound: string
+    roomMode: string
+    saveRoomMode: string
+    setRoleEditor: string
+    setRoleViewer: string
     share: string
     shareFailed: string
     shareLink: string
@@ -184,8 +210,6 @@ interface SiteMessages {
     moveActiveLayerUp: string
     moveActiveLayerDown: string
     removeActiveLayer: string
-    english: string
-    chinese: string
   }
   navigator: {
     empty: string
@@ -271,8 +295,14 @@ interface SiteMessages {
     missingEngine: string
     requiresTileBackend: string
     unavailablePreset: string
+    addBrush: string
     addGroup: string
+    brushGroups: string
+    brushPresets: string
+    customBrush: string
     customGroupName: string
+    groupLabels: Record<string, string>
+    removeBrush: string
     removeGroup: string
     presetLabels: Record<BuiltinBrushPresetId, string>
   }
@@ -457,6 +487,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
       create: 'Create room',
       createTitle: 'Create from current canvas',
       creating: 'Creating room...',
+      driverEditor: 'Driver editor',
       errorTitle: 'Cloud room error',
       forbidden: 'You do not have access to this room.',
       invalidSnapshot: 'The room snapshot is not a valid Saier project.',
@@ -466,8 +497,13 @@ const messages: Record<SiteLocale, SiteMessages> = {
       joining: 'Joining room...',
       leave: 'Leave room',
       members: 'Members',
+      modeDriver: 'Driver',
+      modeMultiEditor: 'Multi-editor',
+      modeViewer: 'Viewer',
+      noEditorAvailable: 'Promote a member to editor before using driver mode.',
       notAuthenticated: 'Sign in with YunLeFun to use cloud rooms.',
       owner: 'Owner',
+      ownerTools: 'Owner controls',
       readOnly: 'Read-only',
       readOnlyBlocked: 'This shared room is read-only. Download or save a copy before editing.',
       readOnlyTitle: 'Room is read-only',
@@ -476,6 +512,10 @@ const messages: Record<SiteLocale, SiteMessages> = {
       roleOwner: 'Owner',
       roleViewer: 'Viewer',
       roomNotFound: 'Room not found or the invite link expired.',
+      roomMode: 'Room mode',
+      saveRoomMode: 'Save mode',
+      setRoleEditor: 'Set as editor',
+      setRoleViewer: 'Set as viewer',
       share: 'Share',
       shareFailed: 'Could not share this room link.',
       shareLink: 'Share link',
@@ -545,8 +585,6 @@ const messages: Record<SiteLocale, SiteMessages> = {
       moveActiveLayerUp: 'Move active layer up',
       moveActiveLayerDown: 'Move active layer down',
       removeActiveLayer: 'Delete active layer',
-      english: 'English',
-      chinese: 'Chinese',
     },
     navigator: {
       empty: 'No preview',
@@ -684,8 +722,19 @@ const messages: Record<SiteLocale, SiteMessages> = {
       missingEngine: 'External brush engine is not loaded',
       requiresTileBackend: 'Requires tiled backend',
       unavailablePreset: 'Preset unavailable',
+      addBrush: 'Save current brush',
       addGroup: 'New brush group',
+      brushGroups: 'Brush groups',
+      brushPresets: 'Brush presets',
+      customBrush: 'Custom',
       customGroupName: 'Custom Group',
+      groupLabels: {
+        Sketching: 'Sketching',
+        Inking: 'Inking',
+        Painting: 'Painting',
+        Blending: 'Blending',
+      },
+      removeBrush: 'Remove custom brush',
       removeGroup: 'Remove brush group',
       presetLabels: {
         pen: 'Pen',
@@ -887,6 +936,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
       create: '创建房间',
       createTitle: '从当前画布创建',
       creating: '正在创建房间...',
+      driverEditor: '主控编辑者',
       errorTitle: '云端房间错误',
       forbidden: '你没有权限访问这个房间。',
       invalidSnapshot: '房间快照不是有效的赛尔工程。',
@@ -896,8 +946,13 @@ const messages: Record<SiteLocale, SiteMessages> = {
       joining: '正在加入房间...',
       leave: '离开房间',
       members: '成员',
+      modeDriver: '主控',
+      modeMultiEditor: '多人编辑',
+      modeViewer: '观看',
+      noEditorAvailable: '先把成员设为编辑者后才能使用主控模式。',
       notAuthenticated: '登录云乐坊后可使用云端房间。',
       owner: '房主',
+      ownerTools: '房主管理',
       readOnly: '只读',
       readOnlyBlocked: '当前共享房间为只读，请下载或另存副本后再编辑。',
       readOnlyTitle: '房间为只读',
@@ -906,6 +961,10 @@ const messages: Record<SiteLocale, SiteMessages> = {
       roleOwner: '房主',
       roleViewer: '观看者',
       roomNotFound: '房间不存在或邀请链接已失效。',
+      roomMode: '房间模式',
+      saveRoomMode: '保存模式',
+      setRoleEditor: '设为编辑者',
+      setRoleViewer: '设为观看者',
       share: '分享',
       shareFailed: '房间链接分享失败。',
       shareLink: '分享链接',
@@ -975,8 +1034,6 @@ const messages: Record<SiteLocale, SiteMessages> = {
       moveActiveLayerUp: '当前图层上移',
       moveActiveLayerDown: '当前图层下移',
       removeActiveLayer: '删除当前图层',
-      english: 'English',
-      chinese: '中文',
     },
     navigator: {
       empty: '暂无预览',
@@ -1114,8 +1171,19 @@ const messages: Record<SiteLocale, SiteMessages> = {
       missingEngine: '外部笔刷引擎尚未加载',
       requiresTileBackend: '需要 tile 后端',
       unavailablePreset: '当前无法使用此笔刷',
+      addBrush: '保存当前画笔',
       addGroup: '新建画笔分组',
+      brushGroups: '画笔分组',
+      brushPresets: '画笔预设',
+      customBrush: '自定义',
       customGroupName: '自定义分组',
+      groupLabels: {
+        Sketching: '草稿',
+        Inking: '勾线',
+        Painting: '绘画',
+        Blending: '混色',
+      },
+      removeBrush: '删除自定义画笔',
       removeGroup: '删除画笔分组',
       presetLabels: {
         pen: '钢笔',
@@ -1241,8 +1309,8 @@ export function useSiteI18n() {
   }
 
   const text = computed(() => messages[locale.value])
-  const htmlLang = computed(() => locale.value === 'zh' ? 'zh-CN' : 'en')
-  const nextLocaleLabel = computed(() => locale.value === 'zh' ? 'English' : '中文')
+  const currentLocaleOption = computed(() => localeOptionFor(locale.value))
+  const htmlLang = computed(() => currentLocaleOption.value.htmlLang)
 
   function setLocale(value: SiteLocale): void {
     locale.value = value
@@ -1250,20 +1318,20 @@ export function useSiteI18n() {
       window.localStorage.setItem(STORAGE_KEY, value)
   }
 
-  function toggleLocale(): void {
-    setLocale(locale.value === 'zh' ? 'en' : 'zh')
-  }
-
   return {
+    currentLocaleOption,
     htmlLang,
     locale,
-    nextLocaleLabel,
+    localeOptions: SITE_LOCALE_OPTIONS,
     setLocale,
     text,
-    toggleLocale,
   }
 }
 
 function isSiteLocale(value: string | null): value is SiteLocale {
-  return value === 'en' || value === 'zh'
+  return SITE_LOCALE_OPTIONS.some(option => option.code === value)
+}
+
+function localeOptionFor(value: SiteLocale): SiteLocaleOption {
+  return SITE_LOCALE_OPTIONS.find(option => option.code === value) ?? SITE_LOCALE_OPTIONS[0]
 }

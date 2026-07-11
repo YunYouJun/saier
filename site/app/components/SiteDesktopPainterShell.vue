@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { SiteLocale } from '~/composables/useSiteI18n'
 import type { SitePainterPanelId } from '~/types/painter-app'
 import type { SitePainterPanelItem, SitePainterShellEmits, SitePainterShellProps } from '~/types/painter-shell'
 import type { SiteDesktopPainterPanelGroup } from '~/composables/useDesktopPainterPanels'
@@ -47,6 +48,12 @@ function panelPaneId(groupId: string, panelId: SitePainterPanelId): string {
 function panelTabId(groupId: string, panelId: SitePainterPanelId): string {
   return `site-painter-panel-tab-${groupId}-${panelId}`
 }
+
+function selectLocale(event: MouseEvent, locale: SiteLocale): void {
+  emit('setLocale', locale)
+  const details = (event.currentTarget as HTMLElement).closest('details')
+  details?.removeAttribute('open')
+}
 </script>
 
 <template>
@@ -76,10 +83,28 @@ function panelTabId(groupId: string, panelId: SitePainterPanelId): string {
             <slot name="account" />
           </div>
           <span class="site-painter__status">{{ statusLabel }}</span>
-          <button type="button" class="site-painter__locale" @click="emit('toggleLocale')">
-            <span>{{ languageLabel }}</span>
-            <strong>{{ nextLocaleLabel }}</strong>
-          </button>
+          <details class="site-painter__locale-menu">
+            <summary class="site-painter__locale" :aria-label="languageLabel">
+              <span class="site-painter__locale-label">{{ languageLabel }}</span>
+              <strong>{{ currentLocaleLabel }}</strong>
+              <span class="i-ph-caret-down" aria-hidden="true" />
+            </summary>
+            <div class="site-painter__locale-options" role="menu">
+              <button
+                v-for="option in localeOptions"
+                :key="option.code"
+                type="button"
+                class="site-painter__locale-option"
+                :class="{ 'is-active': option.code === locale }"
+                :aria-checked="option.code === locale"
+                role="menuitemradio"
+                @click="selectLocale($event, option.code)"
+              >
+                <span class="site-painter__locale-check i-ph-check" aria-hidden="true" />
+                <span>{{ option.label }}</span>
+              </button>
+            </div>
+          </details>
         </div>
       </div>
 
@@ -373,22 +398,87 @@ function panelTabId(groupId: string, panelId: SitePainterPanelId): string {
   white-space: nowrap;
 }
 
+.site-painter__locale-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
 .site-painter__locale {
   display: inline-flex;
   height: 32px;
-  flex: 0 0 auto;
   align-items: center;
   gap: 8px;
   border: 1px solid rgb(255 255 255 / 14%);
   border-radius: 8px;
   background: rgb(255 255 255 / 8%);
   color: white;
+  cursor: pointer;
   font-size: 12px;
+  list-style: none;
   padding-inline: 12px;
+}
+
+.site-painter__locale::-webkit-details-marker {
+  display: none;
+}
+
+.site-painter__locale-menu[open] .site-painter__locale {
+  border-color: rgb(147 197 253 / 34%);
+  background: rgb(255 255 255 / 12%);
+}
+
+.site-painter__locale:focus-visible,
+.site-painter__locale-option:focus-visible {
+  outline: 2px solid rgb(147 197 253 / 72%);
+  outline-offset: 1px;
 }
 
 .site-painter__locale strong {
   font-weight: 650;
+}
+
+.site-painter__locale-options {
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  min-width: 136px;
+  gap: 2px;
+  border: 1px solid rgb(255 255 255 / 13%);
+  border-radius: 8px;
+  background: rgb(20 21 24 / 96%);
+  box-shadow: 0 16px 42px rgb(0 0 0 / 28%);
+  padding: 4px;
+}
+
+.site-painter__locale-option {
+  display: grid;
+  height: 30px;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: rgb(255 255 255 / 72%);
+  font-size: 12px;
+  padding: 0 8px;
+  text-align: left;
+}
+
+.site-painter__locale-option:hover,
+.site-painter__locale-option.is-active {
+  background: rgb(255 255 255 / 9%);
+  color: white;
+}
+
+.site-painter__locale-check {
+  visibility: hidden;
+}
+
+.site-painter__locale-option.is-active .site-painter__locale-check {
+  visibility: visible;
 }
 
 .site-painter__workspace {
@@ -650,7 +740,7 @@ function panelTabId(groupId: string, panelId: SitePainterPanelId): string {
   }
 
   .site-painter__brand-copy,
-  .site-painter__locale span {
+  .site-painter__locale-label {
     display: none;
   }
 

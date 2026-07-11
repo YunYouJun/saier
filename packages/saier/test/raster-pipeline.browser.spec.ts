@@ -39,6 +39,24 @@ async function createFixture(backend: 'rendertexture' | 'tiled' = 'rendertexture
   return painter
 }
 
+async function readDataUrlCanvas(dataUrl: string): Promise<HTMLCanvasElement> {
+  const image = new Image()
+  await new Promise<void>((resolve, reject) => {
+    image.addEventListener('load', () => resolve(), { once: true })
+    image.addEventListener('error', () => reject(new Error('failed to load thumbnail')), { once: true })
+    image.src = dataUrl
+  })
+
+  const canvas = document.createElement('canvas')
+  canvas.width = image.naturalWidth
+  canvas.height = image.naturalHeight
+  const context = canvas.getContext('2d')
+  if (!context)
+    throw new Error('missing 2d context')
+  context.drawImage(image, 0, 0)
+  return canvas
+}
+
 function eventAt(painter: Painter, x: number, y: number, timeStamp = 0): FederatedPointerEvent {
   const board = painter.board.container
   const global = new Point(
@@ -123,6 +141,49 @@ describe('saier raster pipeline', () => {
     expect(painter.canvas.layersContainer.children.length).toBe(childCount)
     expect(painter.canvas.layersContainer.children.some(child => child instanceof Graphics))
       .toBe(false)
+  })
+
+  it('preserves document aspect ratio when extracting layer thumbnails', async () => {
+    const canvas = document.createElement('canvas')
+    const painter = createPainter({
+      backend: 'rendertexture',
+      view: canvas,
+      size: { width: 80, height: 40 },
+      boardSize: { width: 80, height: 40 },
+      pixiOptions: {
+        backgroundAlpha: 0,
+      },
+    })
+    await painter.init()
+    painters.push(painter)
+
+    const layerId = painter.document.activeLayerId
+    if (!layerId)
+      throw new Error('missing active layer')
+
+    painter.surface.beginStroke(layerId)
+    painter.surface.paintDab(layerId, {
+      x: 40,
+      y: 20,
+      radius: 60,
+      opacity: 1,
+      color: { r: 1, g: 0, b: 0, a: 1 },
+      hardness: 1,
+    }, 'normal')
+    painter.surface.endStroke(layerId)
+    painter.flushSurfaceUploads()
+
+    const thumbnail = await painter.extractLayerThumbnail(layerId, 40)
+    const thumbnailCanvas = await readDataUrlCanvas(thumbnail)
+    const context = thumbnailCanvas.getContext('2d')
+    if (!context)
+      throw new Error('missing thumbnail context')
+
+    expect(thumbnailCanvas.width).toBe(40)
+    expect(thumbnailCanvas.height).toBe(40)
+    expect(context.getImageData(20, 20, 1, 1).data[3]).toBeGreaterThan(0)
+    expect(context.getImageData(20, 2, 1, 1).data[3]).toBe(0)
+    expect(context.getImageData(20, 38, 1, 1).data[3]).toBe(0)
   })
 
   it('erases transparent pixels and round-trips through public history', async () => {

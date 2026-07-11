@@ -7,15 +7,19 @@ const props = withDefaults(defineProps<{
   addTitle?: string
   addGroupTitle?: string
   activeGroupLabel?: string
+  brushGroupsLabel?: string
   brushHardness?: number
   brushOpacity?: number
+  brushPresetsLabel?: string
   brushSize?: number
   canCreateCustom?: boolean
   canRemoveActive?: boolean
+  customBadgeLabel?: string
   customGroups?: string[]
   disabledPresetIds?: BrushPresetId[]
   disabledPresetTitles?: Partial<Record<BrushPresetId, string>>
   disabledTitle?: string
+  groupLabels?: Partial<Record<string, string>>
   presetLabels?: Partial<Record<BrushPresetId, string>>
   presets: BrushPresetSummary[]
   activePresetId: BrushPresetId
@@ -24,15 +28,19 @@ const props = withDefaults(defineProps<{
 }>(), {
   addTitle: 'Save current brush',
   addGroupTitle: 'New brush group',
+  brushGroupsLabel: 'Brush groups',
   brushHardness: 0,
   brushOpacity: 1,
+  brushPresetsLabel: 'Brush presets',
   brushSize: 10,
   canCreateCustom: true,
   canRemoveActive: false,
+  customBadgeLabel: 'Custom',
   customGroups: () => [],
   disabledPresetIds: () => [],
   disabledPresetTitles: () => ({}),
   disabledTitle: '',
+  groupLabels: () => ({}),
   presetLabels: () => ({}),
   removeGroupTitle: 'Remove brush group',
   removeTitle: 'Remove brush',
@@ -51,6 +59,7 @@ const emit = defineEmits<{
 interface PresetGroup {
   id: string
   label: string
+  displayLabel: string
   presets: BrushPresetSummary[]
   custom: boolean
 }
@@ -221,11 +230,16 @@ function ensureGroup(groupsById: Map<string, PresetGroup>, label: string, custom
   const next = {
     id,
     label: normalizedLabel,
+    displayLabel: groupDisplayLabel(normalizedLabel),
     presets: [],
     custom,
   }
   groupsById.set(id, next)
   return next
+}
+
+function groupDisplayLabel(label: string): string {
+  return props.groupLabels[label] ?? label
 }
 
 function sizeForPreset(preset: BrushPresetSummary): number {
@@ -291,7 +305,7 @@ function clamp(value: number, min: number, max: number): number {
 <template>
   <div class="brush-preset-picker">
     <div class="brush-preset-header">
-      <div class="brush-preset-groups" role="tablist" aria-label="Brush groups">
+      <div class="brush-preset-groups" role="tablist" :aria-label="props.brushGroupsLabel">
         <button
           v-for="group in groups"
           :key="group.id"
@@ -302,7 +316,7 @@ function clamp(value: number, min: number, max: number): number {
           role="tab"
           @click="handleSelectGroup(group)"
         >
-          <span class="brush-preset-group__label">{{ group.label }}</span>
+          <span class="brush-preset-group__label">{{ group.displayLabel }}</span>
           <span class="brush-preset-group__count">{{ group.presets.length }}</span>
         </button>
       </div>
@@ -370,7 +384,7 @@ function clamp(value: number, min: number, max: number): number {
     </div>
 
     <div class="brush-preset-body">
-      <div class="brush-preset-list brush-preset-grid" role="listbox" aria-label="Brush presets">
+      <div class="brush-preset-list brush-preset-grid" role="listbox" :aria-label="props.brushPresetsLabel">
         <button
           v-for="preset in visiblePresets"
           :key="preset.id"
@@ -396,7 +410,7 @@ function clamp(value: number, min: number, max: number): number {
           />
           <span class="brush-preset-card__name">{{ presetLabel(preset) }}</span>
           <span class="brush-preset-card__meta">{{ formatSize(sizeForPreset(preset)) }}</span>
-          <span v-if="preset.custom" class="brush-preset-card__badge">Custom</span>
+          <span v-if="preset.custom" class="brush-preset-card__badge">{{ props.customBadgeLabel }}</span>
         </button>
       </div>
 

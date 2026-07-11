@@ -30,6 +30,7 @@ const DEFAULT_LABELS: PainterNavigatorLabels = {
   resetView: 'Reset view',
   title: 'Navigator',
 }
+const NAVIGATOR_PREVIEW_MAX_HEIGHT = 190
 
 const surfaceRef = useTemplateRef<HTMLButtonElement>('surface')
 const dragging = shallowRef(false)
@@ -48,11 +49,17 @@ const hasDocument = computed(() => {
 
 const surfaceStyle = computed<CSSProperties>(() => {
   const viewport = props.viewport
-  if (!viewport)
-    return { aspectRatio: '1 / 1' }
+  if (!viewport || viewport.documentWidth <= 0 || viewport.documentHeight <= 0) {
+    return {
+      aspectRatio: '1 / 1',
+      maxWidth: `${NAVIGATOR_PREVIEW_MAX_HEIGHT}px`,
+    }
+  }
 
+  const aspectRatio = viewport.documentWidth / viewport.documentHeight
   return {
     aspectRatio: `${viewport.documentWidth} / ${viewport.documentHeight}`,
+    maxWidth: `${NAVIGATOR_PREVIEW_MAX_HEIGHT * aspectRatio}px`,
   }
 })
 
@@ -285,7 +292,7 @@ function safelyReleasePointerCapture(target: HTMLElement, pointerId: number): vo
   display: block;
   width: calc(100% - 16px);
   max-height: 190px;
-  margin: 8px;
+  margin: 8px auto;
   overflow: hidden;
   border: 1px solid rgb(255 255 255 / 12%);
   border-radius: 5px;

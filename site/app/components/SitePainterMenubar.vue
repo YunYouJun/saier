@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SiteLocale } from '~/composables/useSiteI18n'
+import type { SiteLocale, SiteLocaleOption } from '~/composables/useSiteI18n'
 import type { SitePainterColorSectionId, SitePainterCommand, SitePainterMenuCommand, SitePainterPanelId, SitePainterTool } from '~/types/painter-app'
 import {
   MenubarCheckboxItem,
@@ -71,8 +71,6 @@ interface SitePainterMenubarLabels {
   moveActiveLayerUp: string
   moveActiveLayerDown: string
   removeActiveLayer: string
-  english: string
-  chinese: string
 }
 
 const props = defineProps<{
@@ -90,6 +88,7 @@ const props = defineProps<{
   hasActiveLayer: boolean
   labels: SitePainterMenubarLabels
   locale: SiteLocale
+  localeOptions: readonly SiteLocaleOption[]
   shortcuts: Readonly<Partial<Record<SitePainterCommand, string>>>
   colorSectionVisibility: Readonly<Record<SitePainterColorSectionId, boolean>>
   panelVisibility: Readonly<Record<SitePainterPanelId, boolean>>
@@ -274,24 +273,20 @@ function shortcutLabel(command: SitePainterCommand): string {
             <MenubarPortal>
               <MenubarSubContent class="site-menubar__content site-menubar__content--sub" :side-offset="8" :align-offset="-4">
                 <MenubarRadioGroup :model-value="locale">
-                  <MenubarRadioItem class="site-menubar__item" value="en" @select="emit('setLocale', 'en')">
+                  <MenubarRadioItem
+                    v-for="option in localeOptions"
+                    :key="option.code"
+                    class="site-menubar__item"
+                    :value="option.code"
+                    @select="emit('setLocale', option.code)"
+                  >
                     <span class="site-menubar__item-main">
                       <span class="site-menubar__indicator-slot">
                         <MenubarItemIndicator class="site-menubar__indicator">
                           <span class="i-ph-check" />
                         </MenubarItemIndicator>
                       </span>
-                      <span>{{ labels.english }}</span>
-                    </span>
-                  </MenubarRadioItem>
-                  <MenubarRadioItem class="site-menubar__item" value="zh" @select="emit('setLocale', 'zh')">
-                    <span class="site-menubar__item-main">
-                      <span class="site-menubar__indicator-slot">
-                        <MenubarItemIndicator class="site-menubar__indicator">
-                          <span class="i-ph-check" />
-                        </MenubarItemIndicator>
-                      </span>
-                      <span>{{ labels.chinese }}</span>
+                      <span>{{ option.label }}</span>
                     </span>
                   </MenubarRadioItem>
                 </MenubarRadioGroup>

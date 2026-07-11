@@ -113,6 +113,28 @@ describe('painter navigator', () => {
     expect(rect?.style.height).toBe('30%')
   })
 
+  it('preserves tall document aspect ratios within the preview height cap', async () => {
+    const { el } = mountNavigator(createViewport({
+      documentWidth: 100,
+      documentHeight: 300,
+      visibleRect: {
+        x: 10,
+        y: 30,
+        width: 50,
+        height: 100,
+      },
+    }))
+    await nextTick()
+
+    const surface = el.querySelector<HTMLElement>('.painter-navigator__surface')
+    if (!surface)
+      throw new Error('missing navigator surface')
+
+    const rect = surface.getBoundingClientRect()
+    expect(rect.height).toBeLessThanOrEqual(190)
+    expect(rect.width / rect.height).toBeCloseTo(1 / 3, 1)
+  })
+
   it('maps pointer positions to document centers', async () => {
     const { el, handlers } = mountNavigator()
     const surface = navigatorSurface(el)

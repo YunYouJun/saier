@@ -7,6 +7,7 @@ import PainterCheckbox from './PainterCheckbox.vue'
 import PainterSlider from './PainterSlider.vue'
 
 type BrushPresetLabelMap = Partial<Record<BrushPresetId, string>>
+type BrushGroupLabelMap = Partial<Record<string, string>>
 type UnavailablePresetReason = 'missing-engine' | 'missing-surface-sampler'
 
 interface UnavailablePresetInfo {
@@ -42,7 +43,11 @@ interface PainterOptionsBarLabels {
   unavailablePreset: string
   addBrush: string
   addGroup: string
+  brushGroups: string
+  brushPresets: string
+  customBrush: string
   customGroupName: string
+  groupLabels: BrushGroupLabelMap
   removeBrush: string
   removeGroup: string
   presetLabels: BrushPresetLabelMap
@@ -80,7 +85,11 @@ const DEFAULT_LABELS: PainterOptionsBarLabels = {
   unavailablePreset: 'Preset unavailable for the current backend',
   addBrush: 'Save current brush',
   addGroup: 'New brush group',
+  brushGroups: 'Brush groups',
+  brushPresets: 'Brush presets',
+  customBrush: 'Custom',
   customGroupName: 'Custom Group',
+  groupLabels: {},
   removeBrush: 'Remove custom brush',
   removeGroup: 'Remove brush group',
   presetLabels: {},
@@ -449,9 +458,13 @@ function normalizeStabilizerStrength(strength: number): number {
       :disabled-preset-ids="disabledPresetIds"
       :disabled-preset-titles="disabledPresetTitles"
       :disabled-title="text.unavailablePreset || text.requiresTileBackend"
+      :group-labels="text.groupLabels"
       :preset-labels="text.presetLabels"
       :add-title="text.addBrush"
       :add-group-title="text.addGroup"
+      :brush-groups-label="text.brushGroups"
+      :brush-presets-label="text.brushPresets"
+      :custom-badge-label="text.customBrush"
       :remove-title="text.removeBrush"
       :remove-group-title="text.removeGroup"
       :can-remove-active="canRemoveActivePreset"

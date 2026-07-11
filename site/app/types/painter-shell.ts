@@ -1,4 +1,5 @@
 import type { SitePainterPanelId } from './painter-app'
+import type { SiteLocale, SiteLocaleOption } from '~/composables/useSiteI18n'
 
 export type SitePainterShellMode = 'desktop' | 'mobile'
 
@@ -20,10 +21,12 @@ export interface SitePainterShellProps {
   closePreviewLabel: string
   exportPreview?: string
   exportPreviewLabel: string
+  currentLocaleLabel: string
+  locale: SiteLocale
+  localeOptions: readonly SiteLocaleOption[]
   languageLabel: string
   loadingLabel: string
   loading: boolean
-  nextLocaleLabel: string
   panelActionLabels: SitePainterPanelActionLabels
   panelLabels: Record<SitePainterPanelId, string>
   panelVisibility: Readonly<Record<SitePainterPanelId, boolean>>
@@ -34,5 +37,5 @@ export interface SitePainterShellProps {
 export interface SitePainterShellEmits {
   closePreview: []
   setPanelVisible: [panelId: SitePainterPanelId, visible: boolean]
-  toggleLocale: []
+  setLocale: [locale: SiteLocale]
 }

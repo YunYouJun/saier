@@ -102,12 +102,12 @@ interface SiteCloudRoomE2eBridge {
 }
 
 const {
+  currentLocaleOption,
   htmlLang,
   locale,
-  nextLocaleLabel,
+  localeOptions,
   setLocale,
   text,
-  toggleLocale,
 } = useSiteI18n()
 const platformAdapter = useSitePlatformAdapter()
 
@@ -931,13 +931,14 @@ async function saveProject(): Promise<void> {
   if (!p)
     return
 
-  const project = p.exportProject()
-  await platformAdapter.saveText(JSON.stringify(project), {
-    suggestedName: `${safeFileName(projectFileName(project))}.saier.project.json`,
-    type: 'application/json',
-  })
-  p.markDocumentSaved()
-  void clearProjectDraftIfClean(p)
+  try {
+    await writeCurrentProjectDraft(p)
+    p.markDocumentSaved()
+  }
+  catch (error) {
+    console.error('Failed to save Saier project locally.', error)
+    showSiteNotice('error', text.value.notices.projectDraftSaveFailed, errorMessage(error))
+  }
 }
 
 async function uploadCurrentProjectToCloud(): Promise<void> {
@@ -1317,20 +1318,21 @@ async function saveProjectDraftNow(current: Painter): Promise<void> {
     return
 
   const activeDocument = current.getDocuments().find(document => document.active)
-  if (!activeDocument?.dirty) {
-    if (!current.hasUnsavedChanges())
-      await clearStoredProjectDraft()
+  if (!activeDocument?.dirty)
     return
-  }
 
   try {
-    const draft = createProjectDraft(current.exportProject())
-    await queueProjectDraftStorage(() => writeProjectDraft(draft))
+    await writeCurrentProjectDraft(current)
   }
   catch (error) {
     console.error('Failed to write Saier local project draft.', error)
     showSiteNotice('error', text.value.notices.projectDraftSaveFailed, errorMessage(error))
   }
+}
+
+async function writeCurrentProjectDraft(current: Painter): Promise<void> {
+  const draft = createProjectDraft(current.exportProject())
+  await queueProjectDraftStorage(() => writeProjectDraft(draft))
 }
 
 async function clearProjectDraftIfClean(current: Painter): Promise<void> {
@@ -2086,18 +2088,20 @@ installSiteCloudRoomE2eBridge()
     :close-preview-label="text.closePreview"
     :export-preview="exportPreview"
     :export-preview-label="text.exportPreview"
+    :current-locale-label="currentLocaleOption.shortLabel"
+    :locale="locale"
+    :locale-options="localeOptions"
     :language-label="text.language"
     :loading="!painter"
     :loading-label="text.loading"
-    :next-locale-label="nextLocaleLabel"
     :panel-action-labels="panelActionLabels"
     :panel-labels="panelLabels"
     :panel-visibility="panelVisibility"
     :status-label="statusLabel"
     :tagline="text.tagline"
     @close-preview="closePreview"
+    @set-locale="setLocale"
     @set-panel-visible="setPanelVisible"
-    @toggle-locale="toggleLocale"
   >
     <template #account>
       <SiteAccountButton
@@ -2129,6 +2133,7 @@ installSiteCloudRoomE2eBridge()
         :has-active-layer="Boolean(activeLayer)"
         :labels="text.menu"
         :locale="locale"
+        :locale-options="localeOptions"
         :panel-visibility="panelVisibility"
         :shortcuts="menuShortcutLabels"
         @command="handleMenuCommand"

@@ -7,7 +7,6 @@ import type {
   DocumentLayersChangeEvent,
   LayerNode,
   LayerNodeMoveTarget,
-  UndoManager,
 } from '../document'
 import type { BlendMode, LayerGroup, LayerMaskRef, RasterLayer } from '../document/RasterLayer'
 import type { LayerTransform } from '../math'
@@ -115,7 +114,7 @@ export interface PainterControllerOptions {
   /** Framework-agnostic document model that owns layer state. */
   document: Document
   /** Optional stroke history source; omitted history starts as unavailable. */
-  history?: UndoManager
+  history?: PainterHistorySource
   tool?: PainterTool
   brush?: Partial<PainterBrushState>
   brushPresets?: readonly BrushPreset[]
@@ -126,7 +125,15 @@ export interface PainterControllerBinding {
   /** Framework-agnostic document model that owns layer state. */
   document: Document
   /** Optional stroke history source; omitted history starts as unavailable. */
-  history?: UndoManager
+  history?: PainterHistorySource
+}
+
+/** Minimal history surface consumed by framework-facing controller state. */
+export interface PainterHistorySource {
+  canUndo: () => boolean
+  canRedo: () => boolean
+  on: (type: 'history:change', handler: (state: PainterHistoryState) => void) => void
+  off: (type: 'history:change', handler: (state: PainterHistoryState) => void) => void
 }
 
 /**
@@ -182,7 +189,7 @@ export class PainterController {
   }
 
   private document: Document
-  private history: UndoManager | null
+  private history: PainterHistorySource | null
   private readonly emitter: Emitter<PainterControllerEvents> = mitt<PainterControllerEvents>()
   private readonly brushPresets: BrushPreset[]
   private readonly brushEngineRegistry: BrushEngineRegistry

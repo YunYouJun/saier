@@ -5,6 +5,7 @@ export {
   type PainterControllerEvents,
   type PainterControllerOptions,
   type PainterControllerState,
+  type PainterHistorySource,
   type PainterHistoryState,
   type PainterLayerGroupState,
   type PainterLayerNodeState,

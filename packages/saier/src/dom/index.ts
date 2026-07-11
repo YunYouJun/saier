@@ -23,16 +23,21 @@ export function addImageDropListener(
   canvas.addEventListener('dragend', onDragLeave)
   canvas.addEventListener('drop', async (e) => {
     e.preventDefault()
-    const file = e.dataTransfer?.files[0]
-
-    if (file) {
-      painter.loadImage(
-        URL.createObjectURL(file),
-      )
-
-      callback?.(file)
+    try {
+      const file = e.dataTransfer?.files[0]
+      if (file) {
+        const objectUrl = URL.createObjectURL(file)
+        try {
+          await painter.loadImage(objectUrl)
+          callback?.(file)
+        }
+        finally {
+          URL.revokeObjectURL(objectUrl)
+        }
+      }
     }
-
-    onDragLeave(e)
+    finally {
+      onDragLeave(e)
+    }
   })
 }

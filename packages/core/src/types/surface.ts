@@ -87,6 +87,18 @@ export interface SurfaceBackend {
   applyPatch: (patch: StrokePatch, dir: 'undo' | 'redo') => void
 
   /**
+   * Read a premultiplied RGBA region in layer-local pixels.
+   *
+   * Optional because streaming / remote backends may not expose synchronous
+   * readback. Import, clipboard, and compact structural undo use this capability
+   * when available instead of reaching into a concrete backend.
+   */
+  readRegion?: (layerId: string, rect: DirtyRect) => Uint8Array
+
+  /** Replace a layer-local region with premultiplied RGBA pixels. */
+  writeRegion?: (layerId: string, rect: DirtyRect, pixels: Uint8Array) => void
+
+  /**
    * Force any deferred GPU uploads (batched dirty tiles, in-stroke preview)
    * synchronously. Backends that render eagerly may omit it.
    */

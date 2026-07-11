@@ -1,5 +1,6 @@
 import type { Painter } from '../painter'
 import consola from 'consola'
+import mitt from 'mitt'
 
 export interface PainterAction {
   undo: () => void
@@ -12,6 +13,12 @@ export class PainterHistory {
 
   undoStack: PainterAction[] = []
   redoStack: PainterAction[] = []
+  private readonly emitter = mitt<{
+    'history:change': { canUndo: boolean, canRedo: boolean }
+  }>()
+
+  on = this.emitter.on
+  off = this.emitter.off
 
   constructor(painter: Painter, options: {
     capacity: number
@@ -31,11 +38,13 @@ export class PainterHistory {
     this.redoStack.length = 0
 
     this.painter.emitter.emit('history:record', action)
+    this.emitChange()
   }
 
   clear() {
     this.undoStack.splice(0, this.undoStack.length)
     this.redoStack.splice(0, this.redoStack.length)
+    this.emitChange()
   }
 
   undo() {
@@ -46,6 +55,7 @@ export class PainterHistory {
     if (action) {
       action.undo()
       this.redoStack.unshift(action)
+      this.emitChange()
     }
   }
 
@@ -57,6 +67,7 @@ export class PainterHistory {
     if (action) {
       action.redo()
       this.undoStack.unshift(action)
+      this.emitChange()
     }
   }
 
@@ -66,5 +77,12 @@ export class PainterHistory {
 
   canRedo() {
     return this.redoStack.length > 0
+  }
+
+  private emitChange(): void {
+    this.emitter.emit('history:change', {
+      canUndo: this.canUndo(),
+      canRedo: this.canRedo(),
+    })
   }
 }

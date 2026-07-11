@@ -2,7 +2,7 @@ import type { SaierStrokeCommit } from '@saier/core'
 import type { PainterAction } from './features/history'
 import type { PainterInputSnapshot } from './input'
 import type { EditableLayer } from './layers'
-import type { PainterDocumentState, PainterViewportSnapshot } from './painter'
+import type { PainterDocumentState, PainterTransformSnapshot, PainterViewportSnapshot } from './painter'
 import mitt from 'mitt'
 
 export function createEmitter() {
@@ -29,6 +29,9 @@ export function createEmitter() {
 
     // history
     'history:record': PainterAction
+
+    // transform
+    'transform:change': PainterTransformSnapshot | null
 
     // input
     'input:pointer': PainterInputSnapshot

@@ -4,8 +4,10 @@ import type {
   BrushEngineRegistry,
   BrushPreset,
   BrushPresetRegistry,
+  DirtyRect,
   DocumentLayersChangeEvent,
   LayerNode,
+  LayerTransform,
   MemoryEstimateEntry,
   MemoryRiskLevel,
   PainterMemorySnapshot,
@@ -23,6 +25,7 @@ import type { PainterInputOptions, PainterPointerSource } from './input'
 import {
   createDefaultBrushEngineRegistry,
   createDefaultBrushPresetRegistry,
+  createLayerTransform,
   deserializeSaierProject,
   isEmpty,
   isIdentityTransform,
@@ -40,7 +43,7 @@ import { addImageDropListener } from './dom'
 import { createEraser, PainterEraser } from './eraser'
 import { createEmitter } from './event'
 import { PainterHistory } from './features/history'
-import { importImageSprite } from './import'
+import { importImagePixels } from './import'
 import { PainterPointerInput } from './input'
 import { Keyboard } from './keyboard'
 import { EditableLayer } from './layers'
@@ -177,11 +180,48 @@ interface PainterDocumentSession {
   history: PainterHistory
   layersContainer: Container
   boundingBoxes: Container
+  transformLayers: Map<string, TransformLayerRecord>
   surfaceLayerIds: Set<string>
   maskSurfaceIds: Set<string>
   layerTreeSignature: string
   viewport: PainterViewportState
   removeDocumentListener: () => void
+}
+
+interface TransformLayerRecord {
+  layerId: string
+  overlay: EditableLayer
+  pixelRect: DirtyRect
+  pixels: Uint8Array
+  sourceWidth: number
+  sourceHeight: number
+}
+
+interface ActiveTransformSession {
+  documentId: string
+  layerId: string
+  before: LayerTransform
+}
+
+export interface PainterTransformSnapshot {
+  layerId: string
+  x: number
+  y: number
+  width: number
+  height: number
+  rotation: number
+  scaleX: number
+  scaleY: number
+  aspectRatioLocked: boolean
+}
+
+export interface SetPainterTransformValues {
+  x?: number
+  y?: number
+  width?: number
+  height?: number
+  /** Rotation in degrees. */
+  rotation?: number
 }
 
 export class Painter {
@@ -239,6 +279,8 @@ export class Painter {
   private readonly documentOrder: string[] = []
   private activeDocumentId: string | null = null
   private documentCounter = 0
+  private selectedTransformLayerId: string | null = null
+  private activeTransformSession: ActiveTransformSession | null = null
 
   constructor(options: PainterOptions) {
     this.options = options
@@ -559,7 +601,7 @@ export class Painter {
     this.activateSession(session)
     this.controller = new PainterController({
       document: this.document,
-      history: this.undoManager,
+      history: this.history,
       tool: this.tool,
       brushPresets: this.brushRegistry.list(),
       brushEngineRegistry: this.brushEngineRegistry,
@@ -662,6 +704,7 @@ export class Painter {
     if (current?.id === next.id)
       return
 
+    this.confirmTransform()
     this.cancelActiveStroke()
     if (current) {
       this.saveViewport(current)
@@ -670,10 +713,11 @@ export class Painter {
     }
 
     this.activeDocumentId = next.id
+    this.selectedTransformLayerId = null
     this.activateSession(next)
     this.controller.bind({
       document: next.document,
-      history: next.undoManager,
+      history: next.history,
     })
     this.useTool(this.tool as PainterTool)
     this.emitActiveDocumentChange(next)
@@ -759,8 +803,18 @@ export class Painter {
       thumb.width = size
       thumb.height = size
       const context = thumb.getContext('2d')
-      context?.clearRect(0, 0, size, size)
-      context?.drawImage(canvas as unknown as CanvasImageSource, 0, 0, size, size)
+      if (context) {
+        const source = canvas as HTMLCanvasElement
+        const sourceWidth = Math.max(1, source.width)
+        const sourceHeight = Math.max(1, source.height)
+        const scale = Math.min(size / sourceWidth, size / sourceHeight)
+        const width = Math.max(1, Math.round(sourceWidth * scale))
+        const height = Math.max(1, Math.round(sourceHeight * scale))
+        const x = Math.round((size - width) / 2)
+        const y = Math.round((size - height) / 2)
+        context.clearRect(0, 0, size, size)
+        context.drawImage(source, 0, 0, sourceWidth, sourceHeight, x, y, width, height)
+      }
       return thumb.toDataURL('image/png')
     }
     finally {
@@ -783,65 +837,415 @@ export class Painter {
    */
   async loadImage(src: string, options: {
     autoToggleSelection?: boolean
-  } = {
-    autoToggleSelection: true,
-  }) {
-    const imgSprite = await importImageSprite(src)
-    imgSprite.label = src
-
+  } = {}): Promise<void> {
     const session = this.requireActiveSession()
-    const layer = new EditableLayer(this)
-    layer.eventMode = 'static'
-    layer.label = `Image ${EditableLayer.order++}`
-    session.layersContainer.addChild(layer)
-    layer.addChild(imgSprite)
-    layer.updateTransformBoundingBox()
+    const imported = await importImagePixels(src, {
+      maxWidth: session.width,
+      maxHeight: session.height,
+    })
+    if (this.documentSessions.get(session.id) !== session)
+      throw new Error(`Cannot import image into closed document: ${session.id}`)
 
-    session.boundingBoxes.addChild(layer.boundingBoxContainer)
+    const pixelRect = centeredImageRect(session, imported.width, imported.height)
+    const anchorX = pixelRect.x + pixelRect.width / 2
+    const anchorY = pixelRect.y + pixelRect.height / 2
+    const transform = createLayerTransform({
+      x: anchorX,
+      y: anchorY,
+      anchorX,
+      anchorY,
+    })
+    const label = `Image ${++EditableLayer.order}`
+    const rasterLayer = session.document.addLayer({ label, transform })
+    const record = this.createTransformLayerRecord(session, {
+      layerId: rasterLayer.id,
+      pixelRect,
+      pixels: imported.pixels,
+      sourceWidth: imported.width,
+      sourceHeight: imported.height,
+    })
+    this.writeLayerPixels(session, record)
+    this.attachTransformLayer(session, record)
+    this.recordTransformLayerPresence(session, record, rasterLayer)
 
-    this.history.record({
+    this.markDocumentDirty(session.id)
+
+    if ((options.autoToggleSelection ?? true) && this.activeDocumentId === session.id) {
+      this.useTool('selection')
+      this.selectTransformLayer(record.layerId, session.id)
+    }
+  }
+
+  getTransformSelection(): PainterTransformSnapshot | null {
+    const session = this.requireActiveSession()
+    const layerId = this.selectedTransformLayerId
+    if (!layerId)
+      return null
+    const record = session.transformLayers.get(layerId)
+    const layer = session.document.getLayer(layerId)
+    if (!record || !layer?.transform)
+      return null
+
+    return {
+      layerId,
+      x: layer.transform.x,
+      y: layer.transform.y,
+      width: Math.abs(layer.transform.scaleX) * record.sourceWidth,
+      height: Math.abs(layer.transform.scaleY) * record.sourceHeight,
+      rotation: layer.transform.rotation * 180 / Math.PI,
+      scaleX: layer.transform.scaleX,
+      scaleY: layer.transform.scaleY,
+      aspectRatioLocked: record.overlay.aspectRatioLocked,
+    }
+  }
+
+  setTransformSelectionValues(values: SetPainterTransformValues): void {
+    const selection = this.requireTransformSelection()
+    if (!selection)
+      return
+    const { session, record, layer } = selection
+    this.beginTransform(layer.id, session.id)
+
+    const current = layer.transform!
+    const next = { ...current }
+    if (Number.isFinite(values.x))
+      next.x = values.x!
+    if (Number.isFinite(values.y))
+      next.y = values.y!
+    if (Number.isFinite(values.rotation))
+      next.rotation = values.rotation! * Math.PI / 180
+
+    const currentWidth = Math.max(1, Math.abs(current.scaleX) * record.sourceWidth)
+    const currentHeight = Math.max(1, Math.abs(current.scaleY) * record.sourceHeight)
+    const hasWidth = Number.isFinite(values.width) && values.width! > 0
+    const hasHeight = Number.isFinite(values.height) && values.height! > 0
+    if (hasWidth) {
+      const width = Math.max(1, values.width!)
+      next.scaleX = scaleSign(current.scaleX) * width / record.sourceWidth
+      if (record.overlay.aspectRatioLocked && !hasHeight)
+        next.scaleY = current.scaleY * (width / currentWidth)
+    }
+    if (hasHeight) {
+      const height = Math.max(1, values.height!)
+      next.scaleY = scaleSign(current.scaleY) * height / record.sourceHeight
+      if (record.overlay.aspectRatioLocked && !hasWidth)
+        next.scaleX = current.scaleX * (height / currentHeight)
+    }
+
+    session.document.setTransform(layer.id, next)
+    this.markDocumentDirty(session.id)
+    this.emitTransformChange()
+  }
+
+  setTransformAspectRatioLocked(locked: boolean): void {
+    const selection = this.requireTransformSelection()
+    if (!selection)
+      return
+    selection.record.overlay.aspectRatioLocked = locked
+    this.emitTransformChange()
+  }
+
+  flipTransformSelection(axis: 'horizontal' | 'vertical'): void {
+    const selection = this.requireTransformSelection()
+    if (!selection)
+      return
+    const transform = { ...selection.layer.transform! }
+    if (axis === 'horizontal')
+      transform.scaleX *= -1
+    else
+      transform.scaleY *= -1
+    this.beginTransform(selection.layer.id, selection.session.id)
+    selection.session.document.setTransform(selection.layer.id, transform)
+    this.markDocumentDirty(selection.session.id)
+    this.emitTransformChange()
+  }
+
+  nudgeTransformSelection(dx: number, dy: number): void {
+    const selection = this.requireTransformSelection()
+    if (!selection || (!dx && !dy))
+      return
+    const transform = {
+      ...selection.layer.transform!,
+      x: selection.layer.transform!.x + dx,
+      y: selection.layer.transform!.y + dy,
+    }
+    this.beginTransform(selection.layer.id, selection.session.id)
+    selection.session.document.setTransform(selection.layer.id, transform)
+    this.markDocumentDirty(selection.session.id)
+    this.emitTransformChange()
+  }
+
+  confirmTransform(): void {
+    const transaction = this.activeTransformSession
+    if (!transaction)
+      return
+    this.activeTransformSession = null
+
+    const session = this.documentSessions.get(transaction.documentId)
+    const after = session?.document.getLayer(transaction.layerId)?.transform
+    if (!session || !after || sameLayerTransform(transaction.before, after)) {
+      this.emitTransformChange()
+      return
+    }
+
+    const before = { ...transaction.before }
+    const committed = { ...after }
+    session.history.record({
       undo: () => {
-        layer.visible = false
-        layer.boundingBoxContainer.visible = false
-        this.markDocumentDirty()
+        session.document.setTransform(transaction.layerId, before)
+        this.markDocumentDirty(session.id)
+        this.emitTransformChange()
       },
       redo: () => {
-        layer.visible = true
-        layer.boundingBoxContainer.visible = true
-        this.markDocumentDirty()
+        session.document.setTransform(transaction.layerId, committed)
+        this.markDocumentDirty(session.id)
+        this.emitTransformChange()
       },
     })
+    this.emitTransformChange()
+  }
 
-    this.markDocumentDirty()
+  cancelTransform(): void {
+    const transaction = this.activeTransformSession
+    if (!transaction)
+      return
+    this.activeTransformSession = null
+    const session = this.documentSessions.get(transaction.documentId)
+    if (!session?.document.getLayer(transaction.layerId))
+      return
+    session.document.setTransform(transaction.layerId, transaction.before)
+    this.emitTransformChange()
+  }
 
-    if (options.autoToggleSelection)
-      this.useTool('selection')
+  removeSelectedTransformLayer(): void {
+    const selection = this.requireTransformSelection()
+    if (!selection || selection.session.document.layers.length <= 1)
+      return
+    const { session, record, layer } = selection
+    this.captureTransformLayerPixels(session, record)
+    const snapshot = cloneRasterLayer(layer)
+    this.activeTransformSession = null
+    this.removeTransformLayer(session, record)
+    session.history.record({
+      undo: () => this.restoreTransformLayer(session, record, snapshot),
+      redo: () => this.removeTransformLayer(session, record),
+    })
+  }
+
+  private createTransformLayerRecord(
+    session: PainterDocumentSession,
+    input: Omit<TransformLayerRecord, 'overlay'>,
+  ): TransformLayerRecord {
+    const overlay = new EditableLayer(this, {
+      layerId: input.layerId,
+      bounds: new Rectangle(
+        -input.sourceWidth / 2,
+        -input.sourceHeight / 2,
+        input.sourceWidth,
+        input.sourceHeight,
+      ),
+      onSelect: () => this.selectTransformLayer(input.layerId, session.id),
+      onTransformStart: () => this.beginTransform(input.layerId, session.id),
+      onTransformChange: () => this.updateTransformFromOverlay(input.layerId, session.id),
+      onTransformEnd: () => this.emitTransformChange(),
+      onTransformConfirm: () => this.confirmTransform(),
+    })
+    const record = { ...input, overlay }
+    session.transformLayers.set(input.layerId, record)
+    return record
+  }
+
+  private attachTransformLayer(session: PainterDocumentSession, record: TransformLayerRecord): void {
+    if (!record.overlay.parent)
+      session.boundingBoxes.addChild(record.overlay)
+    if (!record.overlay.boundingBoxContainer.parent)
+      session.boundingBoxes.addChild(record.overlay.boundingBoxContainer)
+    this.syncTransformOverlay(record, session)
+  }
+
+  private writeLayerPixels(session: PainterDocumentSession, record: TransformLayerRecord): void {
+    if (!session.surface.writeRegion)
+      throw new Error('The active surface backend does not support image import')
+    session.surface.writeRegion(record.layerId, record.pixelRect, record.pixels)
+    if (isDisplayMaskCapableBackend(session.surface))
+      session.surface.refreshDerivedDisplays(record.pixelRect)
+    session.surface.flushUploads?.()
+  }
+
+  private captureTransformLayerPixels(session: PainterDocumentSession, record: TransformLayerRecord): void {
+    if (!session.surface.readRegion)
+      return
+    record.pixels = session.surface.readRegion(record.layerId, record.pixelRect)
+  }
+
+  private recordTransformLayerPresence(
+    session: PainterDocumentSession,
+    record: TransformLayerRecord,
+    layer: RasterLayer,
+  ): void {
+    const snapshot = cloneRasterLayer(layer)
+    session.history.record({
+      undo: () => this.removeTransformLayer(session, record),
+      redo: () => this.restoreTransformLayer(session, record, snapshot),
+    })
+  }
+
+  private removeTransformLayer(session: PainterDocumentSession, record: TransformLayerRecord): void {
+    if (this.activeTransformSession?.layerId === record.layerId)
+      this.activeTransformSession = null
+    session.document.removeLayer(record.layerId)
+    record.overlay.remove()
+    if (this.activeDocumentId === session.id && this.selectedTransformLayerId === record.layerId)
+      this.selectedTransformLayerId = null
+    this.markDocumentDirty(session.id)
+    this.emitTransformChange()
+  }
+
+  private restoreTransformLayer(
+    session: PainterDocumentSession,
+    record: TransformLayerRecord,
+    layer: RasterLayer,
+  ): void {
+    if (!session.document.getLayer(layer.id)) {
+      session.document.addLayer({
+        id: layer.id,
+        label: layer.label,
+        visible: layer.visible,
+        opacity: layer.opacity,
+        blendMode: layer.blendMode,
+        lockAlpha: layer.lockAlpha,
+        clip: layer.clip,
+        transform: layer.transform,
+      })
+    }
+    this.writeLayerPixels(session, record)
+    this.attachTransformLayer(session, record)
+    if (this.activeDocumentId === session.id && this.tool === 'selection')
+      this.selectTransformLayer(record.layerId, session.id)
+    this.markDocumentDirty(session.id)
+  }
+
+  private selectTransformLayer(layerId: string, documentId: string): void {
+    const session = this.documentSessions.get(documentId)
+    if (!session?.transformLayers.has(layerId))
+      return
+    if (this.selectedTransformLayerId !== layerId)
+      this.confirmTransform()
+    this.selectedTransformLayerId = layerId
+    if (session.document.activeLayerId !== layerId)
+      session.document.setActive(layerId)
+    this.beginTransform(layerId, documentId)
+    this.syncTransformLayers(layerId, session)
+  }
+
+  private beginTransform(layerId: string, documentId: string): void {
+    if (this.activeTransformSession?.documentId === documentId && this.activeTransformSession.layerId === layerId)
+      return
+    const transform = this.documentSessions.get(documentId)?.document.getLayer(layerId)?.transform
+    if (!transform)
+      return
+    this.activeTransformSession = { documentId, layerId, before: { ...transform } }
+  }
+
+  private updateTransformFromOverlay(layerId: string, documentId: string): void {
+    const session = this.documentSessions.get(documentId)
+    const record = session?.transformLayers.get(layerId)
+    const layer = session?.document.getLayer(layerId)
+    if (!session || !record || !layer?.transform)
+      return
+    const overlay = record.overlay
+    session.document.setTransform(layerId, {
+      ...layer.transform,
+      x: overlay.position.x + session.width / 2,
+      y: overlay.position.y + session.height / 2,
+      scaleX: overlay.scale.x,
+      scaleY: overlay.scale.y,
+      rotation: overlay.rotation,
+    })
+    this.markDocumentDirty(session.id)
+    this.emitTransformChange()
+  }
+
+  private syncTransformLayers(activeLayerId: string | null, session: PainterDocumentSession): void {
+    for (const record of session.transformLayers.values()) {
+      const layer = session.document.getLayer(record.layerId)
+      if (!layer) {
+        record.overlay.setSelected(false)
+        record.overlay.remove()
+        continue
+      }
+      this.attachTransformLayer(session, record)
+      this.syncTransformOverlay(record, session)
+    }
+
+    if (this.activeDocumentId !== session.id)
+      return
+    const nextSelected = activeLayerId && session.transformLayers.has(activeLayerId)
+      ? activeLayerId
+      : null
+    if (this.selectedTransformLayerId !== nextSelected) {
+      this.confirmTransform()
+      this.selectedTransformLayerId = nextSelected
+    }
+
+    const show = this.tool === 'selection' && session.boundingBoxes.visible
+    for (const record of session.transformLayers.values()) {
+      const layer = session.document.getLayer(record.layerId)
+      record.overlay.setSelected(Boolean(show && layer?.visible && record.layerId === nextSelected))
+    }
+    this.emitTransformChange()
+  }
+
+  private syncTransformOverlay(record: TransformLayerRecord, session: PainterDocumentSession): void {
+    const transform = session.document.getLayer(record.layerId)?.transform
+    if (!transform)
+      return
+    record.overlay.position.set(transform.x - session.width / 2, transform.y - session.height / 2)
+    record.overlay.scale.set(transform.scaleX, transform.scaleY)
+    record.overlay.rotation = transform.rotation
+    record.overlay.updateTransformBoundingBox()
+  }
+
+  private requireTransformSelection(): {
+    session: PainterDocumentSession
+    record: TransformLayerRecord
+    layer: RasterLayer & { transform: LayerTransform }
+  } | null {
+    const session = this.requireActiveSession()
+    const layerId = this.selectedTransformLayerId
+    if (!layerId)
+      return null
+    const record = session.transformLayers.get(layerId)
+    const layer = session.document.getLayer(layerId)
+    if (!record || !layer?.transform)
+      return null
+    return { session, record, layer: layer as RasterLayer & { transform: LayerTransform } }
+  }
+
+  private emitTransformChange(): void {
+    this.emitter.emit('transform:change', this.getTransformSelection())
   }
 
   showBoundingBox() {
     const session = this.requireActiveSession()
     session.boundingBoxes.visible = true
-    session.layersContainer.children.forEach((layer) => {
-      layer.children?.forEach((child) => {
-        child.cursor = 'move'
-      })
-    })
+    this.syncTransformLayers(session.document.activeLayerId, session)
   }
 
   hideBoundingBox() {
     const session = this.requireActiveSession()
     session.boundingBoxes.visible = false
-    session.layersContainer.children.forEach((layer) => {
-      layer.children?.forEach((child) => {
-        child.cursor = 'default'
-      })
-    })
+    for (const record of session.transformLayers.values())
+      record.overlay.setSelected(false)
+    this.emitTransformChange()
   }
 
   /**
    * toggle tool
    */
   useTool(name: PainterTool) {
+    if (this.tool === 'selection' && name !== 'selection')
+      this.confirmTransform()
     this.controller?.setTool(name)
     this.emitter.emit('tool:change', name)
     this.tool = name
@@ -896,6 +1300,8 @@ export class Painter {
   }
 
   cancelSelection() {
+    this.cancelTransform()
+    this.selectedTransformLayerId = null
     this.hideBoundingBox()
   }
 
@@ -903,12 +1309,18 @@ export class Painter {
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = 'image/*'
-    input.onchange = () => {
+    input.onchange = async () => {
       const file = input.files?.[0]
       if (!file)
         return
 
-      this.loadImage(URL.createObjectURL(file))
+      const objectUrl = URL.createObjectURL(file)
+      try {
+        await this.loadImage(objectUrl)
+      }
+      finally {
+        URL.revokeObjectURL(objectUrl)
+      }
     }
     input.click()
   }
@@ -980,6 +1392,23 @@ export class Painter {
       }
     }
 
+    for (const layer of restored.document.layers) {
+      if (!layer.transform)
+        continue
+      const source = restored.surfaces.get(layer.id)
+      const pixelRect = source ? visiblePixelBounds(source) : null
+      if (!source || !pixelRect)
+        continue
+      const record = this.createTransformLayerRecord(session, {
+        layerId: layer.id,
+        pixelRect,
+        pixels: new Uint8Array(source.readRegion(pixelRect)),
+        sourceWidth: pixelRect.width,
+        sourceHeight: pixelRect.height,
+      })
+      this.attachTransformLayer(session, record)
+    }
+
     if (isDisplayMaskCapableBackend(session.surface))
       session.surface.refreshDerivedDisplays({ x: 0, y: 0, width: session.width, height: session.height })
     session.surface.flushUploads?.()
@@ -1018,7 +1447,7 @@ export class Painter {
     this.activateSession(replacement)
     this.controller.bind({
       document: replacement.document,
-      history: replacement.undoManager,
+      history: replacement.history,
     })
     this.useTool(this.tool as PainterTool)
     this.emitter.emit('canvas:clear')
@@ -1027,6 +1456,7 @@ export class Painter {
 
   destroy() {
     this.removeEventListeners()
+    this.keyboard.destroy()
     this.brush.destroy()
     this.eraser.destroy()
     this.controller.dispose()
@@ -1097,6 +1527,7 @@ export class Painter {
       history,
       layersContainer,
       boundingBoxes,
+      transformLayers: new Map(),
       surfaceLayerIds: new Set(),
       maskSurfaceIds: new Set(),
       layerTreeSignature: '',
@@ -1105,6 +1536,7 @@ export class Painter {
     }
     const handleLayersChange = (event: DocumentLayersChangeEvent) => {
       this.syncSurfaceLayers(event.effectiveLayers, session)
+      this.syncTransformLayers(event.activeLayerId, session)
       const nextSignature = layerTreeSignature(event.layerTree)
       if (session.layerTreeSignature && session.layerTreeSignature !== nextSignature)
         this.markDocumentDirty(session.id)
@@ -1154,6 +1586,11 @@ export class Painter {
     session.surfaceLayerIds.clear()
     session.maskSurfaceIds.clear()
     session.history.clear()
+    for (const record of session.transformLayers.values()) {
+      record.overlay.remove()
+      record.overlay.destroy()
+    }
+    session.transformLayers.clear()
     this.canvas.documentsContainer.removeChild(session.layersContainer)
     this.boundingBoxes.removeChild(session.boundingBoxes)
     session.layersContainer.destroy({ children: true })
@@ -1445,6 +1882,75 @@ export class Painter {
       deviceMemoryBytes,
     }
   }
+}
+
+function centeredImageRect(
+  session: Pick<PainterDocumentSession, 'width' | 'height'>,
+  width: number,
+  height: number,
+): DirtyRect {
+  return {
+    x: Math.floor((session.width - width) / 2),
+    y: Math.floor((session.height - height) / 2),
+    width,
+    height,
+  }
+}
+
+function cloneRasterLayer(layer: RasterLayer): RasterLayer {
+  return {
+    ...layer,
+    ...(layer.transform ? { transform: { ...layer.transform } } : {}),
+    ...(layer.mask ? { mask: { ...layer.mask } } : {}),
+  }
+}
+
+function sameLayerTransform(a: LayerTransform, b: LayerTransform): boolean {
+  return a.x === b.x
+    && a.y === b.y
+    && a.scaleX === b.scaleX
+    && a.scaleY === b.scaleY
+    && a.rotation === b.rotation
+    && a.anchorX === b.anchorX
+    && a.anchorY === b.anchorY
+}
+
+function scaleSign(value: number): -1 | 1 {
+  return value < 0 ? -1 : 1
+}
+
+function visiblePixelBounds(surface: TiledSurface): DirtyRect | null {
+  let left = surface.width
+  let top = surface.height
+  let right = 0
+  let bottom = 0
+  let found = false
+
+  for (const tile of surface.allocatedTiles) {
+    const data = tile.data
+    if (!data)
+      continue
+    const origin = surface.tileToDoc(tile.tileX, tile.tileY)
+    const rect = surface.tileRect(tile.tileX, tile.tileY)
+    for (let localY = 0; localY < rect.height; localY++) {
+      for (let localX = 0; localX < rect.width; localX++) {
+        const alpha = data[(localY * tile.tileSize + localX) * 4 + 3]
+        if (!alpha)
+          continue
+        const x = origin.x + localX
+        const y = origin.y + localY
+        left = Math.min(left, x)
+        top = Math.min(top, y)
+        right = Math.max(right, x + 1)
+        bottom = Math.max(bottom, y + 1)
+        found = true
+      }
+    }
+  }
+
+  return found
+    ? { x: left, y: top, width: right - left, height: bottom - top }
+    : null
 }
 
 export function createPainter(options: PainterOptions): Painter {

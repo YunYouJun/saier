@@ -266,6 +266,15 @@ export class PixiTileTextureBackend implements SurfaceBackend, DisplayMaskCapabl
     this.scheduleFlush()
   }
 
+  readRegion(layerId: string, rect: DirtyRect): Uint8Array {
+    return new Uint8Array(this.getLayer(layerId).surface.readRegion(rect))
+  }
+
+  writeRegion(layerId: string, rect: DirtyRect, pixels: Uint8Array): void {
+    this.getLayer(layerId).surface.writeRegion(rect, new Uint8ClampedArray(pixels))
+    this.scheduleFlush()
+  }
+
   getDisplayHandle(layerId: string): unknown {
     return this.getLayer(layerId).container
   }

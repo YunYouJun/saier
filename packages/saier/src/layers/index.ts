@@ -1,329 +1,332 @@
 import type * as PIXI from 'pixi.js'
 import type { Painter } from '../painter'
-import type { ControlPointPosition } from './scale'
-import { Assets, Container, Graphics, Sprite, Texture } from 'pixi.js'
-import { deleteBinSvg } from '../assets'
+import type { ControlPointPosition, ScaleControlPointPosition } from './scale'
+import { Container, Graphics, Rectangle, Sprite, Texture } from 'pixi.js'
 import { PainterBrush } from '../brush'
 import { createDrag } from './drag'
 import { createRotateHandle } from './rotate'
 import { createScaleHandle } from './scale'
 
-let layerMenuContainer: HTMLDivElement | null = null
+const TRANSFORM_COLOR = 0x3D5CAA
+const TRANSFORM_CONTRAST_COLOR = 0xFFFFFF
+const TRANSFORM_BORDER_SCREEN_WIDTH = 1.5
+const TRANSFORM_CONTRAST_SCREEN_WIDTH = 3.5
+const TRANSFORM_HANDLE_SCREEN_SIZE = 10
+const TRANSFORM_MOUSE_HIT_SCREEN_SIZE = 32
+const TRANSFORM_TOUCH_HIT_SCREEN_SIZE = 44
+const TRANSFORM_HANDLE_RADIUS_SCREEN = 2
+const TRANSFORM_ROTATE_OFFSET_SCREEN = 30
+const TRANSFORM_EDGE_HANDLE_MIN_SPAN_SCREEN = 56
+const HIT_TARGET_ALPHA = 0.001
 
-function getCursor(key: ControlPointPosition) {
-  switch (key) {
-    case 'TOP_LEFT':
-    case 'BOTTOM_RIGHT':
-      return 'nwse-resize'
-    case 'TOP_RIGHT':
-    case 'BOTTOM_LEFT':
-      return 'nesw-resize'
-    case 'TOP_CENTER':
-    case 'BOTTOM_CENTER':
-      return 'ns-resize'
-    case 'RIGHT_CENTER':
-    case 'LEFT_CENTER':
-      return 'ew-resize'
-    case 'ROTATE':
-      return 'crosshair'
-    case 'CENTER':
-      return 'move'
-    case 'REMOVE':
-      return 'pointer'
-  }
+const SCALE_CONTROL_POINTS: readonly ScaleControlPointPosition[] = [
+  'TOP_LEFT',
+  'TOP_CENTER',
+  'TOP_RIGHT',
+  'RIGHT_CENTER',
+  'BOTTOM_RIGHT',
+  'BOTTOM_CENTER',
+  'BOTTOM_LEFT',
+  'LEFT_CENTER',
+]
+
+const SCALE_CONTROL_POINT_ANGLES: Record<ScaleControlPointPosition, number> = {
+  TOP_LEFT: -Math.PI * 3 / 4,
+  TOP_CENTER: -Math.PI / 2,
+  TOP_RIGHT: -Math.PI / 4,
+  RIGHT_CENTER: 0,
+  BOTTOM_RIGHT: Math.PI / 4,
+  BOTTOM_CENTER: Math.PI / 2,
+  BOTTOM_LEFT: Math.PI * 3 / 4,
+  LEFT_CENTER: Math.PI,
 }
+
+const CONTROL_POINT_TITLES: Record<ControlPointPosition, string> = {
+  TOP_LEFT: 'Resize from top left',
+  TOP_CENTER: 'Resize from top',
+  TOP_RIGHT: 'Resize from top right',
+  RIGHT_CENTER: 'Resize from right',
+  BOTTOM_RIGHT: 'Resize from bottom right',
+  BOTTOM_CENTER: 'Resize from bottom',
+  BOTTOM_LEFT: 'Resize from bottom left',
+  LEFT_CENTER: 'Resize from left',
+  ROTATE: 'Rotate layer',
+  CENTER: 'Move layer',
+}
+
+const RESIZE_CURSORS = ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize'] as const
+
+export interface EditableLayerOptions {
+  layerId?: string
+  bounds?: Rectangle
+  onSelect?: (layer: EditableLayer) => void
+  onTransformStart?: (layer: EditableLayer) => void
+  onTransformChange?: (layer: EditableLayer) => void
+  onTransformEnd?: (layer: EditableLayer) => void
+  onTransformConfirm?: (layer: EditableLayer) => void
+}
+
+function isScaleControlPoint(key: ControlPointPosition): key is ScaleControlPointPosition {
+  return SCALE_CONTROL_POINTS.includes(key as ScaleControlPointPosition)
+}
+
+function resizeCursor(key: ScaleControlPointPosition, rotation: number): typeof RESIZE_CURSORS[number] {
+  const direction = Math.round((SCALE_CONTROL_POINT_ANGLES[key] + rotation) / (Math.PI / 4))
+  const index = ((direction % RESIZE_CURSORS.length) + RESIZE_CURSORS.length) % RESIZE_CURSORS.length
+  return RESIZE_CURSORS[index]!
+}
+
+function getCursor(key: ControlPointPosition, rotation = 0): string {
+  if (isScaleControlPoint(key))
+    return resizeCursor(key, rotation)
+  if (key === 'ROTATE')
+    return 'grab'
+  return 'move'
+}
+
+/**
+ * Interaction-only free-transform overlay.
+ *
+ * Image pixels live in a real raster layer. This container owns only hit
+ * geometry and mirrors the layer's `LayerTransform` in document space.
+ */
 export class EditableLayer extends Container {
-  /**
-   * index
-   */
   static order = 0
 
-  painter: Painter
-  app: PIXI.Application
-  /**
-   * editor box container
-   */
-  boundingBoxContainer = new Container()
-  boundingBox = new Graphics()
-
-  handleSize = 12
-
-  lastParent: Container | null = null
-
-  controlPoints: Record<ControlPointPosition, Sprite> = {
+  readonly painter: Painter
+  readonly app: PIXI.Application
+  readonly layerId?: string
+  readonly boundingBoxContainer = new Container()
+  readonly boundingBox = new Graphics()
+  readonly controlPoints: Record<ControlPointPosition, Sprite> = {
     TOP_LEFT: new Sprite(Texture.WHITE),
     TOP_RIGHT: new Sprite(Texture.WHITE),
     BOTTOM_RIGHT: new Sprite(Texture.WHITE),
     BOTTOM_LEFT: new Sprite(Texture.WHITE),
-
     TOP_CENTER: new Sprite(Texture.WHITE),
     RIGHT_CENTER: new Sprite(Texture.WHITE),
     BOTTOM_CENTER: new Sprite(Texture.WHITE),
     LEFT_CENTER: new Sprite(Texture.WHITE),
-
     ROTATE: new Sprite(Texture.WHITE),
-
     CENTER: new Sprite(Texture.WHITE),
-
-    // placeholder; the real SVG icon is loaded async in the constructor
-    // (v8 Texture.from doesn't load raw SVG strings — use Assets.load)
-    REMOVE: new Sprite(Texture.WHITE),
   }
 
-  constructor(painter: Painter) {
+  /** Visible handle size in screen pixels. */
+  handleSize = TRANSFORM_HANDLE_SCREEN_SIZE
+  /** Corners preserve aspect ratio by default; Shift temporarily inverts it. */
+  aspectRatioLocked = true
+
+  lastParent: Container | null = null
+  lastBoundingBoxParent: Container | null = null
+
+  private readonly options: EditableLayerOptions
+  private readonly handleViewportChange = () => this.updateTransformBoundingBox()
+
+  constructor(painter: Painter, options: EditableLayerOptions = {}) {
     super()
     this.painter = painter
-    const app = painter.app
+    this.app = painter.app
+    this.options = options
+    this.layerId = options.layerId
     this.eventMode = 'static'
-    // this.on('pointerdown', (e) => {
-    //   if (!this.boundingBoxContainer.visible)
-    //     e.stopPropagation()
+    this.cursor = 'move'
+    this.label = options.layerId ? `transform:${options.layerId}` : 'transform'
 
-    //   this.boundingBoxContainer.visible = true
-    //   PainterBrush.enabled = false
-    // })
+    const bounds = options.bounds?.clone() ?? new Rectangle(-0.5, -0.5, 1, 1)
+    this.boundsArea = bounds.clone()
+    this.hitArea = bounds.clone()
+    this.accessible = true
+    this.accessibleType = 'button'
+    this.accessibleTitle = 'Move selected layer'
 
     this.boundingBoxContainer.eventMode = 'static'
-    this.boundingBoxContainer.label = 'boundingBoxContainer'
-
-    this.boundingBox.label = 'boundingBox'
-    this.boundingBox.visible = true
-    PainterBrush.enabled = false
-
-    this.boundingBox.eventMode = 'static'
+    this.boundingBoxContainer.label = `${this.label}:controls`
+    this.boundingBox.eventMode = 'none'
+    this.boundingBox.label = `${this.label}:outline`
     this.boundingBoxContainer.addChild(this.boundingBox)
 
-    this.app = app
+    PainterBrush.enabled = false
 
-    Object.entries(this.controlPoints).forEach(([key, sprite]) => {
-      sprite.label = key
-      // sprite.tint = 0x3D5CAA
+    for (const [key, sprite] of Object.entries(this.controlPoints)) {
+      const controlPoint = key as ControlPointPosition
+      sprite.label = controlPoint
       sprite.anchor.set(0.5)
-      sprite.cursor = getCursor(key as ControlPointPosition)
-      sprite.width = this.handleSize
-      sprite.height = this.handleSize
+      sprite.cursor = getCursor(controlPoint)
+      sprite.alpha = HIT_TARGET_ALPHA
+      sprite.eventMode = 'static'
+      sprite.hitArea = new Rectangle(-0.5, -0.5, 1, 1)
+      sprite.accessible = true
+      sprite.accessibleType = 'button'
+      sprite.accessibleTitle = CONTROL_POINT_TITLES[controlPoint]
       this.boundingBoxContainer.addChild(sprite)
 
-      sprite.eventMode = 'static'
-
-      if (key === 'ROTATE') {
-        createRotateHandle({
-          layer: this,
-          app,
-          handleSprite: sprite,
-        })
+      if (controlPoint === 'ROTATE') {
+        createRotateHandle({ layer: this, app: this.app, handleSprite: sprite })
       }
-      else if (key === 'CENTER') {
+      else if (controlPoint === 'CENTER') {
+        sprite.visible = false
         createDrag({
           handleSprite: sprite,
           painter,
           layer: this,
-          app,
-          containers: [this, this.boundingBoxContainer],
+          app: this.app,
+          containers: [this],
         })
       }
-      else {
+      else if (isScaleControlPoint(controlPoint)) {
         createScaleHandle({
           layer: this,
-          app,
+          app: this.app,
           sprite,
           container: this,
-          key: key as ControlPointPosition,
+          key: controlPoint,
         })
       }
-    })
-
-    // add remove icon
-    const removeIcon = this.controlPoints.REMOVE
-    removeIcon.label = 'removeIcon'
-    removeIcon.anchor.set(0.5)
-    removeIcon.alpha = 0.8
-    removeIcon.width = 16
-    removeIcon.height = 16
-    removeIcon.cursor = 'pointer'
-    removeIcon.eventMode = 'static'
-    removeIcon.on('pointerover', () => {
-      removeIcon.alpha = 1
-    })
-    function onPointerOut() {
-      removeIcon.alpha = 0.6
     }
-    removeIcon.on('pointerleave', onPointerOut)
-    removeIcon.on('pointercancel', onPointerOut)
-    removeIcon.on('pointerout', onPointerOut)
-    removeIcon.on('pointerdown', (e) => {
-      e.stopPropagation()
+
+    this.on('pointerdown', () => this.notifyTransformStart())
+    this.on('dblclick', (event) => {
+      event.stopPropagation()
+      this.options.onTransformConfirm?.(this)
     })
-    removeIcon.on('pointerup', (e) => {
-      e.stopPropagation()
-      this.remove()
-    })
-
-    // v8: load the SVG trash icon via Assets (Texture.from can't load raw SVG strings)
-    Assets
-      .load<Texture>(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(deleteBinSvg)}`)
-      .then((tex) => {
-        removeIcon.texture = tex
-        removeIcon.width = 16
-        removeIcon.height = 16
-      })
-      .catch(() => {})
-
-    // contextmenu
-    this.on('rightclick', (e) => {
-      e.stopPropagation()
-
-      if (layerMenuContainer)
-        layerMenuContainer.remove()
-
-      const menuContainer = document.createElement('div')
-      layerMenuContainer = menuContainer
-      menuContainer.style.position = 'absolute'
-      menuContainer.style.left = `${e.global.x}px`
-      menuContainer.style.top = `${e.global.y}px`
-      menuContainer.style.zIndex = '1000'
-      menuContainer.style.background = '#fff'
-      menuContainer.style.border = '1px solid #ccc'
-      menuContainer.style.padding = '5px'
-      menuContainer.style.boxShadow = '0 0 10px #ccc'
-      menuContainer.style.borderRadius = '5px'
-      menuContainer.style.cursor = 'default'
-      menuContainer.style.userSelect = 'none'
-      menuContainer.style.fontSize = '14px'
-      menuContainer.style.fontFamily = 'sans-serif'
-      menuContainer.style.color = '#333'
-      menuContainer.style.display = 'flex'
-      menuContainer.style.flexDirection = 'column'
-      menuContainer.style.alignItems = 'flex-start'
-      menuContainer.style.justifyContent = 'flex-start'
-      menuContainer.style.minWidth = '100px'
-
-      const deleteBtn = document.createElement('div')
-      deleteBtn.style.padding = '5px'
-      deleteBtn.style.cursor = 'pointer'
-      deleteBtn.style.userSelect = 'none'
-      deleteBtn.style.borderRadius = '5px'
-      deleteBtn.style.background = '#eee'
-      deleteBtn.style.color = '#333'
-      deleteBtn.style.fontSize = '14px'
-      deleteBtn.style.fontFamily = 'sans-serif'
-      deleteBtn.style.display = 'flex'
-      deleteBtn.style.alignItems = 'center'
-      deleteBtn.style.justifyContent = 'center'
-      deleteBtn.style.width = '100%'
-      deleteBtn.textContent = 'Delete'
-      deleteBtn.addEventListener('click', () => {
-        // this.destroy()
-        this.remove()
-
-        const { history } = painter
-        history.record({
-          undo: () => {
-            this.restore()
-          },
-          redo: () => {
-            this.remove()
-          },
-        })
-      })
-      menuContainer.appendChild(deleteBtn)
-      this.painter.app.canvas.parentNode?.appendChild(menuContainer)
-
-      const removeMenu = () => {
-        menuContainer.remove()
-        document.removeEventListener('click', removeMenu)
-      }
-      document.addEventListener('click', removeMenu)
-    })
-
-    // add layer event
+    this.painter.emitter.on('viewport:change', this.handleViewportChange)
     this.painter.emitter.emit('layer:add', this)
+    this.setSelected(false)
   }
 
-  updateTransformBoundingBox() {
-    this.boundingBoxContainer.position.set(this.x, this.y)
+  notifyTransformStart(): void {
+    this.options.onSelect?.(this)
+    this.options.onTransformStart?.(this)
+  }
 
-    const bounds = this.getLocalBounds()
+  notifyTransformChange(): void {
+    this.options.onTransformChange?.(this)
+  }
 
-    bounds.x *= this.scale.x
-    bounds.y *= this.scale.y
-    bounds.width *= this.scale.x
-    bounds.height *= this.scale.y
+  notifyTransformEnd(): void {
+    this.options.onTransformEnd?.(this)
+  }
 
-    const boundingBox = this.boundingBox
+  setSelected(selected: boolean): void {
+    this.visible = selected
+    this.boundingBoxContainer.visible = selected
+    if (selected)
+      this.updateTransformBoundingBox()
+  }
 
-    // clear
-    boundingBox.clear()
-    // box outline (v8: describe path, then stroke)
-    boundingBox.rect(bounds.x, bounds.y, bounds.width, bounds.height).stroke({ width: 1, color: 0x3D5CAA, alpha: 1 })
+  updateTransformBoundingBox(): Container {
+    this.boundingBoxContainer.position.copyFrom(this.position)
+    this.boundingBoxContainer.rotation = this.rotation
 
-    const controlPointsPos = {
-      TOP_LEFT: [bounds.x, bounds.y], // top left
-      TOP_RIGHT: [bounds.x + bounds.width, bounds.y], // top right
-      BOTTOM_RIGHT: [bounds.x + bounds.width, bounds.y + bounds.height], // bottom right
-      BOTTOM_LEFT: [bounds.x, bounds.y + bounds.height], // bottom left
+    const localBounds = this.getLocalBounds()
+    const left = Math.min(localBounds.x * this.scale.x, (localBounds.x + localBounds.width) * this.scale.x)
+    const right = Math.max(localBounds.x * this.scale.x, (localBounds.x + localBounds.width) * this.scale.x)
+    const top = Math.min(localBounds.y * this.scale.y, (localBounds.y + localBounds.height) * this.scale.y)
+    const bottom = Math.max(localBounds.y * this.scale.y, (localBounds.y + localBounds.height) * this.scale.y)
+    const bounds = { x: left, y: top, width: right - left, height: bottom - top }
 
-      TOP_CENTER: [bounds.x + bounds.width / 2, bounds.y], // top center
-      RIGHT_CENTER: [bounds.x + bounds.width, bounds.y + bounds.height / 2], // right center
-      BOTTOM_CENTER: [bounds.x + bounds.width / 2, bounds.y + bounds.height], // bottom center
-      LEFT_CENTER: [bounds.x, bounds.y + bounds.height / 2], // left center
+    const viewportScale = Math.max(Math.abs(this.painter.board.container.scale.x), 0.001)
+    const localScreenPixel = 1 / viewportScale
+    const borderWidth = TRANSFORM_BORDER_SCREEN_WIDTH * localScreenPixel
+    const contrastWidth = TRANSFORM_CONTRAST_SCREEN_WIDTH * localScreenPixel
+    const handleSize = this.handleSize * localScreenPixel
+    const handleHitSize = transformHitScreenSize() * localScreenPixel
+    const handleRadius = TRANSFORM_HANDLE_RADIUS_SCREEN * localScreenPixel
+    const rotateOffset = TRANSFORM_ROTATE_OFFSET_SCREEN * localScreenPixel
+    const screenWidth = bounds.width * viewportScale
+    const screenHeight = bounds.height * viewportScale
+    const showHorizontalEdgeHandles = screenWidth >= TRANSFORM_EDGE_HANDLE_MIN_SPAN_SCREEN
+    const showVerticalEdgeHandles = screenHeight >= TRANSFORM_EDGE_HANDLE_MIN_SPAN_SCREEN
 
-      // rotate
-      ROTATE: [bounds.x + bounds.width / 2, bounds.y - 25], // top center
+    this.boundingBox.clear()
+    this.boundingBox
+      .rect(bounds.x, bounds.y, bounds.width, bounds.height)
+      .stroke({ width: contrastWidth, color: TRANSFORM_CONTRAST_COLOR, alpha: 0.9 })
+      .rect(bounds.x, bounds.y, bounds.width, bounds.height)
+      .stroke({ width: borderWidth, color: TRANSFORM_COLOR, alpha: 1 })
 
-      // center
+    const positions = {
+      TOP_LEFT: [bounds.x, bounds.y],
+      TOP_RIGHT: [bounds.x + bounds.width, bounds.y],
+      BOTTOM_RIGHT: [bounds.x + bounds.width, bounds.y + bounds.height],
+      BOTTOM_LEFT: [bounds.x, bounds.y + bounds.height],
+      TOP_CENTER: [bounds.x + bounds.width / 2, bounds.y],
+      RIGHT_CENTER: [bounds.x + bounds.width, bounds.y + bounds.height / 2],
+      BOTTOM_CENTER: [bounds.x + bounds.width / 2, bounds.y + bounds.height],
+      LEFT_CENTER: [bounds.x, bounds.y + bounds.height / 2],
+      ROTATE: [bounds.x + bounds.width / 2, bounds.y - rotateOffset],
       CENTER: [bounds.x + bounds.width / 2, bounds.y + bounds.height / 2],
-
-      // remove
-      REMOVE: [bounds.x + bounds.width, bounds.y - 15],
     } as const
 
-    const controlPointSize = this.handleSize
-    for (const key in controlPointsPos) {
-      const [x, y] = controlPointsPos[key as keyof typeof controlPointsPos]
+    const [topCenterX, topCenterY] = positions.TOP_CENTER
+    const [rotateX, rotateY] = positions.ROTATE
+    this.boundingBox
+      .moveTo(topCenterX, topCenterY)
+      .lineTo(rotateX, rotateY)
+      .stroke({ width: contrastWidth, color: TRANSFORM_CONTRAST_COLOR, alpha: 0.9 })
+      .moveTo(topCenterX, topCenterY)
+      .lineTo(rotateX, rotateY)
+      .stroke({ width: borderWidth, color: TRANSFORM_COLOR, alpha: 1 })
 
-      if (key !== 'REMOVE') {
-        boundingBox
-          .rect(x - controlPointSize / 2, y - controlPointSize / 2, controlPointSize, controlPointSize)
-          .fill({ color: 0xFFFFFF, alpha: 0.5 })
+    this.controlPoints.TOP_CENTER.visible = showHorizontalEdgeHandles
+    this.controlPoints.BOTTOM_CENTER.visible = showHorizontalEdgeHandles
+    this.controlPoints.LEFT_CENTER.visible = showVerticalEdgeHandles
+    this.controlPoints.RIGHT_CENTER.visible = showVerticalEdgeHandles
+    this.controlPoints.CENTER.visible = false
+
+    for (const key of SCALE_CONTROL_POINTS) {
+      const sprite = this.controlPoints[key]
+      const [x, y] = positions[key]
+      sprite.position.set(x, y)
+      sprite.width = handleHitSize
+      sprite.height = handleHitSize
+      sprite.cursor = resizeCursor(key, this.rotation)
+
+      if (sprite.visible) {
+        this.boundingBox
+          .roundRect(x - handleSize / 2, y - handleSize / 2, handleSize, handleSize, handleRadius)
+          .fill({ color: TRANSFORM_CONTRAST_COLOR, alpha: 1 })
+          .stroke({ width: borderWidth, color: TRANSFORM_COLOR, alpha: 1 })
       }
-      // update handle position
-      this.controlPoints[key as ControlPointPosition].position.set(x, y)
     }
 
-    // rotate handle line
-    const [topCenterX, topCenterY] = controlPointsPos.TOP_CENTER
-    const [rotateHandleX, rotateHandleY] = controlPointsPos.ROTATE
-    boundingBox
-      .moveTo(topCenterX, topCenterY)
-      .lineTo(rotateHandleX, rotateHandleY)
-      .stroke({ width: 1, color: 0x3D5CAA, alpha: 1 })
+    const rotateHandle = this.controlPoints.ROTATE
+    rotateHandle.position.set(rotateX, rotateY)
+    rotateHandle.width = handleHitSize
+    rotateHandle.height = handleHitSize
+    this.boundingBox
+      .circle(rotateX, rotateY, handleSize / 2)
+      .fill({ color: TRANSFORM_CONTRAST_COLOR, alpha: 1 })
+      .stroke({ width: borderWidth, color: TRANSFORM_COLOR, alpha: 1 })
 
+    this.controlPoints.CENTER.position.set(...positions.CENTER)
     return this.boundingBoxContainer
   }
 
-  /**
-   * not destroy
-   */
-  remove() {
-    const { parent } = this
-    if (!parent)
-      return
-
-    this.lastParent = parent
-    parent.removeChild(this)
-    this.painter.boundingBoxes.removeChild(this.boundingBoxContainer)
+  /** Detach the interaction overlay without destroying its retained undo data. */
+  remove(): void {
+    this.lastParent = this.parent
+    this.lastBoundingBoxParent = this.boundingBoxContainer.parent
+    this.parent?.removeChild(this)
+    this.boundingBoxContainer.parent?.removeChild(this.boundingBoxContainer)
   }
 
-  restore() {
-    this.lastParent?.addChild(this)
-    this.painter.boundingBoxes.addChild(this.boundingBoxContainer)
+  restore(): void {
+    if (this.lastParent && !this.parent)
+      this.lastParent.addChild(this)
+    if (this.lastBoundingBoxParent && !this.boundingBoxContainer.parent)
+      this.lastBoundingBoxParent.addChild(this.boundingBoxContainer)
   }
 
   override destroy(options?: Parameters<Container['destroy']>[0]): void {
+    this.painter.emitter.off('viewport:change', this.handleViewportChange)
+    this.boundingBoxContainer.destroy({ children: true })
     super.destroy(options)
-
-    // destroy bounding box and all children
-    this.boundingBoxContainer.destroy()
   }
+}
+
+function transformHitScreenSize(): number {
+  if (typeof globalThis.matchMedia === 'function' && globalThis.matchMedia('(pointer: coarse)').matches)
+    return TRANSFORM_TOUCH_HIT_SCREEN_SIZE
+  return TRANSFORM_MOUSE_HIT_SCREEN_SIZE
 }

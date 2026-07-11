@@ -1,6 +1,8 @@
 import type * as PIXI from 'pixi.js'
 import type { EditableLayer } from '.'
 
+const ROTATION_SNAP_RADIANS = Math.PI / 12
+
 /**
  * 获取夹角
  */
@@ -27,11 +29,17 @@ export function createRotateHandle({
 
   function onRotateStart(e: PIXI.FederatedPointerEvent) {
     e.stopPropagation()
-    rotateSprite.alpha = 1
+    if (startPos)
+      return
 
+    layer.notifyTransformStart()
+    rotateSprite.cursor = 'grabbing'
     startRotation = layer.rotation
     startPos = e.global.clone()
     app.stage.on('pointermove', onRotateMove)
+    app.stage.on('pointerup', onRotateEnd)
+    app.stage.on('pointerupoutside', onRotateEnd)
+    app.stage.on('pointercancel', onRotateEnd)
   }
 
   function onRotateMove(e: PIXI.FederatedPointerEvent) {
@@ -47,16 +55,26 @@ export function createRotateHandle({
     const ob = pos.subtract(center)
 
     const angle = getAngleRadian(oa, ob)
-    layer.rotation = startRotation + angle
-    layer.boundingBoxContainer.rotation = layer.rotation
+    const rotation = startRotation + angle
+    layer.rotation = e.shiftKey
+      ? Math.round(rotation / ROTATION_SNAP_RADIANS) * ROTATION_SNAP_RADIANS
+      : rotation
+    layer.updateTransformBoundingBox()
+    layer.notifyTransformChange()
   }
 
   function onRotateEnd() {
-    rotateSprite.alpha = 0.5
+    if (!startPos)
+      return
+
+    startPos = null
+    rotateSprite.cursor = 'grab'
     app.stage.off('pointermove', onRotateMove)
+    app.stage.off('pointerup', onRotateEnd)
+    app.stage.off('pointerupoutside', onRotateEnd)
+    app.stage.off('pointercancel', onRotateEnd)
+    layer.notifyTransformEnd()
   }
 
   rotateSprite.on('pointerdown', onRotateStart)
-  app.stage.on('pointerup', onRotateEnd)
-  app.stage.on('pointerupoutside', onRotateEnd)
 }

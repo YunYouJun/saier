@@ -37,6 +37,7 @@ export function createDrag({
       return
 
     e.stopPropagation()
+    layer.notifyTransformStart()
 
     offset = e.global.subtract(layer.getGlobalPosition())
     dragTargets = containers
@@ -70,6 +71,8 @@ export function createDrag({
       const newPos = parent.toLocal(e.global.subtract(offset), undefined)
       dragTarget.position = newPos
     })
+    layer.updateTransformBoundingBox()
+    layer.notifyTransformChange()
   }
 
   function onDragEnd() {
@@ -80,6 +83,7 @@ export function createDrag({
       area.off('pointermove', onDragMove)
       dragTargets = []
       setCursorStyle('default')
+      layer.notifyTransformEnd()
     }
   }
 

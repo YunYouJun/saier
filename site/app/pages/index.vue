@@ -2184,14 +2184,20 @@ installSiteCloudRoomE2eBridge()
     </template>
 
     <template #options>
-      <PainterOptionsBar
-        v-if="painter && panelVisibility.options"
-        :painter="painter"
-        :labels="text.brushOptions"
-        :stabilizer-strength="stabilizerStrength"
-        @unavailable-preset="showUnavailableBrushPresetNotice"
-        @update:stabilizer-strength="setStabilizerStrength"
-      />
+      <template v-if="painter && panelVisibility.options">
+        <PainterTransformBar
+          v-if="state?.tool === 'selection' && painter.getTransformSelection()"
+          :painter="painter"
+        />
+        <PainterOptionsBar
+          v-else
+          :painter="painter"
+          :labels="text.brushOptions"
+          :stabilizer-strength="stabilizerStrength"
+          @unavailable-preset="showUnavailableBrushPresetNotice"
+          @update:stabilizer-strength="setStabilizerStrength"
+        />
+      </template>
     </template>
 
     <template #controls>

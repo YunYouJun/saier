@@ -469,6 +469,43 @@ export class RenderTextureBackend implements SurfaceBackend, DisplayMaskCapableB
     this.renderPixels(layer.committedRT, rect, pixels)
   }
 
+  readRegion(layerId: string, rect: DirtyRect): Uint8Array {
+    const layer = this.getLayer(layerId)
+    const normalized = clampToSize(rect, this.width, this.height)
+    if (isEmpty(normalized))
+      return new Uint8Array()
+
+    const readback = new Sprite(layer.committedRT)
+    try {
+      const { pixels } = this.renderer.extract.pixels({
+        target: readback,
+        frame: new Rectangle(normalized.x, normalized.y, normalized.width, normalized.height),
+      })
+      return clonePixels(pixels)
+    }
+    finally {
+      readback.destroy()
+    }
+  }
+
+  writeRegion(layerId: string, rect: DirtyRect, pixels: Uint8Array): void {
+    const layer = this.getLayer(layerId)
+    const normalized = clampToSize(rect, this.width, this.height)
+    if (isEmpty(normalized)) {
+      if (pixels.length !== 0)
+        throw new Error('Cannot write non-empty pixels into an empty region')
+      return
+    }
+    if (pixels.length !== normalized.width * normalized.height * 4) {
+      throw new Error(
+        `Region pixel length ${pixels.length} does not match rect ${normalized.width}x${normalized.height}`,
+      )
+    }
+
+    this.eraseRect(layer.committedRT, normalized)
+    this.renderPixels(layer.committedRT, normalized, pixels)
+  }
+
   getDisplayHandle(layerId: string): unknown {
     return this.getLayer(layerId).sprite
   }

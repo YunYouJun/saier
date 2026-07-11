@@ -547,4 +547,56 @@ describe('saier-room-api handler', () => {
       },
     })
   })
+
+  it('returns the selected driver when owners switch to driver mode', async () => {
+    const { handler, setUser } = createHarness()
+    const { finalized, reserved } = await createAndFinalizeRoom(handler)
+    const roomId = (finalized.session?.room as { id: string }).id
+
+    setUser('viewer')
+    await handler({
+      action: 'joinRoom',
+      inviteToken: reserved.inviteToken,
+      roomId,
+    })
+
+    setUser('owner')
+    await handler({
+      action: 'setMemberRole',
+      role: 'editor',
+      roomId,
+      userId: 'viewer',
+    })
+    const updated = await handler({
+      action: 'setRoomMode',
+      driverUserId: 'viewer',
+      mode: 'driver',
+      roomId,
+    })
+
+    expect(updated).toMatchObject({
+      room: {
+        driverUserId: 'viewer',
+        id: roomId,
+        mode: 'driver',
+      },
+    })
+
+    setUser('viewer')
+    const operation = await handler({
+      action: 'appendOperation',
+      baseRevision: 0,
+      clientId: 'client-driver',
+      clientOpId: 'op-driver',
+      payload: { command: 'layer:add' },
+      roomId,
+      type: 'layer:command',
+    })
+    expect(operation).toMatchObject({
+      operation: {
+        revision: 1,
+        userId: 'viewer',
+      },
+    })
+  })
 })

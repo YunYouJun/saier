@@ -2,6 +2,7 @@
 import type { PainterLayerNodeState, SaierProjectFile, SaierStrokeCommit, SaierStrokeLog, StrokePatch, TiledSurface, TilePatch } from '@saier/core'
 import type { Painter } from 'saier'
 import type { YunlefunCloudFile } from '~/composables/useYunlefunCloudFiles'
+import type { SetRoomMemberRoleOptions, SetRoomModeOptions } from '~/composables/useYunlefunCloudRooms'
 import type { SiteKeyboardShortcutRow, SiteNewCanvasRequest, SitePainterColorSectionId, SitePainterCommand, SitePainterFilterCommand, SitePainterMenuCommand, SitePainterPanelId, SitePainterTool } from '~/types/painter-app'
 import type { SitePainterShellMode } from '~/types/painter-shell'
 import type { SaierProjectDraftFile } from '~/utils/projectDraft'
@@ -198,6 +199,8 @@ const {
   leaveRoom: leaveCloudRoomSession,
   listOperations: listCloudRoomOperations,
   session: cloudRoomSession,
+  setMemberRole: setCloudRoomMemberRole,
+  setRoomMode: setCloudRoomMode,
   shareUrl: cloudRoomShareUrl,
   status: cloudRoomStatus,
   updatePresence: updateCloudRoomPresence,
@@ -680,6 +683,26 @@ async function shareCloudRoom(): Promise<void> {
 function leaveCloudRoom(): void {
   leaveCloudRoomSession()
   pendingCloudRoomLink.value = ''
+}
+
+async function updateCloudRoomMemberRole(options: SetRoomMemberRoleOptions): Promise<void> {
+  const result = await setCloudRoomMemberRole(options)
+  if (!result.ok) {
+    showCloudRoomOperationFailure()
+    return
+  }
+
+  showSiteNotice('info', text.value.cloudRooms.status, result.session?.room.title)
+}
+
+async function updateCloudRoomMode(options: SetRoomModeOptions): Promise<void> {
+  const result = await setCloudRoomMode(options)
+  if (!result.ok) {
+    showCloudRoomOperationFailure()
+    return
+  }
+
+  showSiteNotice('info', text.value.cloudRooms.status, result.session?.room.title)
 }
 
 async function copyCloudRoomLink(url: string): Promise<void> {
@@ -2327,6 +2350,8 @@ installSiteCloudRoomE2eBridge()
     @join="joinCloudRoom"
     @leave="leaveCloudRoom"
     @login="loginWithYunlefunForCloudRoom"
+    @set-member-role="updateCloudRoomMemberRole"
+    @set-room-mode="updateCloudRoomMode"
     @share="shareCloudRoom"
   />
 

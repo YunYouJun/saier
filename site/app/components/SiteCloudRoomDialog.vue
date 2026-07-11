@@ -1,6 +1,12 @@
 <script setup lang="ts">
-import type { YunlefunCloudRoomSession, YunlefunCloudRoomStatus } from '~/composables/useYunlefunCloudRooms'
+import type {
+  SetRoomMemberRoleOptions,
+  SetRoomModeOptions,
+  YunlefunCloudRoomSession,
+  YunlefunCloudRoomStatus,
+} from '~/composables/useYunlefunCloudRooms'
 import { computed, shallowRef, watch } from 'vue'
+import SiteCloudRoomOwnerPanel from './SiteCloudRoomOwnerPanel.vue'
 
 interface SiteCloudRoomDialogLabels {
   backendGated: string
@@ -9,6 +15,7 @@ interface SiteCloudRoomDialogLabels {
   create: string
   createTitle: string
   creating: string
+  driverEditor: string
   errorTitle: string
   join: string
   joinInput: string
@@ -16,12 +23,21 @@ interface SiteCloudRoomDialogLabels {
   joining: string
   leave: string
   members: string
+  modeDriver: string
+  modeMultiEditor: string
+  modeViewer: string
+  noEditorAvailable: string
   notAuthenticated: string
   owner: string
+  ownerTools: string
   readOnly: string
   roleEditor: string
   roleOwner: string
   roleViewer: string
+  roomMode: string
+  saveRoomMode: string
+  setRoleEditor: string
+  setRoleViewer: string
   share: string
   shareLink: string
   signIn: string
@@ -47,6 +63,8 @@ const emit = defineEmits<{
   join: [link: string]
   leave: []
   login: []
+  setMemberRole: [options: SetRoomMemberRoleOptions]
+  setRoomMode: [options: SetRoomModeOptions]
   share: []
 }>()
 
@@ -57,6 +75,7 @@ const isBusy = computed(() =>
   props.status === 'creating'
   || props.status === 'joining'
   || props.status === 'leaving'
+  || props.status === 'syncing'
   || props.status === 'sharing',
 )
 const createDisabled = computed(() => isBusy.value || !props.isAuthenticated || !roomTitle.value.trim())
@@ -176,6 +195,15 @@ function roleLabel(role: YunlefunCloudRoomSession['role']): string {
             <small>{{ roleLabel(member.role) }}</small>
           </div>
         </div>
+
+        <SiteCloudRoomOwnerPanel
+          v-if="session.role === 'owner'"
+          :disabled="isBusy"
+          :labels="labels"
+          :session="session"
+          @set-member-role="emit('setMemberRole', $event)"
+          @set-room-mode="emit('setRoomMode', $event)"
+        />
       </section>
 
       <div v-else class="site-cloud-room__forms">

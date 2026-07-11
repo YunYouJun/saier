@@ -663,6 +663,7 @@ function canSubmitOperation(room, member) {
 function publicRoom(room) {
   return {
     createdAt: room.createdAt,
+    driverUserId: room.driverUserId,
     headRevision: room.headRevision,
     id: room.id,
     latestSnapshotRevision: room.latestSnapshotRevision,

@@ -45,6 +45,7 @@ export type YunlefunCloudRoomOperationType
 
 export interface YunlefunCloudRoom {
   createdAt: number
+  driverUserId?: string
   headRevision: number
   id: string
   latestSnapshotRevision: number
@@ -121,6 +122,16 @@ export interface UpdateRoomPresenceOptions {
   presence?: Record<string, unknown>
 }
 
+export interface SetRoomMemberRoleOptions {
+  role: Exclude<YunlefunCloudRoomRole, 'owner'>
+  userId: string
+}
+
+export interface SetRoomModeOptions {
+  driverUserId?: string
+  mode: YunlefunCloudRoomMode
+}
+
 interface CreateRoomOptions {
   title: string
   visibility: YunlefunCloudRoomVisibility
@@ -188,6 +199,15 @@ interface UpdateRoomPresenceResult {
   room?: YunlefunCloudRoom
 }
 
+interface SetRoomMemberRoleResult {
+  members: YunlefunCloudRoomMember[]
+  room: YunlefunCloudRoom
+}
+
+interface SetRoomModeResult {
+  room: YunlefunCloudRoom
+}
+
 interface YunlefunCloudRoomRuntimeConfig {
   public: {
     saierCloudRoomApiFunctionName?: string
@@ -197,6 +217,7 @@ interface YunlefunCloudRoomRuntimeConfig {
 export function useYunlefunCloudRooms() {
   const config = useRuntimeConfig() as unknown as YunlefunCloudRoomRuntimeConfig
   const {
+    account,
     getCloudbaseApp,
     isAuthenticated,
     signIn,
@@ -445,8 +466,7 @@ export function useYunlefunCloudRooms() {
       return
     session.value = {
       ...session.value,
-      readOnly: session.value.role === 'viewer'
-        || (session.value.role === 'editor' && room.mode === 'viewer'),
+      readOnly: !canSubmitRoomOperation(room, session.value.role, account.value?.uid),
       room,
     }
   }
@@ -574,6 +594,67 @@ export function useYunlefunCloudRooms() {
     }
   }
 
+  async function setMemberRole(options: SetRoomMemberRoleOptions): Promise<YunlefunCloudRoomResult> {
+    const room = session.value?.room
+    if (!room)
+      return failureResult('room_not_found')
+    if (!await ensureSignedIn())
+      return failureResult('not_authenticated')
+
+    status.value = 'syncing'
+    clearFailure()
+
+    try {
+      const updated = parseSetRoomMemberRoleResult(await callRoomApi('setMemberRole', {
+        role: options.role,
+        roomId: room.id,
+        userId: options.userId,
+      }))
+      if (!updated)
+        throw createFailureError('backend_unavailable')
+
+      updateSessionRoom(updated.room)
+      updateSessionMembers(updated.members)
+      status.value = 'idle'
+      return { ok: true, session: session.value ?? undefined }
+    }
+    catch (error) {
+      const reason = mapRoomError(error, 'backend_unavailable')
+      setFailure(reason, error)
+      return failureResult(reason, error)
+    }
+  }
+
+  async function setRoomMode(options: SetRoomModeOptions): Promise<YunlefunCloudRoomResult> {
+    const room = session.value?.room
+    if (!room)
+      return failureResult('room_not_found')
+    if (!await ensureSignedIn())
+      return failureResult('not_authenticated')
+
+    status.value = 'syncing'
+    clearFailure()
+
+    try {
+      const updated = parseSetRoomModeResult(await callRoomApi('setRoomMode', {
+        driverUserId: options.driverUserId,
+        mode: options.mode,
+        roomId: room.id,
+      }))
+      if (!updated)
+        throw createFailureError('backend_unavailable')
+
+      updateSessionRoom(updated.room)
+      status.value = 'idle'
+      return { ok: true, session: session.value ?? undefined }
+    }
+    catch (error) {
+      const reason = mapRoomError(error, 'backend_unavailable')
+      setFailure(reason, error)
+      return failureResult(reason, error)
+    }
+  }
+
   function failureMessage(labels: YunlefunCloudRoomLabels): string {
     if (lastError.value)
       return lastError.value
@@ -644,6 +725,8 @@ export function useYunlefunCloudRooms() {
     leaveRoom,
     listOperations,
     session: readonly(session),
+    setMemberRole,
+    setRoomMode,
     shareUrl,
     status: readonly(status),
     updatePresence,
@@ -752,6 +835,20 @@ function parseUpdateRoomPresenceResult(value: unknown): UpdateRoomPresenceResult
   }
 }
 
+function parseSetRoomMemberRoleResult(value: unknown): SetRoomMemberRoleResult | undefined {
+  const record = asRecord(value)
+  const room = parseRoom(record?.room)
+  const members = arrayValue(record?.members)
+    ?.map(parseRoomMember)
+    .filter(isRoomMember)
+  return room && members ? { members, room } : undefined
+}
+
+function parseSetRoomModeResult(value: unknown): SetRoomModeResult | undefined {
+  const room = parseRoom(asRecord(value)?.room)
+  return room ? { room } : undefined
+}
+
 function parseRoomSession(value: unknown): YunlefunCloudRoomSession | undefined {
   const record = asRecord(value)
   const room = parseRoom(record?.room)
@@ -787,6 +884,7 @@ function parseRoom(value: unknown): YunlefunCloudRoom | undefined {
 
   return {
     createdAt: timestampValue(record.createdAt) ?? Date.now(),
+    driverUserId: stringValue(record.driverUserId),
     headRevision: numberValue(record.headRevision) ?? 0,
     id,
     latestSnapshotRevision: numberValue(record.latestSnapshotRevision) ?? 0,
@@ -1008,6 +1106,22 @@ function isRoomFailure(value: string): value is YunlefunCloudRoomFailure {
 
 function isRoomOperation(value: YunlefunCloudRoomOperation | undefined): value is YunlefunCloudRoomOperation {
   return Boolean(value)
+}
+
+function canSubmitRoomOperation(
+  room: YunlefunCloudRoom,
+  role: YunlefunCloudRoomRole,
+  userId: string | undefined,
+): boolean {
+  if (role === 'owner')
+    return true
+  if (role !== 'editor')
+    return false
+  if (room.mode === 'multi-editor')
+    return true
+  if (room.mode === 'driver')
+    return room.driverUserId === userId
+  return false
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {

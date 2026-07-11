@@ -1,5 +1,4 @@
 import type { Painter, PainterTransformSnapshot } from 'saier'
-import mitt from 'mitt'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick } from 'vue'
 import PainterTransformBar from '../components/PainterTransformBar.vue'
@@ -12,7 +11,15 @@ afterEach(() => {
 })
 
 function createFakePainter(snapshot: PainterTransformSnapshot | null) {
-  const emitter = mitt<{ 'transform:change': PainterTransformSnapshot | null }>()
+  const transformHandlers = new Set<(value: PainterTransformSnapshot | null) => void>()
+  const emitter = {
+    on: (_type: 'transform:change', handler: (value: PainterTransformSnapshot | null) => void) => transformHandlers.add(handler),
+    off: (_type: 'transform:change', handler: (value: PainterTransformSnapshot | null) => void) => transformHandlers.delete(handler),
+    emit: (_type: 'transform:change', value: PainterTransformSnapshot | null) => {
+      for (const handler of transformHandlers)
+        handler(value)
+    },
+  }
   return {
     emitter,
     getTransformSelection: vi.fn(() => snapshot),

@@ -206,11 +206,19 @@ async function getDueActivitySessions(database, collectionName, now, limit) {
 }
 
 async function updateById(database, collectionName, id, patch) {
-  await database.collection(collectionName).doc(id).update(patch)
+  await database.collection(collectionName).doc(id).update(sanitizeWriteDocument(patch))
 }
 
 async function setById(database, collectionName, id, doc) {
-  await database.collection(collectionName).doc(id).set(sanitizeDocument({ ...doc, id }))
+  await database.collection(collectionName).doc(id).set(sanitizeWriteDocument({ ...doc, id }))
+}
+
+function sanitizeWriteDocument(value) {
+  const document = sanitizeDocument(value)
+  if (!document || typeof document !== 'object' || Array.isArray(document))
+    return document
+  const { _id: _documentId, ...writeableDocument } = document
+  return writeableDocument
 }
 
 function sanitizeDocument(value) {

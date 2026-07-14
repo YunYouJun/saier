@@ -12,6 +12,9 @@ const roomCore = require('../cloudbase/functions/saier-room-api/room-core.cjs') 
   stringValue: (value: unknown) => string | undefined
 }
 const cloudbaseRuntime = require('../cloudbase/functions/saier-room-api/cloudbase-runtime.cjs') as {
+  createActivityTransactionStore: (database: CloudbaseTransactionDatabase, collections: CloudbaseRuntimeCollections) => {
+    setRoom: (id: string, doc: Record<string, unknown>) => Promise<void>
+  }
   createCloudbaseCollectionStore: (database: CloudbaseRuntimeDatabase, collections: CloudbaseRuntimeCollections) => {
     getRoom: (id: string) => Promise<Record<string, unknown> | undefined>
   }
@@ -30,6 +33,14 @@ interface CloudbaseRuntimeDatabase {
   collection: (name: string) => {
     doc: (id: string) => {
       get: () => Promise<{ data?: unknown }>
+    }
+  }
+}
+
+interface CloudbaseTransactionDatabase {
+  collection: (name: string) => {
+    doc: (id: string) => {
+      set: (document: Record<string, unknown>) => Promise<void>
     }
   }
 }
@@ -88,6 +99,37 @@ describe('saier room shared primitives', () => {
     })
 
     await expect(repo.getRoom('sr_1')).resolves.toEqual({ id: 'sr_1', status: 'pending' })
+  })
+
+  it('strips the CloudBase _id field before replacing transaction documents', async () => {
+    let writtenDocument: Record<string, unknown> | undefined
+    const transaction: CloudbaseTransactionDatabase = {
+      collection: () => ({
+        doc: () => ({
+          set: async (document) => {
+            writtenDocument = document
+          },
+        }),
+      }),
+    }
+    const store = cloudbaseRuntime.createActivityTransactionStore(transaction, {
+      members: 'members',
+      operations: 'operations',
+      reservations: 'reservations',
+      rooms: 'rooms',
+      snapshots: 'snapshots',
+    })
+
+    await store.setRoom('sr_1', {
+      _id: 'database-generated-id',
+      id: 'sr_1',
+      status: 'active',
+    })
+
+    expect(writtenDocument).toEqual({
+      id: 'sr_1',
+      status: 'active',
+    })
   })
 })
 

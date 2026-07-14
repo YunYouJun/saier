@@ -165,6 +165,8 @@ export function useYunlefunRoomActivities() {
   }
 
   async function callRoomApi(action: string, data: Record<string, unknown>): Promise<unknown> {
+    if (!auth.isAuthenticated.value)
+      await auth.initialize()
     if (!auth.isAuthenticated.value && !await auth.signIn('interactive'))
       throw new Error('not_authenticated')
     const app = await auth.getCloudbaseApp() as YunlefunCloudbaseApp | undefined

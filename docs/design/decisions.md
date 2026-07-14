@@ -8,23 +8,24 @@ title: Decisions (ADR)
 
 ## 决策速查
 
-| #   | 决策            | 推荐                                                                                    | 备选 / 触发切换的条件                                                   |
-| --- | --------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| D1  | 显示 / 存储后端 | **P1 用每图层 RenderTexture；P2 再上 256×256 tile**                                     | 若一开始就要 20k×20k 画布 / smudge，则直接上 tile（更重）               |
-| D2  | 笔刷运算坐标系  | **一律 document space**，与 zoom / DPR 解耦                                             | 无                                                                      |
-| D3  | Pixi 版本       | **先迁 v8（WebGL renderer 生产稳定）**                                                  | WebGPU 仅作实验开关                                                     |
-| D4  | 撤销粒度        | P1 笔迹区域快照；**P2 tile before / after patch**                                       | 单张全画布快照 = 禁止                                                   |
-| D5  | backend 可替换  | `SurfaceBackend` 接口从 P1 就抽象出来                                                   | 无（这是不返工的关键）                                                  |
-| D6  | 输入采集        | Pixi federated event 够用；**另留 DOM `getCoalescedEvents()` 接入点**给极致采样         | 无                                                                      |
-| D7  | UI 分层         | **面板→Vue/DOM；overlay→pixi；输入+状态→core(headless controller)**                     | UI 状态的事实来源禁止搬进框架响应式                                     |
-| D8  | 品牌 / 包分层   | ✅ **已落地**：品牌 = `saier`；scope 统一 `@saier/*`；可复用 UI 拆包、`site` 只消费     | 旧 npm `pixi-painter` deprecated alias 仍属首次 republish 的发布期工作  |
-| D9  | 蒙版语义        | **图层蒙版按灰度亮度（luminance）显隐；剪贴（clip）按下层 alpha**                       | 纯 alpha 蒙版与主流软件相反、无法表达灰阶柔边                           |
-| D10 | 取色读回路径    | ✅ **已定**：`SurfaceSampler.sampleRegion` 注入笔刷、CPU tile 原生实现、逐 dab 交错采   | 纯协调器交错为备选（业界均逐 dab 串行）                                 |
-| D11 | 混色后端        | ✅ **已定（方案 A）**：**tile 升为默认绘画后端**；CPU tile = 像素真相、GPU 仅显示       | GPU 混色须自研 renderer（见[末尾](#何时才值得彻底脱离-pixi纯原生重写)） |
-| D12 | 平台 shell      | ✅ **已定**：Web / Electron / Capacitor 只接 UI shell + platform adapter，不改 core     | 若 native 功能需要改工程格式，先新增 adapter / capability，不改 painter |
-| D13 | 云端房间协作    | ✅ **已定**：server authoritative op log + snapshot，不做像素级 CRDT                    | 真正离线多人编辑再评估 CRDT / OT，但不作为在线绘画 v1                   |
-| D14 | 房间 API 边界   | ✅ **已定**：Saier 房间独立 API，共用 CloudBase primitive，不共用产品 room API          | 有第二个本地消费者后再抽 internal package                               |
-| D15 | 笔迹录制 / 回放 | ✅ **已定**：snapshot 为主真相，stroke log 为语义 sidecar，录制 canonical replay events | 跨 engine major 漂移时用 patch fallback / checkpoint snapshot 对齐      |
+| #   | 决策             | 推荐                                                                                    | 备选 / 触发切换的条件                                                   |
+| --- | ---------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| D1  | 显示 / 存储后端  | **P1 用每图层 RenderTexture；P2 再上 256×256 tile**                                     | 若一开始就要 20k×20k 画布 / smudge，则直接上 tile（更重）               |
+| D2  | 笔刷运算坐标系   | **一律 document space**，与 zoom / DPR 解耦                                             | 无                                                                      |
+| D3  | Pixi 版本        | **先迁 v8（WebGL renderer 生产稳定）**                                                  | WebGPU 仅作实验开关                                                     |
+| D4  | 撤销粒度         | P1 笔迹区域快照；**P2 tile before / after patch**                                       | 单张全画布快照 = 禁止                                                   |
+| D5  | backend 可替换   | `SurfaceBackend` 接口从 P1 就抽象出来                                                   | 无（这是不返工的关键）                                                  |
+| D6  | 输入采集         | Pixi federated event 够用；**另留 DOM `getCoalescedEvents()` 接入点**给极致采样         | 无                                                                      |
+| D7  | UI 分层          | **面板→Vue/DOM；overlay→pixi；输入+状态→core(headless controller)**                     | UI 状态的事实来源禁止搬进框架响应式                                     |
+| D8  | 品牌 / 包分层    | ✅ **已落地**：品牌 = `saier`；scope 统一 `@saier/*`；可复用 UI 拆包、`site` 只消费     | 旧 npm `pixi-painter` deprecated alias 仍属首次 republish 的发布期工作  |
+| D9  | 蒙版语义         | **图层蒙版按灰度亮度（luminance）显隐；剪贴（clip）按下层 alpha**                       | 纯 alpha 蒙版与主流软件相反、无法表达灰阶柔边                           |
+| D10 | 取色读回路径     | ✅ **已定**：`SurfaceSampler.sampleRegion` 注入笔刷、CPU tile 原生实现、逐 dab 交错采   | 纯协调器交错为备选（业界均逐 dab 串行）                                 |
+| D11 | 混色后端         | ✅ **已定（方案 A）**：**tile 升为默认绘画后端**；CPU tile = 像素真相、GPU 仅显示       | GPU 混色须自研 renderer（见[末尾](#何时才值得彻底脱离-pixi纯原生重写)） |
+| D12 | 平台 shell       | ✅ **已定**：Web / Electron / Capacitor 只接 UI shell + platform adapter，不改 core     | 若 native 功能需要改工程格式，先新增 adapter / capability，不改 painter |
+| D13 | 云端房间协作     | ✅ **已定**：server authoritative op log + snapshot，不做像素级 CRDT                    | 真正离线多人编辑再评估 CRDT / OT，但不作为在线绘画 v1                   |
+| D14 | 房间 API 边界    | ✅ **已定**：Saier 房间独立 API，共用 CloudBase primitive，不共用产品 room API          | 有第二个本地消费者后再抽 internal package                               |
+| D15 | 笔迹录制 / 回放  | ✅ **已定**：snapshot 为主真相，stroke log 为语义 sidecar，录制 canonical replay events | 跨 engine major 漂移时用 patch fallback / checkpoint snapshot 对齐      |
+| D16 | 房间玩法权威链路 | ✅ **已定**：NoSQL 事务是真相，outbox + cursor recovery 保证可恢复，Redis 只加速        | 未知第三方代码需要独立沙箱与公开 SDK，v1 不开放                         |
 
 ## D1 — RenderTexture 先行，Tile 后置 {#d1}
 
@@ -252,6 +253,25 @@ export function usePainter(painter: Painter) {
 **理由**：这保留了绘画软件文件的可靠性，同时给协作和回放留下语义层。录制 canonical replay events 可以避开浏览器事件差异、viewport / DPR 差异和未来 stabilizer 改动；snapshot checkpoint 则避免长会话无限重放和跨版本漂移。
 
 **非目标**：不录制原始 DOM/Pixi 事件作为权威数据；不把本地 undo stack 当持久历史；不承诺跨 brush engine major version 逐像素一致；不在 v1 处理离线多人合并。
+
+## D16 — 房间玩法采用事务权威状态与第一方 Activity 边界 {#d16}
+
+> ✅ **已定（2026-07-15）**。涉及 [P13-07 / P14](./tasks/P13-07-authoritative-realtime-activities)、[Cloud Rooms](./cloud-rooms) 与 `@saier/collaboration`。
+
+**背景**：你画我猜同时包含公开状态、题目 secret、实时笔迹、计分、断线恢复和 deadline。WebSocket/Redis Pub/Sub 都不能提供权威持久性；如果玩法直接复用主工程 canvas，也可能把临时笔迹写入用户工程。
+
+**决策**：
+
+1. 每条权威命令在同一 CloudBase 多文档事务中提交 public projection、secret、public event、command dedupe 和 outbox；HTTP 与 WebSocket 共用同一个 command service。
+2. `activityEpoch + roundId + phaseEpoch + controllerEpoch` 是 fencing token；`eventSeq + canvasSeq` 是恢复游标；`gameRevision` 只用于非交换状态修改的乐观并发控制。
+3. NoSQL 保存 phase/deadline 真相。Redis 只做通知、presence、限流和 deadline sorted-set 加速；Pub/Sub 丢消息由 outbox、5 秒 watermark 和 delta/snapshot 恢复弥补。
+4. 玩法画布是结构独立的 `ActivityDocument`、repository、collection 和 storage prefix。activity API 无法接收主工程 document id；宿主权限、权威角色和工具 allowlist 取交集。
+5. v1 只加载同 bundle 的第一方 `RoomActivityExtension`。package exports、restricted imports、冻结 facade 和 disposer 检查是架构隔离，不宣称是恶意代码安全沙箱。
+6. Pictionary 使用独立路由和轻量 activity room；主工程只提供入口，不承载完整游戏 UI。
+
+**理由**：事务边界保证并发、重试和进程崩溃时不会重复计分或泄露答案；持久游标保证漏掉最后一条 Pub/Sub 仍能发现；物理 canvas 隔离让“游戏不修改主工程”成为类型和存储层约束，而不是调用约定。
+
+**非目标**：v1 不提供第三方插件 SDK、游客、语音、全球匹配、离线多人合并或 Redis Streams 第二套真相。生产 realtime 资源、Redis/VPC 与双实例启用仍须通过独立 rollout gate。
 
 ---
 

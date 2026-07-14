@@ -1,8 +1,8 @@
 ---
-title: Roadmap (P0–P13)
+title: Roadmap (P0–P14)
 ---
 
-# Roadmap：P0–P13 执行计划
+# Roadmap：P0–P14 执行计划
 
 > 按阶段推进，逐阶段提交。每阶段给出：目标 / 范围 / 产出文件 / 验收标准（尽量可自动化）/ 明确不做的事。
 > 阅读前请先读 [Overview](./) 与 [Decisions](./decisions)；接口契约见 [Interfaces](./interfaces)；验收方法见 [Testing](./testing)。
@@ -146,8 +146,21 @@ title: Roadmap (P0–P13)
   - [P13-04](./tasks/P13-04-reconnect-snapshots)：断线重连与 snapshot 压缩。
   - [P13-05](./tasks/P13-05-multi-editor-permissions)：多人编辑权限、driver 模式、图层锁和冲突边界。
   - [P13-06](./tasks/P13-06-verify-collaboration)：双客户端协作验收。
+  - [P13-07](./tasks/P13-07-authoritative-realtime-activities)：权威 Activity 协议、HTTP command service、outbox/watermark、NoSQL deadline 与 realtime shadow/preview。
 - **验收**：A 创建房间，B 通过链接加入并看到相同 snapshot；A 绘制后 B 收到同 revision；图层命令按顺序同步；断线重连不重复应用 pending op；权限错误有提示；snapshot + ops 恢复后像素 hash 一致。
 - **不做**：像素级 CRDT、离线多人合并、协作逻辑进入 painter core。
+
+## P14 — Pictionary 房间玩法
+
+- **目标**：在 P13-07 的权威 Activity 基础上交付第一方你画我猜，验证安全扩展边界和临时 activity canvas，不修改主工程文档。
+- **范围**：
+  - 独立 `/games/pictionary` 创建/加入页与 `/games/pictionary/[roomId]` 游戏页。
+  - 2–12 人 lobby、题库、choosing/drawing/reveal/finished 状态机、私有画手 projection、猜词、计分、离线宽限和 controller takeover。
+  - 固定 1024×768 单层 activity canvas，只开放 pen/marker/eraser、颜色和笔径。
+  - `realtimeCommittedEvents`、`realtimePreview`、`pictionary`、`redisDeadlineAcceleration` 四个独立 feature flag。
+- **验收**：HTTP/polling 单独可完成整局；答案不出现在公共 API/event/log/outbox；漏通知、Redis 故障、旧 epoch 和多 tab 不改变权威结果；主工程 operation log、snapshot revision 和 storage namespace 不变。
+- **发布门槛**：上海 VPC Redis 连通、CloudRun `MinNum >= 2`、滚动 drain、100-room 容量和安全攻击矩阵通过后，才允许逐级开启 realtime flags。
+- **不做**：第三方插件市场、游客、分队、语音、全球匹配和公共自定义题库市场。
 
 ## 里程碑节奏（建议）
 
@@ -160,7 +173,8 @@ M5 = P8 + P9 gate  // 文件 / 回放 + 外部引擎插槽 + 发布前收口
 M6 = P10           // 云同步 / 持久化 / 发布运营 —— “能长期使用”
 M7 = P11           // 平台 shell / 移动端前置解耦 —— “能多端演进”
 M8 = P12           // Native packaging spike —— “能安装到桌面 / 移动端”
-M9 = P13           // 云端房间共享画布 —— “能一起画”
+M9 = P13           // 云端房间共享画布 + 权威 Activity —— “能一起画”
+M10 = P14          // Pictionary 第一方玩法 —— “能一起玩”
 ```
 
 每个 M 结束：demo 可用 + 验收标准全过 + 一次提交 / 发版。

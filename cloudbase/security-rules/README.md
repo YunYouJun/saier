@@ -13,19 +13,26 @@ listStorageFiles({ appId, kind, slotKey })
 
 ## Resources
 
-| Resource                                                         | Rule file                                      | Permission |
-| ---------------------------------------------------------------- | ---------------------------------------------- | ---------- |
-| NoSQL collection `user_memberships`                              | `no-sql/user_memberships.json`                 | `CUSTOM`   |
-| NoSQL collection `user_storage_quotas`                           | `no-sql/user_storage_quotas.json`              | `CUSTOM`   |
-| NoSQL collection `user_storage_files`                            | `no-sql/user_storage_files.json`               | `CUSTOM`   |
-| Legacy NoSQL collection `saier_cloud_files`                      | `no-sql/saier_cloud_files.json`                | `CUSTOM`   |
-| NoSQL collection `saier_room_rooms`                              | `no-sql/saier_room_rooms.json`                 | `CUSTOM`   |
-| NoSQL collection `saier_room_members`                            | `no-sql/saier_room_members.json`               | `CUSTOM`   |
-| NoSQL collection `saier_room_snapshot_reservations`              | `no-sql/saier_room_snapshot_reservations.json` | `CUSTOM`   |
-| NoSQL collection `saier_room_snapshots`                          | `no-sql/saier_room_snapshots.json`             | `CUSTOM`   |
-| NoSQL collection `saier_room_operations`                         | `no-sql/saier_room_operations.json`            | `CUSTOM`   |
-| NoSQL collection `yunlefun_test_accounts`                        | `no-sql/yunlefun_test_accounts.json`           | `CUSTOM`   |
-| Cloud Storage bucket `7975-yunlefun-8g7ybcxc7345c490-1325586649` | `storage/saier-projects.json`                  | `CUSTOM`   |
+| Resource                                                         | Rule file                                       | Permission |
+| ---------------------------------------------------------------- | ----------------------------------------------- | ---------- |
+| NoSQL collection `user_memberships`                              | `no-sql/user_memberships.json`                  | `CUSTOM`   |
+| NoSQL collection `user_storage_quotas`                           | `no-sql/user_storage_quotas.json`               | `CUSTOM`   |
+| NoSQL collection `user_storage_files`                            | `no-sql/user_storage_files.json`                | `CUSTOM`   |
+| Legacy NoSQL collection `saier_cloud_files`                      | `no-sql/saier_cloud_files.json`                 | `CUSTOM`   |
+| NoSQL collection `saier_room_rooms`                              | `no-sql/saier_room_rooms.json`                  | `CUSTOM`   |
+| NoSQL collection `saier_room_members`                            | `no-sql/saier_room_members.json`                | `CUSTOM`   |
+| NoSQL collection `saier_room_snapshot_reservations`              | `no-sql/saier_room_snapshot_reservations.json`  | `CUSTOM`   |
+| NoSQL collection `saier_room_snapshots`                          | `no-sql/saier_room_snapshots.json`              | `CUSTOM`   |
+| NoSQL collection `saier_room_operations`                         | `no-sql/saier_room_operations.json`             | `CUSTOM`   |
+| NoSQL collection `saier_room_game_sessions`                      | `no-sql/saier_room_game_sessions.json`          | `CUSTOM`   |
+| NoSQL collection `saier_room_game_secrets`                       | `no-sql/saier_room_game_secrets.json`           | `CUSTOM`   |
+| NoSQL collection `saier_room_game_events`                        | `no-sql/saier_room_game_events.json`            | `CUSTOM`   |
+| NoSQL collection `saier_room_game_commands`                      | `no-sql/saier_room_game_commands.json`          | `CUSTOM`   |
+| NoSQL collection `saier_room_game_outbox`                        | `no-sql/saier_room_game_outbox.json`            | `CUSTOM`   |
+| NoSQL collection `saier_room_game_canvas_operations`             | `no-sql/saier_room_game_canvas_operations.json` | `CUSTOM`   |
+| NoSQL collection `saier_room_game_snapshots`                     | `no-sql/saier_room_game_snapshots.json`         | `CUSTOM`   |
+| NoSQL collection `yunlefun_test_accounts`                        | `no-sql/yunlefun_test_accounts.json`            | `CUSTOM`   |
+| Cloud Storage bucket `7975-yunlefun-8g7ybcxc7345c490-1325586649` | `storage/saier-projects.json`                   | `CUSTOM`   |
 
 ## Runtime Policy
 
@@ -82,6 +89,13 @@ The room collections are intentionally client-private:
 - `saier_room_snapshot_reservations`
 - `saier_room_snapshots`
 - `saier_room_operations`
+- `saier_room_game_sessions`
+- `saier_room_game_secrets`
+- `saier_room_game_events`
+- `saier_room_game_commands`
+- `saier_room_game_outbox`
+- `saier_room_game_canvas_operations`
+- `saier_room_game_snapshots`
 
 All reads and writes go through `saier-room-api`, which enforces YunLeFun auth,
 invite-token checks, owner/editor/viewer roles, server-side revision assignment,
@@ -138,6 +152,13 @@ for (const [resourceId, securityRule] of [
   ['saier_room_snapshot_reservations', saierRoomSnapshotReservationsRule],
   ['saier_room_snapshots', saierRoomSnapshotsRule],
   ['saier_room_operations', saierRoomOperationsRule],
+  ['saier_room_game_sessions', saierRoomGameSessionsRule],
+  ['saier_room_game_secrets', saierRoomGameSecretsRule],
+  ['saier_room_game_events', saierRoomGameEventsRule],
+  ['saier_room_game_commands', saierRoomGameCommandsRule],
+  ['saier_room_game_outbox', saierRoomGameOutboxRule],
+  ['saier_room_game_canvas_operations', saierRoomGameCanvasOperationsRule],
+  ['saier_room_game_snapshots', saierRoomGameSnapshotsRule],
   ['yunlefun_test_accounts', yunlefunTestAccountsRule],
 ]) {
   managePermissions({

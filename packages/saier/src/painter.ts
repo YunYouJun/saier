@@ -2,6 +2,7 @@ import type {
   BrowserMemorySnapshot,
   BrushEngineRegistration,
   BrushEngineRegistry,
+  BrushInputPoint,
   BrushPreset,
   BrushPresetRegistry,
   DirtyRect,
@@ -14,6 +15,7 @@ import type {
   RasterLayer,
   SaierProjectFile,
   SaierProjectMetadata,
+  SaierStrokeCommit,
   StrokePatch,
   SurfaceBackend,
   SurfaceMemorySnapshot,
@@ -21,6 +23,7 @@ import type {
 } from '@saier/core'
 import type { DisplayMaskCapableBackend, ViewportPoint } from '@saier/pixi'
 import type { PainterCanvas } from './canvas'
+import type { PainterStrokeCommittedEvent, PainterStrokeEventScope, PainterStrokePreviewEvent } from './event'
 import type { PainterInputOptions, PainterPointerSource } from './input'
 import {
   createDefaultBrushEngineRegistry,
@@ -73,6 +76,11 @@ export interface PainterOptions {
   input?: PainterInputOptions
   brushPresets?: readonly BrushPreset[]
   brushEngines?: readonly BrushEngineRegistration[]
+  /**
+   * Identifies the document namespace carried by committed-stroke events.
+   * Activity painters must provide the complete session/epoch/round fence.
+   */
+  strokeEventScope?: PainterStrokeEventScope
 
   size?: {
     width: number
@@ -94,6 +102,13 @@ export interface PainterOptions {
    * override PIXI.Application options
    */
   pixiOptions?: Parameters<Application['init']>[0]
+}
+
+function assertStrokeEventScope(scope: PainterStrokeEventScope | undefined): void {
+  if (!scope || scope.documentScope === 'room-main')
+    return
+  if (!scope.sessionId || !scope.roundId || !Number.isSafeInteger(scope.activityEpoch) || scope.activityEpoch! < 1)
+    throw new TypeError('Activity stroke events require sessionId, activityEpoch, and roundId.')
 }
 
 export interface PainterStore {}
@@ -283,6 +298,7 @@ export class Painter {
   private activeTransformSession: ActiveTransformSession | null = null
 
   constructor(options: PainterOptions) {
+    assertStrokeEventScope(options.strokeEventScope)
     this.options = options
     const { debug = false } = options
 
@@ -784,6 +800,37 @@ export class Painter {
         this.refreshDerivedDisplays(patch.rect)
         this.markDocumentDirty()
       },
+    })
+  }
+
+  onStrokeCommitted(listener: (event: PainterStrokeCommittedEvent) => void): () => void {
+    this.emitter.on('stroke:committed', listener)
+    return () => this.emitter.off('stroke:committed', listener)
+  }
+
+  emitStrokeCommitted(commit: SaierStrokeCommit, patch: StrokePatch): void {
+    const scope = this.options.strokeEventScope ?? { documentScope: 'room-main' as const }
+    this.emitter.emit('stroke:committed', {
+      ...scope,
+      surfaceId: patch.layerId,
+      commit,
+      patch,
+    })
+  }
+
+  onStrokePreview(listener: (event: PainterStrokePreviewEvent) => void): () => void {
+    this.emitter.on('stroke:preview', listener)
+    return () => this.emitter.off('stroke:preview', listener)
+  }
+
+  emitStrokePreview(strokeId: string, surfaceId: string, previewSeq: number, point: BrushInputPoint): void {
+    const scope = this.options.strokeEventScope ?? { documentScope: 'room-main' as const }
+    this.emitter.emit('stroke:preview', {
+      ...scope,
+      point: { ...point },
+      previewSeq,
+      strokeId,
+      surfaceId,
     })
   }
 

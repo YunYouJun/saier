@@ -17,4 +17,17 @@ export default antfu(
       'pnpm/json-enforce-catalog': 'off',
     },
   },
+  {
+    files: ['packages/collaboration/**/*.{ts,tsx,js}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          {
+            group: ['saier', 'saier/*', '@saier/pixi', '@saier/pixi/*', '../../site/*', '../../../site/*'],
+            message: 'Activity contracts must not depend on Painter, Pixi, or site implementation modules.',
+          },
+        ],
+      }],
+    },
+  },
 )

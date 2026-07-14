@@ -157,6 +157,7 @@ interface SiteMessages {
     saveProject: string
     cloudSync: string
     cloudRoom: string
+    pictionary: string
     importBrush: string
     importImage: string
     exportPreview: string
@@ -532,6 +533,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
       saveProject: 'Save project',
       cloudSync: 'Cloud sync...',
       cloudRoom: 'Cloud room...',
+      pictionary: 'Pictionary...',
       importBrush: 'Import brush...',
       importImage: 'Import image',
       exportPreview: 'Preview export',
@@ -981,6 +983,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
       saveProject: '保存工程',
       cloudSync: '云同步...',
       cloudRoom: '云端房间...',
+      pictionary: '你画我猜...',
       importBrush: '导入笔刷...',
       importImage: '导入图片',
       exportPreview: '预览导出',

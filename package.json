@@ -16,7 +16,7 @@
     "build": "pnpm build:lib && pnpm build:site",
     "build:electron": "pnpm build:site && pnpm -C apps/electron run check",
     "build:mobile": "pnpm generate:site && pnpm -C apps/mobile run prepare:web && pnpm -C apps/mobile run check",
-    "check:cloudbase": "node --check cloudbase/functions/saier-room-api/room-core.cjs && node --check cloudbase/functions/saier-room-api/cloudbase-runtime.cjs && node --check cloudbase/functions/saier-room-api/handler.cjs && node --check cloudbase/functions/saier-room-api/index.js",
+    "check:cloudbase": "node --check cloudbase/functions/saier-room-api/room-core.cjs && node --check cloudbase/functions/saier-room-api/activity-core.cjs && node --check cloudbase/functions/saier-room-api/activity-command-service.cjs && node --check cloudbase/functions/saier-room-api/activity-workers.cjs && node --check cloudbase/functions/saier-room-api/cloudbase-runtime.cjs && node --check cloudbase/functions/saier-room-api/handler.cjs && node --check cloudbase/functions/saier-room-api/index.js",
     "cleanup:yunlefun-test-data": "node scripts/cleanup-yunlefun-test-data.mjs",
     "generate": "pnpm -C site run generate",
     "build:react": "pnpm -C examples/react run build",

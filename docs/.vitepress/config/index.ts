@@ -15,7 +15,7 @@ const GUIDES: DefaultTheme.NavItemWithLink[] = [
 // follow. Keep this list in sync with the `/design/` sidebar below.
 const DESIGN: DefaultTheme.NavItemWithLink[] = [
   { text: 'Overview', link: '/design/' },
-  { text: 'Roadmap (P0–P13)', link: '/design/roadmap' },
+  { text: 'Roadmap (P0–P14)', link: '/design/roadmap' },
   { text: 'Core Interfaces', link: '/design/interfaces' },
   { text: 'Decisions (ADR)', link: '/design/decisions' },
   { text: 'Testing & Determinism', link: '/design/testing' },

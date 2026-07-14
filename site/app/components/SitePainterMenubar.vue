@@ -26,6 +26,7 @@ interface SitePainterMenubarLabels {
   saveProject: string
   cloudSync: string
   cloudRoom: string
+  pictionary: string
   importBrush: string
   importImage: string
   exportPreview: string
@@ -187,6 +188,14 @@ function shortcutLabel(command: SitePainterCommand): string {
               <span class="i-ph-broadcast" />
               <span>{{ labels.cloudRoom }}</span>
             </span>
+          </MenubarItem>
+          <MenubarItem as-child>
+            <NuxtLink class="site-menubar__item" to="/games/pictionary">
+              <span class="site-menubar__item-main">
+                <span class="i-ph-game-controller" />
+                <span>{{ labels.pictionary }}</span>
+              </span>
+            </NuxtLink>
           </MenubarItem>
           <MenubarSeparator class="site-menubar__separator" />
           <MenubarItem class="site-menubar__item" :disabled="disabled" @select="emit('command', 'file:import-image')">

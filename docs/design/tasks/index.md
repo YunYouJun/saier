@@ -261,18 +261,29 @@ title: Tasks
 
 > 目标：把云同步之后的多人共享画布拆成可逐步交付的协作子系统。第一批先完成协议、只读房间和房主绘制广播，再开放多人编辑。Saier 协作后端使用 dedicated `saier-room-api`，不复用已有 YunLeFun `room-api`。
 >
-> **进度（2026-07-08）**：✅ P13-00 协议 · ✅ P13-01 前端入口 + `saier-room-api` snapshot viewer 源码 / 单测 · ✅ production backend gate（`saier-room-api` 已部署到 `yunlefun-8g7ybcxc7345c490`，`saier_room_*` 集合已创建并应用 client-deny 规则）· ✅ P13-02..05 committed patch polling、layer/document command replay、snapshotRequired 重连恢复、presence heartbeat、permission scaffolding · ✅ P13-06 真实双账号矩阵（snapshot join、stroke sync、layer command sync、read-only guard、第三会话 snapshot+ops replay、canvas hash）和测试数据清理命令。低延迟 ghost preview、owner 管理 UI 和语义 stroke replay 优化移入后续增强，不阻塞 P13 v1 收口。
+> **进度（2026-07-15）**：✅ P13-00..06 普通共享画布 · ✅ P13-07 权威 Activity 的协议、HTTP transaction authority、outbox/cursor recovery、NoSQL deadline 和本地 realtime gateway/Pictionary UI。新 activity collections、Redis/VPC、双实例 gateway、容量测试和 realtime flags 仍属于独立 production rollout gate，未由本地实现自动部署。
 
-| ID                                          | 卡片                       | 包       | Depends on | Effort |
-| ------------------------------------------- | -------------------------- | -------- | ---------- | ------ |
-| [P13-00](./P13-00-collaboration-protocol)   | Collaboration protocol     | docs     | P8,P10,P11 | M      |
-| [P13-01](./P13-01-room-snapshot-viewer)     | Room snapshot viewer       | site+api | P13-00     | M      |
-| [P13-02](./P13-02-host-stroke-broadcast)    | Host stroke broadcast      | site+api | P13-01     | L      |
-| [P13-03](./P13-03-room-command-sync)        | Room command sync          | site+api | P13-02     | L      |
-| [P13-04](./P13-04-reconnect-snapshots)      | Reconnect and snapshots    | site+api | P13-03     | M      |
-| [P13-05](./P13-05-multi-editor-permissions) | Multi-editor permissions   | site+api | P13-04     | L      |
-| [P13-06](./P13-06-verify-collaboration)     | Collaboration verification | test     | P13-01..05 | M      |
+| ID                                                   | 卡片                              | 包           | Depends on | Effort |
+| ---------------------------------------------------- | --------------------------------- | ------------ | ---------- | ------ |
+| [P13-00](./P13-00-collaboration-protocol)            | Collaboration protocol            | docs         | P8,P10,P11 | M      |
+| [P13-01](./P13-01-room-snapshot-viewer)              | Room snapshot viewer              | site+api     | P13-00     | M      |
+| [P13-02](./P13-02-host-stroke-broadcast)             | Host stroke broadcast             | site+api     | P13-01     | L      |
+| [P13-03](./P13-03-room-command-sync)                 | Room command sync                 | site+api     | P13-02     | L      |
+| [P13-04](./P13-04-reconnect-snapshots)               | Reconnect and snapshots           | site+api     | P13-03     | M      |
+| [P13-05](./P13-05-multi-editor-permissions)          | Multi-editor permissions          | site+api     | P13-04     | L      |
+| [P13-06](./P13-06-verify-collaboration)              | Collaboration verification        | test         | P13-01..05 | M      |
+| [P13-07](./P13-07-authoritative-realtime-activities) | Authoritative realtime activities | site+api+run | P13-06     | XL     |
 
 **P13-00 出口目标**：D13 和 [Cloud Rooms](../cloud-rooms) 固化 server authoritative operation log、snapshot checkpoint、presence / persistent op 分离、权限和重连策略。
 
 **P13 出口目标**：房间链接可加入；只读成员可看到当前画布；房主绘制和图层命令按服务端 revision 同步；断线重连不重复应用 pending op；多人编辑有权限和冲突边界。
+
+## P14 — Pictionary product
+
+> 目标：用第一方 Pictionary 验证 Activity extension、临时画布、私有 projection、权威计分和 realtime degradation；不修改主工程文档。
+
+| ID                                                | 卡片               | 包       | Depends on | Effort |
+| ------------------------------------------------- | ------------------ | -------- | ---------- | ------ |
+| [P14](./P13-07-authoritative-realtime-activities) | Pictionary product | site+api | P13-07     | XL     |
+
+**P14 出口目标**：2–12 人可通过轻量玩法房间完成整局；HTTP/polling 单独正确，realtime 仅加速；答案无公共泄露；activity canvas 与主工程在类型、collection 和 storage prefix 上隔离。

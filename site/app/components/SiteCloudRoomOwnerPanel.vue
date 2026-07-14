@@ -39,7 +39,7 @@ const emit = defineEmits<{
   setRoomMode: [options: SetRoomModeOptions]
 }>()
 
-const selectedMode = shallowRef<YunlefunCloudRoomMode>(props.session.room.mode)
+const selectedMode = shallowRef<YunlefunCloudRoomMode>(props.session.room.collaborationMode)
 const selectedDriverUserId = shallowRef(props.session.room.driverUserId ?? '')
 
 const editableMembers = computed(() =>
@@ -61,7 +61,7 @@ const normalizedDriverUserId = computed(() => {
   return selected?.userId ?? editorMembers.value[0]?.userId ?? ''
 })
 const roomModeChanged = computed(() => {
-  if (selectedMode.value !== props.session.room.mode)
+  if (selectedMode.value !== props.session.room.collaborationMode)
     return true
   if (selectedMode.value !== 'driver')
     return false
@@ -77,11 +77,11 @@ watch(
   () => [
     props.session.room.driverUserId,
     props.session.room.id,
-    props.session.room.mode,
+    props.session.room.collaborationMode,
     props.session.members.map(member => `${member.userId}:${member.role}`).join('|'),
   ],
   () => {
-    selectedMode.value = props.session.room.mode
+    selectedMode.value = props.session.room.collaborationMode
     selectedDriverUserId.value = props.session.room.driverUserId
       ?? editorMembers.value[0]?.userId
       ?? ''

@@ -71,6 +71,13 @@ describe('cloudbase security rules', () => {
       'cloudbase/security-rules/no-sql/saier_room_rooms.json',
       'cloudbase/security-rules/no-sql/saier_room_snapshot_reservations.json',
       'cloudbase/security-rules/no-sql/saier_room_snapshots.json',
+      'cloudbase/security-rules/no-sql/saier_room_game_sessions.json',
+      'cloudbase/security-rules/no-sql/saier_room_game_secrets.json',
+      'cloudbase/security-rules/no-sql/saier_room_game_events.json',
+      'cloudbase/security-rules/no-sql/saier_room_game_commands.json',
+      'cloudbase/security-rules/no-sql/saier_room_game_outbox.json',
+      'cloudbase/security-rules/no-sql/saier_room_game_canvas_operations.json',
+      'cloudbase/security-rules/no-sql/saier_room_game_snapshots.json',
     ]
 
     for (const path of paths) {

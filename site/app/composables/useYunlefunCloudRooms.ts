@@ -1,3 +1,4 @@
+import type { ActiveActivity, CollaborationMode } from '@saier/collaboration'
 import type { SaierProjectFile } from '@saier/core'
 import type {
   YunlefunCloudbaseApp,
@@ -34,7 +35,7 @@ export type YunlefunCloudRoomFailure
 
 export type YunlefunCloudRoomRole = 'editor' | 'owner' | 'viewer'
 export type YunlefunCloudRoomVisibility = 'link' | 'private'
-export type YunlefunCloudRoomMode = 'driver' | 'multi-editor' | 'viewer'
+export type YunlefunCloudRoomMode = CollaborationMode
 export type YunlefunCloudRoomOperationType
   = | 'document:command'
     | 'layer:command'
@@ -44,6 +45,9 @@ export type YunlefunCloudRoomOperationType
     | 'stroke:start'
 
 export interface YunlefunCloudRoom {
+  activeActivity?: ActiveActivity
+  activityEpoch: number
+  collaborationMode: YunlefunCloudRoomMode
   createdAt: number
   driverUserId?: string
   headRevision: number
@@ -51,6 +55,7 @@ export interface YunlefunCloudRoom {
   latestSnapshotRevision: number
   mode: YunlefunCloudRoomMode
   ownerUserId: string
+  roomMetadataRevision: number
   title: string
   updatedAt: number
   visibility: YunlefunCloudRoomVisibility
@@ -68,7 +73,7 @@ export interface YunlefunCloudRoomMember {
 
 export interface YunlefunCloudRoomSession {
   inviteToken?: string
-  members: YunlefunCloudRoomMember[]
+  members: readonly YunlefunCloudRoomMember[]
   readOnly: boolean
   role: YunlefunCloudRoomRole
   room: YunlefunCloudRoom
@@ -276,6 +281,7 @@ export function useYunlefunCloudRooms() {
         contentType: 'application/json',
         fileName: `${safeFileName(options.title)}.saier.room-snapshot.json`,
         format: project.format,
+        collaborationMode: 'viewer',
         mode: 'viewer',
         sizeBytes: blob.size,
         title: options.title,
@@ -637,6 +643,7 @@ export function useYunlefunCloudRooms() {
 
     try {
       const updated = parseSetRoomModeResult(await callRoomApi('setRoomMode', {
+        collaborationMode: options.mode,
         driverUserId: options.driverUserId,
         mode: options.mode,
         roomId: room.id,
@@ -878,18 +885,22 @@ function parseRoom(value: unknown): YunlefunCloudRoom | undefined {
   const ownerUserId = stringValue(record.ownerUserId)
   const title = stringValue(record.title)
   const visibility = parseRoomVisibility(record.visibility)
-  const mode = parseRoomMode(record.mode)
-  if (!id || !ownerUserId || !title || !visibility || !mode)
+  const collaborationMode = parseRoomMode(record.collaborationMode ?? record.mode)
+  if (!id || !ownerUserId || !title || !visibility || !collaborationMode)
     return undefined
 
   return {
+    activeActivity: parseActiveActivity(record.activeActivity),
+    activityEpoch: nonNegativeIntegerValue(record.activityEpoch) ?? 0,
+    collaborationMode,
     createdAt: timestampValue(record.createdAt) ?? Date.now(),
     driverUserId: stringValue(record.driverUserId),
     headRevision: numberValue(record.headRevision) ?? 0,
     id,
     latestSnapshotRevision: numberValue(record.latestSnapshotRevision) ?? 0,
-    mode,
+    mode: parseRoomMode(record.mode) ?? collaborationMode,
     ownerUserId,
+    roomMetadataRevision: nonNegativeIntegerValue(record.roomMetadataRevision) ?? 0,
     title,
     updatedAt: timestampValue(record.updatedAt) ?? Date.now(),
     visibility,
@@ -1117,9 +1128,9 @@ function canSubmitRoomOperation(
     return true
   if (role !== 'editor')
     return false
-  if (room.mode === 'multi-editor')
+  if (room.collaborationMode === 'multi-editor')
     return true
-  if (room.mode === 'driver')
+  if (room.collaborationMode === 'driver')
     return room.driverUserId === userId
   return false
 }
@@ -1138,6 +1149,28 @@ function stringValue(value: unknown): string | undefined {
 
 function numberValue(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function nonNegativeIntegerValue(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : undefined
+}
+
+function parseActiveActivity(value: unknown): ActiveActivity | undefined {
+  const record = asRecord(value)
+  const sessionId = stringValue(record?.sessionId)
+  const activityEpoch = nonNegativeIntegerValue(record?.activityEpoch)
+  const status = record?.status
+  if (record?.type !== 'pictionary' || record.protocolVersion !== 1 || !sessionId || !activityEpoch)
+    return undefined
+  if (status !== 'lobby' && status !== 'running' && status !== 'ending')
+    return undefined
+  return {
+    type: 'pictionary',
+    sessionId,
+    activityEpoch,
+    protocolVersion: 1,
+    status,
+  }
 }
 
 function booleanValue(value: unknown): boolean | undefined {

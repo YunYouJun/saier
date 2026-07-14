@@ -104,4 +104,4 @@ packages/
 - **画布内 overlay**（笔刷光标、选区、变换手柄）→ **pixi**（Pixi，随缩放变换、逐帧重绘）。
 - **落笔输入热路径**（`pointermove → dab`）+ **状态事实来源** → **core**（headless controller）。Vue 只做薄皮镜像，不持有事实来源。
 
-下一步 → [Roadmap (P0–P13)](./roadmap)
+下一步 → [Roadmap (P0–P14)](./roadmap)

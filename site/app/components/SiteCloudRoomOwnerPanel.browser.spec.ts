@@ -101,6 +101,8 @@ function createSession(options: {
     readOnly: false,
     role: 'owner',
     room: {
+      activityEpoch: 0,
+      collaborationMode: options.mode ?? 'viewer',
       createdAt: 1,
       driverUserId: options.driverUserId,
       headRevision: 0,
@@ -108,6 +110,7 @@ function createSession(options: {
       latestSnapshotRevision: 0,
       mode: options.mode ?? 'viewer',
       ownerUserId: 'owner',
+      roomMetadataRevision: 0,
       title: 'Room A',
       updatedAt: 1,
       visibility: 'link',

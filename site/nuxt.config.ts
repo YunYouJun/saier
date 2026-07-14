@@ -34,6 +34,13 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
+      saierFeatures: {
+        pictionary: process.env.NUXT_PUBLIC_SAIER_FEATURE_PICTIONARY !== 'false',
+        realtimeCommittedEvents: process.env.NUXT_PUBLIC_SAIER_FEATURE_REALTIME_COMMITTED_EVENTS === 'true',
+        realtimePreview: process.env.NUXT_PUBLIC_SAIER_FEATURE_REALTIME_PREVIEW === 'true',
+        redisDeadlineAcceleration: process.env.NUXT_PUBLIC_SAIER_FEATURE_REDIS_DEADLINE_ACCELERATION === 'true',
+      },
+      saierRealtimeUrl: process.env.NUXT_PUBLIC_SAIER_REALTIME_URL || '',
       saierCloudFileMaxBytes: Number(process.env.NUXT_PUBLIC_SAIER_CLOUD_FILE_MAX_BYTES || 200 * 1024 * 1024),
       saierCloudRoomApiFunctionName: process.env.NUXT_PUBLIC_SAIER_CLOUD_ROOM_API_FUNCTION_NAME || 'saier-room-api',
       yunlefunCloudbaseEnv: process.env.NUXT_PUBLIC_YUNLEFUN_CLOUDBASE_ENV || 'yunlefun-8g7ybcxc7345c490',

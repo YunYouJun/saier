@@ -14,6 +14,12 @@ Reusable room primitives live in this function folder:
 - `cloudbase-runtime.cjs`: CloudBase Event Function adapters for caller uid,
   collection CRUD helpers, revisioned operation listing, and snapshot download
   URLs.
+- `activity-core.cjs`: pure Pictionary reducer, normalization, scores, deadlines,
+  and activity/canvas fencing.
+- `activity-command-service.cjs`: the shared HTTP/WebSocket transactional
+  authority, dedupe, public/private projection, event/outbox and resume logic.
+- `activity-workers.cjs`: retryable outbox publishing and the NoSQL-backed
+  due-session scanner. Redis is an optional acceleration index only.
 
 These modules are intentionally kept inside `saier-room-api` for now so the
 function deployment package stays self-contained. If another product adopts the
@@ -42,12 +48,52 @@ requiring sibling folders from a CloudBase function.
 - `setMemberRole`
 - `setRoomMode`
 - `updatePresence`
+- `createActivityRoom`
+- `joinActivityRoom`
+- `activatePictionary`
+- `submitActivityCommand`
+- `resumeActivity`
+- `getActivityPrivateProjection`
+- `createActivityRealtimeToken`
 
 The first three actions are the P13-01 snapshot-viewer contract. The operation,
 snapshot checkpoint, permission, and presence actions are the P13 v1
 collaboration data plane; site clients currently consume them through polling
 plus heartbeat. A dedicated CloudBase realtime or WebSocket adapter is a later
-latency optimization, not a P13 v1 correctness requirement.
+latency optimization, not a P13 v1 correctness requirement. P13-07/P14 keeps
+that property: all game commands and recovery work through this HTTP function
+when realtime flags are disabled.
+
+## Activity authority
+
+Activity commands use CloudBase `runTransaction()` and deterministic document
+IDs. A successful transaction writes the materialized public session, private
+secret projection, redacted public events, command result and pending outbox
+together. Commands sharing `(sessionId, userId, commandId)` are idempotent only
+when their SHA-256 payload hash also matches.
+
+The durable activity collections are:
+
+- `saier_room_game_sessions`
+- `saier_room_game_secrets`
+- `saier_room_game_events`
+- `saier_room_game_commands`
+- `saier_room_game_outbox`
+- `saier_room_game_canvas_operations`
+- `saier_room_game_snapshots`
+
+All have client-deny rules under `cloudbase/security-rules/no-sql/`. Service
+entries still re-check membership, role, activity/round/phase/controller epochs
+inside the transaction; database rules are not treated as business auth.
+
+`resumeActivity` returns one of `DELTA`, `SNAPSHOT_REQUIRED`, `SESSION_ENDED`,
+or `RESYNC_REQUIRED`. Public `eventSeq` and per-round `canvasSeq` are recovery
+cursors; `gameRevision` is not used as a guess/stroke cursor. Candidate words
+and answers never enter public events/outbox or durable command results.
+
+The due-session scanner queries `{ status: 'active', deadlineAt <= now }` and
+submits the same fenced, idempotent timeout command as the realtime worker. Add
+an index for `{ status, deadlineAt }` before production rollout.
 
 ## Deployment Sketch
 
@@ -67,6 +113,12 @@ Production backend gate status (2026-07-08):
   `ylf_test_saier_owner` creating a room, `ylf_test_saier_viewer` joining it
   read-only, committed stroke sync, layer command sync, read-only stroke/layer
   guard, and third-session snapshot+ops replay.
+
+P13-07/P14 status (2026-07-15): source, rules and local tests are implemented,
+but the new activity collections/indexes, realtime secret and CloudRun/Redis
+resources are **not deployed by this change**. They require separate production
+confirmation and the rollout gates in
+`docs/design/tasks/P13-07-authoritative-realtime-activities.md`.
 
 P13 v1 also uses `updatePresence` as a heartbeat. It updates member
 `lastSeenAt`, `online`, and optional `presence` payload, then returns the
@@ -109,5 +161,8 @@ manageFunctions({
 ```
 
 Before production deployment, create the `saier_room_*` collections listed in
-`cloudbase/security-rules/README.md`, apply client-deny security rules, and run
-the P13 real-account smoke suite.
+`cloudbase/security-rules/README.md`, apply client-deny security rules, create
+the `{ status, deadlineAt }` game-session index, configure
+`SAIER_REALTIME_ENV_ID` and `SAIER_REALTIME_TOKEN_SECRET`, and run the complete
+P13-07/P14 real-account and leakage suite. Deploying these external resources is
+intentionally separate from editing this repository.

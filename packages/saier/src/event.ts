@@ -1,9 +1,31 @@
-import type { SaierStrokeCommit } from '@saier/core'
+import type { BrushInputPoint, SaierStrokeCommit, StrokePatch } from '@saier/core'
 import type { PainterAction } from './features/history'
 import type { PainterInputSnapshot } from './input'
 import type { EditableLayer } from './layers'
 import type { PainterDocumentState, PainterTransformSnapshot, PainterViewportSnapshot } from './painter'
 import mitt from 'mitt'
+
+export type PainterDocumentScope = 'room-main' | 'activity'
+
+export interface PainterStrokeEventScope {
+  documentScope: PainterDocumentScope
+  sessionId?: string
+  activityEpoch?: number
+  roundId?: string
+}
+
+export interface PainterStrokeCommittedEvent extends PainterStrokeEventScope {
+  surfaceId: string
+  commit: Readonly<SaierStrokeCommit>
+  patch: Readonly<StrokePatch>
+}
+
+export interface PainterStrokePreviewEvent extends PainterStrokeEventScope {
+  surfaceId: string
+  strokeId: string
+  previewSeq: number
+  point: Readonly<BrushInputPoint>
+}
 
 export function createEmitter() {
   const emitter = mitt<{
@@ -38,6 +60,8 @@ export function createEmitter() {
 
     // stroke recording
     'stroke:commit': SaierStrokeCommit
+    'stroke:committed': PainterStrokeCommittedEvent
+    'stroke:preview': PainterStrokePreviewEvent
 
     // document
     'canvas:clear': void

@@ -1,4 +1,6 @@
 const { Buffer } = require('node:buffer')
+const crypto = require('node:crypto')
+const { createActivityCommandService } = require('./activity-command-service.cjs')
 const {
   createRoomError: roomError,
   createRoomRandomId: createRandomId,
@@ -32,6 +34,11 @@ function createSaierRoomApiHandler(options) {
   const now = typeof options.now === 'function' ? options.now : () => Date.now()
   const randomId = typeof options.randomId === 'function' ? options.randomId : createRandomId
   const hash = typeof options.hash === 'function' ? options.hash : sha256
+  const activityService = options.activityService ?? createActivityCommandService({
+    hash,
+    now,
+    repo: options.repo,
+  })
 
   return async function saierRoomApi(event = {}, context = {}) {
     const action = stringValue(event.action)
@@ -44,24 +51,31 @@ function createSaierRoomApiHandler(options) {
 
     const services = {
       hash,
+      envId: stringValue(options.envId),
       maxSnapshotBytes,
       now,
       randomId,
       repo: options.repo,
       shareOrigin: stringValue(options.shareOrigin),
       storage: options.storage,
+      realtimeTokenSecret: stringValue(options.realtimeTokenSecret),
       userId,
+      activityService,
     }
 
     switch (action) {
       case 'createRoomSnapshotUpload':
         return createRoomSnapshotUpload(event, services)
+      case 'createActivityRoom':
+        return createActivityRoom(event, services)
       case 'finalizeRoomSnapshotUpload':
         return finalizeRoomSnapshotUpload(event, services)
       case 'finalizeRoomSnapshotText':
         return finalizeRoomSnapshotText(event, services)
       case 'joinRoom':
         return joinRoom(event, services)
+      case 'joinActivityRoom':
+        return joinActivityRoom(event, services)
       case 'leaveRoom':
         return leaveRoom(event, services)
       case 'appendOperation':
@@ -80,6 +94,16 @@ function createSaierRoomApiHandler(options) {
         return setRoomMode(event, services)
       case 'updatePresence':
         return updatePresence(event, services)
+      case 'activatePictionary':
+        return services.activityService.activatePictionary(event, userId)
+      case 'submitActivityCommand':
+        return services.activityService.submitCommand(event, userId)
+      case 'resumeActivity':
+        return services.activityService.resumeActivity(event, userId)
+      case 'getActivityPrivateProjection':
+        return services.activityService.getPrivateProjection(event, userId)
+      case 'createActivityRealtimeToken':
+        return createActivityRealtimeToken(event, services)
       default:
         throw roomError('backend_unavailable', `Unsupported room action: ${action}`)
     }
@@ -93,19 +117,22 @@ async function createRoomSnapshotUpload(event, services) {
   const roomId = services.randomId('sr')
   const reservationId = services.randomId('rs')
   const visibility = parseVisibility(event.visibility)
-  const mode = parseMode(event.mode) ?? 'viewer'
+  const collaborationMode = parseMode(event.collaborationMode ?? event.mode) ?? 'viewer'
   const title = safeTitle(event.title)
   const fileName = safeSnapshotFileName(event.fileName, title)
   const inviteToken = visibility === 'link' ? services.randomId('rt') : undefined
   const storageKey = `room-storage/saier/${roomId}/${reservationId}/${fileName}`
   const room = {
     createdAt: time,
+    activityEpoch: 0,
+    collaborationMode,
     headRevision: 0,
     id: roomId,
     inviteTokenHash: inviteToken ? services.hash(inviteToken) : undefined,
     latestSnapshotRevision: 0,
-    mode,
+    mode: collaborationMode,
     ownerUserId: services.userId,
+    roomMetadataRevision: 0,
     status: 'pending',
     title,
     updatedAt: time,
@@ -152,6 +179,49 @@ async function createRoomSnapshotUpload(event, services) {
       reservationId,
       storageKey,
     },
+  }
+}
+
+async function createActivityRoom(event, services) {
+  const time = services.now()
+  const roomId = services.randomId('sr')
+  const visibility = parseVisibility(event.visibility)
+  const inviteToken = visibility === 'link' ? services.randomId('rt') : undefined
+  const room = {
+    activityEpoch: 0,
+    collaborationMode: 'viewer',
+    createdAt: time,
+    headRevision: 0,
+    id: roomId,
+    inviteTokenHash: inviteToken ? services.hash(inviteToken) : undefined,
+    kind: 'activity',
+    latestSnapshotRevision: 0,
+    mode: 'viewer',
+    ownerUserId: services.userId,
+    roomMetadataRevision: 0,
+    status: 'active',
+    title: safeTitle(event.title ?? 'Pictionary Room'),
+    updatedAt: time,
+    visibility,
+  }
+  const member = {
+    displayName: stringValue(event.displayName),
+    id: roomMemberId(roomId, services.userId),
+    joinedAt: time,
+    lastSeenAt: time,
+    online: true,
+    role: 'owner',
+    roomId,
+    userId: services.userId,
+  }
+  await services.repo.runActivityTransaction(async (tx) => {
+    await tx.setRoom(roomId, room)
+    await tx.setMember(member.id, member)
+  })
+  const shareUrl = createActivityShareUrl(services.shareOrigin, roomId, inviteToken)
+  return {
+    inviteToken,
+    session: await createSession(services, room, services.userId, inviteToken, shareUrl),
   }
 }
 
@@ -256,6 +326,18 @@ async function joinRoom(event, services) {
     member = { ...member, lastSeenAt: services.now(), online: true }
   }
 
+  if (room.kind === 'activity') {
+    return {
+      session: await createSession(
+        services,
+        room,
+        services.userId,
+        inviteToken,
+        createActivityShareUrl(services.shareOrigin, roomId, inviteToken),
+      ),
+    }
+  }
+
   const snapshot = await services.repo.getLatestSnapshot(roomId)
   if (!snapshot)
     throw roomError('invalid_snapshot', 'Room snapshot is not ready.')
@@ -265,6 +347,13 @@ async function joinRoom(event, services) {
     session: await createSession(services, room, services.userId, inviteToken),
     snapshot: download,
   }
+}
+
+async function joinActivityRoom(event, services) {
+  const result = await joinRoom(event, services)
+  if (result.snapshot)
+    delete result.snapshot
+  return result
 }
 
 async function leaveRoom(event, services) {
@@ -506,21 +595,28 @@ async function setMemberRole(event, services) {
   }
   await services.repo.upsertMember(member)
 
+  const roomMetadataRevision = (integerValue(room.roomMetadataRevision) ?? 0) + 1
+  const updatedAt = services.now()
+  await services.repo.updateRoom(roomId, {
+    roomMetadataRevision,
+    updatedAt,
+  })
+
   return {
     members: await publicMembers(services.repo, roomId),
-    room: publicRoom(room),
+    room: publicRoom({ ...room, roomMetadataRevision, updatedAt }),
   }
 }
 
 async function setRoomMode(event, services) {
   const roomId = requireString(event.roomId, 'roomId')
-  const mode = parseMode(event.mode)
-  if (!mode)
-    throw roomError('backend_unavailable', 'Invalid room mode.')
+  const collaborationMode = parseMode(event.collaborationMode ?? event.mode)
+  if (!collaborationMode)
+    throw roomError('backend_unavailable', 'Invalid room collaboration mode.')
 
   const room = await requireOwnedRoom(services.repo, roomId, services.userId)
   const driverUserId = stringValue(event.driverUserId)
-  if (mode === 'driver' && driverUserId) {
+  if (collaborationMode === 'driver' && driverUserId) {
     const driver = await services.repo.getMember(roomId, driverUserId)
     if (!driver || driver.role !== 'editor')
       throw roomError('forbidden', 'Driver must be an editor.')
@@ -528,13 +624,17 @@ async function setRoomMode(event, services) {
 
   const nextRoom = {
     ...room,
-    driverUserId: mode === 'driver' ? driverUserId : undefined,
-    mode,
+    collaborationMode,
+    driverUserId: collaborationMode === 'driver' ? driverUserId : undefined,
+    mode: collaborationMode,
+    roomMetadataRevision: (integerValue(room.roomMetadataRevision) ?? 0) + 1,
     updatedAt: services.now(),
   }
   await services.repo.updateRoom(roomId, {
+    collaborationMode,
     driverUserId: nextRoom.driverUserId,
-    mode,
+    mode: collaborationMode,
+    roomMetadataRevision: nextRoom.roomMetadataRevision,
     updatedAt: nextRoom.updatedAt,
   })
 
@@ -562,7 +662,46 @@ async function updatePresence(event, services) {
   }
 }
 
-async function createSession(services, room, userId, inviteToken) {
+async function createActivityRealtimeToken(event, services) {
+  if (!services.realtimeTokenSecret || !services.envId)
+    throw roomError('backend_unavailable', 'Realtime token issuer is not configured.')
+  const roomId = requireString(event.roomId, 'roomId')
+  const room = await requireReadableRoom(services.repo, roomId, services.userId)
+  const sessionId = stringValue(event.sessionId)
+  if (sessionId && room.activeActivity?.sessionId !== sessionId)
+    throw roomError('forbidden', 'Realtime session is no longer active.')
+  const issuedAt = Math.floor(services.now() / 1000)
+  const expiresAt = issuedAt + 15 * 60
+  const claims = {
+    activityEpoch: integerValue(room.activeActivity?.activityEpoch),
+    aud: 'saier-realtime',
+    envId: services.envId,
+    exp: expiresAt,
+    iat: issuedAt,
+    jti: services.randomId('rtj'),
+    roomId,
+    sessionId,
+    sub: services.userId,
+  }
+  return {
+    expiresAt: expiresAt * 1000,
+    token: signHs256Jwt(claims, services.realtimeTokenSecret),
+  }
+}
+
+function signHs256Jwt(claims, secret) {
+  const header = base64UrlJson({ alg: 'HS256', typ: 'JWT' })
+  const payload = base64UrlJson(claims)
+  const body = `${header}.${payload}`
+  const signature = crypto.createHmac('sha256', secret).update(body).digest('base64url')
+  return `${body}.${signature}`
+}
+
+function base64UrlJson(value) {
+  return Buffer.from(JSON.stringify(value), 'utf8').toString('base64url')
+}
+
+async function createSession(services, room, userId, inviteToken, explicitShareUrl) {
   const member = await requireMember(services.repo, room.id, userId)
   return {
     inviteToken: inviteToken ?? undefined,
@@ -570,8 +709,20 @@ async function createSession(services, room, userId, inviteToken) {
     readOnly: !canSubmitOperation(room, member),
     role: member.role,
     room: publicRoom(room),
-    shareUrl: createShareUrl(services.shareOrigin, room.id, inviteToken),
+    shareUrl: explicitShareUrl ?? createShareUrl(services.shareOrigin, room.id, inviteToken),
   }
+}
+
+function createActivityShareUrl(origin, roomId, inviteToken) {
+  if (!origin)
+    return undefined
+  const url = new URL(origin)
+  url.pathname = `/games/pictionary/${encodeURIComponent(roomId)}`
+  url.hash = ''
+  url.search = ''
+  if (inviteToken)
+    url.searchParams.set('invite', inviteToken)
+  return url.toString()
 }
 
 async function createSnapshotDownload(storage, snapshot, maxBytes) {
@@ -653,25 +804,51 @@ function canSubmitOperation(room, member) {
     return true
   if (member.role !== 'editor')
     return false
-  if (room.mode === 'multi-editor')
+  const collaborationMode = parseMode(room.collaborationMode ?? room.mode) ?? 'viewer'
+  if (collaborationMode === 'multi-editor')
     return true
-  if (room.mode === 'driver')
+  if (collaborationMode === 'driver')
     return room.driverUserId === member.userId
   return false
 }
 
 function publicRoom(room) {
+  const collaborationMode = parseMode(room.collaborationMode ?? room.mode) ?? 'viewer'
   return {
+    activeActivity: publicActiveActivity(room.activeActivity),
+    activityEpoch: integerValue(room.activityEpoch) ?? integerValue(room.activeActivity?.activityEpoch) ?? 0,
+    collaborationMode,
     createdAt: room.createdAt,
     driverUserId: room.driverUserId,
     headRevision: room.headRevision,
     id: room.id,
     latestSnapshotRevision: room.latestSnapshotRevision,
-    mode: room.mode,
+    mode: collaborationMode,
     ownerUserId: room.ownerUserId,
+    roomMetadataRevision: integerValue(room.roomMetadataRevision) ?? 0,
     title: room.title,
     updatedAt: room.updatedAt,
     visibility: room.visibility,
+  }
+}
+
+function publicActiveActivity(value) {
+  const activity = objectValue(value)
+  if (!activity || activity.type !== 'pictionary')
+    return undefined
+  const sessionId = stringValue(activity.sessionId)
+  const activityEpoch = integerValue(activity.activityEpoch)
+  const status = activity.status === 'lobby' || activity.status === 'running' || activity.status === 'ending'
+    ? activity.status
+    : undefined
+  if (!sessionId || activityEpoch === undefined || activityEpoch < 1 || !status)
+    return undefined
+  return {
+    activityEpoch,
+    protocolVersion: 1,
+    sessionId,
+    status,
+    type: 'pictionary',
   }
 }
 

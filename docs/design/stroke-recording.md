@@ -46,6 +46,26 @@ flowchart TD
 - `site` / room API：持久化、权限、snapshot checkpoint、presence preview。
 - UI：只消费 log 做播放控制，不定义协议。
 
+### Scoped runtime events
+
+`Painter` 现在提供实例级、可释放的 scoped 订阅，site 不再 monkey-patch `recordStrokePatch()`：
+
+```ts
+const disposeCommit = painter.onStrokeCommitted((event) => {
+  if (event.documentScope === 'activity') {
+    // event includes surfaceId + sessionId/activityEpoch/roundId + commit + patch
+  }
+})
+
+const disposePreview = painter.onStrokePreview((event) => {
+  // preview carries strokeId + previewSeq + one canonical document-space point
+})
+```
+
+主工程实例默认 `documentScope: 'room-main'`。Activity Painter 必须在创建时提供完整的 `sessionId + activityEpoch + roundId` scope；缺失 fencing 字段会立即失败。旧的 `stroke:commit` emitter 行为保留一个兼容周期，新协作代码只订阅 `stroke:committed` / `stroke:preview`。订阅都返回 disposer，activity dispose 时必须调用。
+
+Preview 是可丢弃的临时数据；commit 仍携带 canonical stroke 和 patch，且只有服务端分配的 `canvasSeq` 能进入权威恢复序列。
+
 ## Canonical Capture Point
 
 默认录制点位是：**document space、压感归一、稳定器处理之后，调用 `BrushEngine.addPoint()` 之前**。
@@ -247,6 +267,8 @@ Timelapse playback should run in an isolated replay session:
 - Never mutate the user's active editing document during preview.
 - Allow skipping to checkpoint snapshots instead of replaying from operation 0.
 - For large logs, stream operations in chunks rather than loading the whole file in memory.
+
+站点实现遵循这条边界：开启录制时捕获当前工程作为 session base；seek 会在临时 tiled Painter 中从 base 重建到目标 revision；play 使用 `replayStrokeTimed()` 按 point / tick 的 `t / speed` 推进。预览画布覆盖在编辑画布上，并提供明确的“关闭回放预览”入口，播放、步进和拖动位置都不会写入当前文档或 undo stack。操作步骤见[用户指引](/guide/stroke-recording)。
 
 ## Compression And Privacy
 

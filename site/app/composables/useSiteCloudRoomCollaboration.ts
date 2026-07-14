@@ -1,5 +1,5 @@
 import type { BlendMode, LayerNodeMoveTarget, SaierProjectFile, SaierStrokeCommit, StrokePatch } from '@saier/core'
-import type { Painter } from 'saier'
+import type { Painter, PainterStrokeCommittedEvent } from 'saier'
 import type { ComputedRef, Ref, ShallowRef } from 'vue'
 import type {
   AppendRoomOperationOptions,
@@ -19,12 +19,10 @@ import {
   createCloudRoomDocumentCommand,
   createCloudRoomLayerCommand,
   createCloudRoomStrokeCommitPayload,
-  createCloudRoomStrokePatchHash,
   deserializeCloudRoomStrokePatch,
   isCloudRoomDocumentCommandPayload,
   isCloudRoomLayerCommandPayload,
   isCloudRoomStrokeCommitPayload,
-  serializeCloudRoomStrokePatch,
 } from '../utils/cloudRoomOperations'
 
 const POLL_INTERVAL_MS = 1800
@@ -78,16 +76,14 @@ export function useSiteCloudRoomCollaboration(options: UseSiteCloudRoomCollabora
   let pollInFlight = false
   let presenceInFlight = false
   let checkpointInFlight = false
-  let pendingStrokePatch: StrokePatch | undefined
-  let pendingStrokePatchQueued = false
-  let restoreRecordStrokePatch: (() => void) | undefined
+  let removeStrokeCommittedListener: (() => void) | undefined
 
   watch(
     () => options.painter.value,
     (next, previous) => {
       if (previous && previous !== next)
-        restoreRecordStrokePatch?.()
-      restoreRecordStrokePatch = next ? patchRecordStrokePatch(next) : undefined
+        removeStrokeCommittedListener?.()
+      removeStrokeCommittedListener = next ? subscribeToStrokeCommits(next) : undefined
     },
     { immediate: true },
   )
@@ -108,8 +104,8 @@ export function useSiteCloudRoomCollaboration(options: UseSiteCloudRoomCollabora
     clearPoll()
     clearPresence()
     clearCheckpoint()
-    restoreRecordStrokePatch?.()
-    restoreRecordStrokePatch = undefined
+    removeStrokeCommittedListener?.()
+    removeStrokeCommittedListener = undefined
   })
 
   async function submitLayerCommand(command: SubmitCloudRoomLayerCommandOptions): Promise<void> {
@@ -128,41 +124,11 @@ export function useSiteCloudRoomCollaboration(options: UseSiteCloudRoomCollabora
     await pollOperations()
   }
 
-  function patchRecordStrokePatch(painter: Painter): () => void {
-    const original = painter.recordStrokePatch.bind(painter)
-    painter.recordStrokePatch = (patch: StrokePatch) => {
-      original(patch)
-      if (!isApplyingRemote.value) {
-        pendingStrokePatch = patch
-        queuePendingStrokePatch()
-      }
-    }
-    const handleStrokeCommit = (commit: SaierStrokeCommit) => {
-      if (isApplyingRemote.value)
+  function subscribeToStrokeCommits(painter: Painter): () => void {
+    return painter.onStrokeCommitted((event: PainterStrokeCommittedEvent) => {
+      if (isApplyingRemote.value || event.documentScope !== 'room-main')
         return
-
-      const patch = pendingStrokePatch
-      pendingStrokePatch = undefined
-      void submitStrokeCommit(commit, patch)
-    }
-    painter.emitter.on('stroke:commit', handleStrokeCommit)
-    return () => {
-      painter.recordStrokePatch = original
-      painter.emitter.off('stroke:commit', handleStrokeCommit)
-    }
-  }
-
-  function queuePendingStrokePatch(): void {
-    if (pendingStrokePatchQueued)
-      return
-
-    pendingStrokePatchQueued = true
-    queueMicrotask(() => {
-      pendingStrokePatchQueued = false
-      const patch = pendingStrokePatch
-      pendingStrokePatch = undefined
-      if (patch && !isApplyingRemote.value)
-        void submitStrokePatch(patch)
+      void submitStrokeCommit(event.commit as SaierStrokeCommit, event.patch as StrokePatch)
     })
   }
 
@@ -172,21 +138,6 @@ export function useSiteCloudRoomCollaboration(options: UseSiteCloudRoomCollabora
 
     await submitOperation('stroke:commit', {
       ...createCloudRoomStrokeCommitPayload(commit, patch),
-    })
-  }
-
-  async function submitStrokePatch(patch: StrokePatch): Promise<void> {
-    if (!canSubmit.value)
-      return
-
-    const serialized = serializeCloudRoomStrokePatch(patch)
-    if (!serialized)
-      return
-
-    await submitOperation('stroke:commit', {
-      patch: serialized,
-      patchHash: createCloudRoomStrokePatchHash(serialized),
-      schema: serialized.schema,
     })
   }
 

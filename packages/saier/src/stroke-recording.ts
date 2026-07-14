@@ -169,6 +169,7 @@ export class PainterStrokeRecording {
       ...(point.tiltY !== undefined ? { tiltY: point.tiltY } : {}),
       ...(point.twist !== undefined ? { twist: point.twist } : {}),
     })
+    this.painter.emitStrokePreview(this.active.id, this.active.layerId, this.active.events.length, point)
   }
 
   recordTick(time: number): void {
@@ -199,6 +200,7 @@ export class PainterStrokeRecording {
     if (shouldStore)
       this.strokes.push(committed)
     this.painter.emitter.emit('stroke:commit', cloneStrokeCommit(committed))
+    this.painter.emitStrokeCommitted(cloneStrokeCommit(committed), patch)
     return committed
   }
 

@@ -1,5 +1,5 @@
 import type { BrushInputPoint, SaierStrokeCommit } from '@saier/core'
-import type { Painter } from '../src'
+import type { Painter, PainterStrokeCommittedEvent, PainterStrokeEventScope } from '../src'
 import { PixiTileTextureBackend } from '@saier/pixi'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createPainter, PainterBrush, PainterEraser } from '../src'
@@ -19,7 +19,7 @@ afterEach(() => {
   PainterEraser.size = 10
 })
 
-async function createFixture(): Promise<Painter> {
+async function createFixture(strokeEventScope?: PainterStrokeEventScope): Promise<Painter> {
   const canvas = document.createElement('canvas')
   const painter = createPainter({
     backend: 'tiled',
@@ -27,6 +27,7 @@ async function createFixture(): Promise<Painter> {
     size: { width: 64, height: 64 },
     boardSize: { width: 64, height: 64 },
     pixiOptions: { backgroundAlpha: 0 },
+    strokeEventScope,
   })
   await painter.init()
   painters.push(painter)
@@ -41,6 +42,44 @@ describe('stroke recording runtime', () => {
     drawDocumentStroke(disabled)
     expect(disabled.strokeRecording.getStrokes()).toHaveLength(0)
     expect(disabledEmitted).toHaveLength(1)
+  })
+
+  it('emits a scoped stroke event with the canonical patch and activity fence', async () => {
+    const painter = await createFixture({
+      documentScope: 'activity',
+      sessionId: 'session-1',
+      activityEpoch: 3,
+      roundId: 'round-2',
+    })
+    const events: PainterStrokeCommittedEvent[] = []
+    const dispose = painter.onStrokeCommitted(event => events.push(event))
+
+    drawDocumentStroke(painter)
+    dispose()
+    drawDocumentStroke(painter)
+
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({
+      documentScope: 'activity',
+      sessionId: 'session-1',
+      activityEpoch: 3,
+      roundId: 'round-2',
+      surfaceId: events[0]?.commit.layerId,
+      patch: {
+        layerId: events[0]?.commit.layerId,
+      },
+    })
+  })
+
+  it('rejects activity painters without a complete session fence', () => {
+    const canvas = document.createElement('canvas')
+    expect(() => createPainter({
+      view: canvas,
+      strokeEventScope: {
+        documentScope: 'activity',
+        sessionId: 'session-1',
+      },
+    })).toThrow('Activity stroke events require sessionId, activityEpoch, and roundId.')
   })
 
   it('is opt-in and replays a recorded brush stroke into identical pixels', async () => {

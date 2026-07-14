@@ -21,7 +21,7 @@
     "generate": "pnpm -C site run generate",
     "build:react": "pnpm -C examples/react run build",
     "build:vue": "pnpm -C examples/vue run build",
-    "build:lib": "pnpm -C packages/saier run build",
+    "build:lib": "pnpm -C packages/collaboration run build && pnpm -C packages/saier run build",
     "build:site": "pnpm -C site run build",
     "generate:site": "pnpm -C site run generate",
     "dev": "pnpm -C site run dev",

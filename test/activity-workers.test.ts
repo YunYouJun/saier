@@ -5,10 +5,12 @@ const require = createRequire(import.meta.url)
 const {
   createActivityDeadlineWorker,
   createActivityOutboxPublisher,
+  isActivityDeadlineTimerEvent,
   publicOutboxNotification,
 } = require('../cloudbase/functions/saier-room-api/activity-workers.cjs') as {
   createActivityDeadlineWorker: (options: Record<string, any>) => Record<string, (...args: any[]) => Promise<any>>
   createActivityOutboxPublisher: (options: Record<string, any>) => Record<string, (...args: any[]) => Promise<any>>
+  isActivityDeadlineTimerEvent: (event: Record<string, unknown>, triggerName?: string) => boolean
   publicOutboxNotification: (record: Record<string, any>) => Record<string, any>
 }
 
@@ -93,5 +95,20 @@ describe('activity durable workers', () => {
     await expect(worker.rebuildAccelerationIndex()).rejects.toThrow('redis unavailable')
     await expect(worker.scanDue()).resolves.toEqual([{ ok: true }])
     expect(processDueSessions).toHaveBeenCalledOnce()
+  })
+
+  it('accepts only the configured CloudBase timer trigger', () => {
+    expect(isActivityDeadlineTimerEvent({
+      TriggerName: 'saier-activity-deadlines',
+      Type: 'Timer',
+    }, 'saier-activity-deadlines')).toBe(true)
+    expect(isActivityDeadlineTimerEvent({
+      TriggerName: 'another-trigger',
+      Type: 'Timer',
+    }, 'saier-activity-deadlines')).toBe(false)
+    expect(isActivityDeadlineTimerEvent({
+      action: 'resumeActivity',
+      TriggerName: 'saier-activity-deadlines',
+    }, 'saier-activity-deadlines')).toBe(false)
   })
 })

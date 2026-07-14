@@ -69,8 +69,14 @@ function finiteInteger(value) {
   return Number.isSafeInteger(value) && value >= 0 ? value : undefined
 }
 
+function isActivityDeadlineTimerEvent(event, triggerName) {
+  return event?.Type === 'Timer'
+    && (triggerName === undefined || event.TriggerName === triggerName)
+}
+
 module.exports = {
   createActivityDeadlineWorker,
   createActivityOutboxPublisher,
+  isActivityDeadlineTimerEvent,
   publicOutboxNotification,
 }

@@ -46,15 +46,15 @@ describe('pictionary editor UI', () => {
           error: 'Create error',
           title: title.value,
         },
-        'onUpdate:title': value => title.value = value,
-        'onUpdate:customWords': value => customWords.value = value,
+        'onUpdate:title': (value: string) => title.value = value,
+        'onUpdate:customWords': (value: string) => customWords.value = value,
       }),
       h(PictionaryJoinRoomCard, {
         ...{
           error: 'Join error',
           modelValue: joinTarget.value,
         },
-        'onUpdate:modelValue': value => joinTarget.value = value,
+        'onUpdate:modelValue': (value: string) => joinTarget.value = value,
       }),
     ]), 'dark')
 
@@ -106,8 +106,8 @@ describe('pictionary editor UI', () => {
           onStart: () => startCount++,
           players,
         },
-        'onUpdate:cycles': value => cycles.value = value,
-        'onUpdate:duration': value => duration.value = value,
+        'onUpdate:cycles': (value: 1 | 2 | 3 | 4 | 5) => cycles.value = value,
+        'onUpdate:duration': (value: 60_000 | 90_000 | 120_000) => duration.value = value,
       }),
       h(PictionaryScoreboard, {
         currentUserId: 'host-user',

@@ -1018,6 +1018,112 @@ describe('saier room activity authority', () => {
     })
     expect(stale).toMatchObject({ kind: 'RESYNC_REQUIRED', reason: 'ROUND_MISMATCH' })
   })
+
+  it('preserves canonical brush size and no-pressure input for identical remote replay', async () => {
+    const game = await createDrawingActivity()
+    await game.handler({
+      action: 'submitActivityCommand',
+      activityEpoch: game.activityEpoch,
+      commandId: 'stroke-pressure-fallback',
+      controllerEpoch: game.controllerEpoch,
+      payload: {
+        brushVersion: 'saier.activity-brush.v1',
+        commit: {
+          brushContextSnapshot: {
+            baseSize: 37,
+            color: { a: 1, b: 0.3, g: 0.2, r: 0.1 },
+          },
+          events: [
+            { hasPressure: false, kind: 'point', pointerType: 'mouse', pressure: 0, t: 0, x: 10, y: 20 },
+            { hasPressure: false, kind: 'point', pointerType: 'mouse', pressure: 0, t: 20, x: 40, y: 20 },
+          ],
+          schema: 'saier.stroke.v1',
+        },
+        strokeId: 'stroke-pressure-fallback',
+        tool: 'pen',
+      },
+      phaseEpoch: game.phaseEpoch,
+      roundId: game.roundId,
+      sessionId: game.sessionId,
+      type: 'commitStroke',
+    })
+
+    const [operation] = game.repo.inspectActivityRecords().canvasOperations
+    expect(operation?.payload).toMatchObject({
+      brushContextSnapshot: { baseSize: 37 },
+      brushPresetSnapshot: {
+        options: { baseSize: 37 },
+        preset: { size: 37 },
+      },
+      events: [
+        expect.objectContaining({ hasPressure: false, pointerType: 'mouse' }),
+        expect.objectContaining({ hasPressure: false, pointerType: 'mouse' }),
+      ],
+    })
+
+    const resumed = await game.handler({
+      action: 'resumeActivity',
+      activityEpoch: game.activityEpoch,
+      cursor: {
+        lastCanvasSeq: 0,
+        lastEventSeq: 0,
+        roomMetadataRevision: 0,
+        roundId: game.roundId,
+      },
+      sessionId: game.sessionId,
+    })
+    expect(resumed).toMatchObject({
+      kind: 'SNAPSHOT_REQUIRED',
+      snapshot: {
+        canvas: {
+          operations: [
+            expect.objectContaining({
+              payload: expect.objectContaining({
+                brushContextSnapshot: expect.objectContaining({ baseSize: 37 }),
+                events: expect.arrayContaining([
+                  expect.objectContaining({ hasPressure: false, pointerType: 'mouse' }),
+                ]),
+              }),
+            }),
+          ],
+        },
+      },
+    })
+  })
+
+  it('rejects unsafe activity brush sizes and pointer metadata', async () => {
+    const game = await createDrawingActivity()
+    const baseRequest = {
+      action: 'submitActivityCommand',
+      activityEpoch: game.activityEpoch,
+      controllerEpoch: game.controllerEpoch,
+      phaseEpoch: game.phaseEpoch,
+      roundId: game.roundId,
+      sessionId: game.sessionId,
+      type: 'commitStroke',
+    }
+    const strokePayload = (strokeId: string, baseSize: number, hasPressure: unknown) => ({
+      brushVersion: 'saier.activity-brush.v1',
+      commit: {
+        brushContextSnapshot: { baseSize },
+        events: [{ hasPressure, kind: 'point', pressure: 0, t: 0, x: 10, y: 20 }],
+        schema: 'saier.stroke.v1',
+      },
+      strokeId,
+      tool: 'pen',
+    })
+
+    await expect(game.handler({
+      ...baseRequest,
+      commandId: 'stroke-too-wide',
+      payload: strokePayload('stroke-too-wide', 129, false),
+    })).rejects.toMatchObject({ reason: 'INVALID_STROKE' })
+    await expect(game.handler({
+      ...baseRequest,
+      commandId: 'stroke-invalid-pressure-flag',
+      payload: strokePayload('stroke-invalid-pressure-flag', 8, 'false'),
+    })).rejects.toMatchObject({ reason: 'INVALID_STROKE' })
+  })
 })
 
 async function createTwoPlayerActivity() {

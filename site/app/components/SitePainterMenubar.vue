@@ -190,7 +190,7 @@ function shortcutLabel(command: SitePainterCommand): string {
             </span>
           </MenubarItem>
           <MenubarItem as-child>
-            <NuxtLink class="site-menubar__item" to="/games/pictionary">
+            <NuxtLink class="site-menubar__item" to="/?activity=pictionary">
               <span class="site-menubar__item-main">
                 <span class="i-ph-game-controller" />
                 <span>{{ labels.pictionary }}</span>

@@ -43,6 +43,8 @@ export function useActivityRealtimeShadow(options: ActivityRealtimeShadowOptions
       return
     state.value = reconnectAttempts === 0 ? 'connecting' : 'reconnecting'
     const credentials = await options.createToken()
+    if (stopped || !activity)
+      return
     const current = new WebSocket(options.realtimeUrl)
     socket = current
     current.addEventListener('open', () => {

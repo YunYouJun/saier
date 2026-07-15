@@ -18,6 +18,8 @@ title: P13-07 / P14 · Authoritative realtime activities
 - [x] NoSQL deadline scanner、phase/round/controller fencing、Redis acceleration index rebuild。
 - [x] WebSocket gateway：5 秒 pre-auth、15 分钟 token + reauth、Origin/连接配额、10 秒 ping、背压、preview 校验、graceful drain。
 - [x] 轻量 activity room 和 Pictionary 创建/加入、lobby、choosing/drawing/reveal/score、guess privacy、controller takeover UI。
+- [x] 根界面按查询参数按需加载第一方 Activity 插件；普通绘画不实例化插件资源，旧房间 URL 兼容跳转，卸载时清除 Painter、poll/realtime 和 session state。
+- [x] Activity preview 与 committed stroke 同步颜色、可调笔径和 pressure metadata；服务端校验 1–128 的 preview/commit 笔径。
 - [x] 独立 feature flags；HTTP/polling authority 不依赖 realtime flag。
 - [x] client-deny rules、事务/并发/泄密/worker/gateway/protocol 单测。
 

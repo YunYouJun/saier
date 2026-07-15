@@ -155,7 +155,12 @@ export function useYunlefunRoomActivities() {
         activityEpoch: activity.activityEpoch,
         sessionId: activity.sessionId,
       }) as ActivityPrivateProjection
-      privateProjection.value = result
+      const current = privateProjection.value
+      if (!current
+        || current.sessionId !== result.sessionId
+        || result.privateProjectionRevision >= current.privateProjectionRevision) {
+        privateProjection.value = result
+      }
       return result
     })
   }
@@ -196,12 +201,22 @@ export function useYunlefunRoomActivities() {
     }
   }
 
+  function dispose(): void {
+    roomSession.value = null
+    activeActivity.value = null
+    publicState.value = null
+    privateProjection.value = null
+    lastError.value = ''
+    busy.value = false
+  }
+
   return {
     activeActivity: readonly(activeActivity),
     activatePictionary,
     busy: readonly(busy),
     createRealtimeToken,
     createRoom,
+    dispose,
     features: Object.freeze({
       pictionary: config.public.saierFeatures?.pictionary ?? false,
       realtimeCommittedEvents: config.public.saierFeatures?.realtimeCommittedEvents ?? false,

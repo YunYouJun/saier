@@ -9,6 +9,13 @@ const DEFAULT_LIMIT = 200
 const USER_STORAGE_APP_ID = 'saier'
 
 const roomCollections = [
+  'saier_room_game_canvas_operations',
+  'saier_room_game_commands',
+  'saier_room_game_events',
+  'saier_room_game_outbox',
+  'saier_room_game_secrets',
+  'saier_room_game_sessions',
+  'saier_room_game_snapshots',
   'saier_room_operations',
   'saier_room_snapshots',
   'saier_room_snapshot_reservations',

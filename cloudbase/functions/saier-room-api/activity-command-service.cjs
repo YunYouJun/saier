@@ -13,6 +13,8 @@ const { integerValue, objectValue, sha256, stringValue } = require('./room-core.
 
 const INLINE_COMMIT_BYTES = 128 * 1024
 const MAX_STROKE_POINTS = 8192
+const MAX_ACTIVITY_BRUSH_SIZE = 128
+const MIN_ACTIVITY_BRUSH_SIZE = 1
 const RETENTION_MS = 24 * 60 * 60 * 1000
 
 function createActivityCommandService(options) {
@@ -479,20 +481,44 @@ function canonicalizeCommittedStroke(payload, session) {
       throw activityError('INVALID_STROKE', 'Stroke contains invalid or out-of-bounds coordinates.')
     if (!Number.isFinite(event.pressure) || event.pressure < 0 || event.pressure > 1)
       throw activityError('INVALID_STROKE', 'Stroke pressure must be within [0, 1].')
-    return {
+    const canonicalEvent = {
       kind: 'point',
       pressure: event.pressure,
       t: event.t,
       x: event.x,
       y: event.y,
     }
+    if (event.hasPressure !== undefined) {
+      if (typeof event.hasPressure !== 'boolean')
+        throw activityError('INVALID_STROKE', 'Stroke hasPressure must be boolean.')
+      canonicalEvent.hasPressure = event.hasPressure
+    }
+    if (event.pointerType !== undefined) {
+      if (!['mouse', 'pen', 'touch'].includes(event.pointerType))
+        throw activityError('INVALID_STROKE', 'Stroke pointerType is not allowed.')
+      canonicalEvent.pointerType = event.pointerType
+    }
+    for (const field of ['tiltX', 'tiltY']) {
+      if (event[field] === undefined)
+        continue
+      if (!Number.isFinite(event[field]) || event[field] < -90 || event[field] > 90)
+        throw activityError('INVALID_STROKE', `Stroke ${field} must be within [-90, 90].`)
+      canonicalEvent[field] = event[field]
+    }
+    if (event.twist !== undefined) {
+      if (!Number.isFinite(event.twist) || event.twist < 0 || event.twist >= 360)
+        throw activityError('INVALID_STROKE', 'Stroke twist must be within [0, 360).')
+      canonicalEvent.twist = event.twist
+    }
+    return canonicalEvent
   })
   const activityTool = value.tool
   const color = activityTool === 'eraser'
     ? { a: 1, b: 1, g: 1, r: 1 }
     : canonicalColor(value.commit.brushContextSnapshot?.color)
-  const preset = activityTool === 'marker' ? activityMarkerPreset() : activityPenPreset()
-  const baseSize = activityTool === 'marker' ? 22 : activityTool === 'eraser' ? 20 : 8
+  const defaultBaseSize = activityTool === 'marker' ? 22 : activityTool === 'eraser' ? 20 : 8
+  const baseSize = canonicalBrushSize(value.commit.brushContextSnapshot?.baseSize, defaultBaseSize)
+  const preset = activityTool === 'marker' ? activityMarkerPreset(baseSize) : activityPenPreset(baseSize)
   return {
     brushContextSnapshot: { baseSize, color },
     brushEngine: { id: 'simple', version: 'saier.activity-brush.v1' },
@@ -519,7 +545,15 @@ function canonicalColor(value) {
   return { a: channels[3], b: channels[2], g: channels[1], r: channels[0] }
 }
 
-function activityPenPreset() {
+function canonicalBrushSize(value, fallback) {
+  if (value === undefined)
+    return fallback
+  if (!Number.isFinite(value) || value < MIN_ACTIVITY_BRUSH_SIZE || value > MAX_ACTIVITY_BRUSH_SIZE)
+    throw activityError('INVALID_STROKE', `Stroke baseSize must be within [${MIN_ACTIVITY_BRUSH_SIZE}, ${MAX_ACTIVITY_BRUSH_SIZE}].`)
+  return value
+}
+
+function activityPenPreset(size = 8) {
   return {
     engine: 'simple',
     group: 'Sketching',
@@ -532,7 +566,7 @@ function activityPenPreset() {
     name: 'Pen',
     opacity: 1,
     opacityCurve: 'ease-out',
-    size: 8,
+    size,
     sizeCurve: 'linear',
     source: 'builtin',
     spacing: 0.22,
@@ -541,7 +575,7 @@ function activityPenPreset() {
   }
 }
 
-function activityMarkerPreset() {
+function activityMarkerPreset(size = 22) {
   return {
     blendMode: 'max-alpha',
     engine: 'simple',
@@ -556,7 +590,7 @@ function activityMarkerPreset() {
     opacity: 0.62,
     opacityCurve: 'linear',
     rotation: -Math.PI / 7,
-    size: 22,
+    size,
     source: 'builtin',
     spacing: 0.18,
     tipId: 'marker-chisel',

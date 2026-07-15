@@ -1,16 +1,12 @@
 import type { BrowserContext, Page } from '@playwright/test'
 import process from 'node:process'
 import { expect, test } from '@playwright/test'
+import { signedInYunlefunSitePage } from './fixtures/yunlefun-browser-session'
 import { getYunlefunTestAccountCredentials } from './fixtures/yunlefun-test-accounts'
 
 const SITE_URL = process.env.SAIER_SITE_E2E_URL ?? 'http://127.0.0.1:8090'
-const YUNLEFUN_CLOUDBASE_ENV = process.env.NUXT_PUBLIC_YUNLEFUN_CLOUDBASE_ENV ?? 'yunlefun-8g7ybcxc7345c490'
 const REAL_E2E_ENABLED = process.env.SAIER_E2E_YUNLEFUN_REAL === '1'
-
-interface YunlefunTestCredentials {
-  password: string
-  username: string
-}
+const YUNLEFUN_CLOUDBASE_ENV = process.env.NUXT_PUBLIC_YUNLEFUN_CLOUDBASE_ENV ?? 'yunlefun-8g7ybcxc7345c490'
 
 interface SiteCloudRoomE2eLayerState {
   id: string
@@ -121,107 +117,11 @@ test.describe('site cloud room with real YunLeFun test accounts', () => {
   })
 })
 
-async function signedInSitePage(context: BrowserContext, credentials: YunlefunTestCredentials): Promise<Page> {
-  const page = await context.newPage()
-  await page.goto(`${SITE_URL}/`)
-  await waitForPainterReady(page)
-  await signInWithCloudbasePassword(page, credentials)
-  await page.reload()
-  await waitForPainterReady(page)
-
-  const signedInButton = page.locator('.site-account-button--signed-in')
-  await expect(signedInButton).toBeVisible({ timeout: 30_000 })
-
-  return page
-}
-
-async function waitForPainterReady(page: Page): Promise<void> {
-  await expect
-    .poll(
-      () => page.evaluate(() => {
-        const record = globalThis as Record<string, unknown>
-        const app = record.__PIXI_APP__ && typeof record.__PIXI_APP__ === 'object'
-          ? record.__PIXI_APP__ as Record<string, unknown>
-          : undefined
-        return Boolean(app?.renderer)
-      }),
-      { timeout: 30_000, message: 'site: Pixi app.renderer should exist before cloud room interaction' },
-    )
-    .toBe(true)
-}
-
-async function signInWithCloudbasePassword(page: Page, credentials: YunlefunTestCredentials): Promise<void> {
-  const signedInUid = await page.evaluate(
-    async ({ env, password, username }) => {
-      function asBrowserRecord(value: unknown): Record<string, unknown> | undefined {
-        return value && typeof value === 'object' ? value as Record<string, unknown> : undefined
-      }
-
-      function stringifyBrowserError(error: unknown): string {
-        return error instanceof Error ? error.message : String(error)
-      }
-
-      const moduleUrls = [
-        '/node_modules/.cache/vite/client/deps/@cloudbase_js-sdk.js',
-        '/node_modules/.vite/deps/@cloudbase_js-sdk.js',
-        '/_nuxt/node_modules/.cache/vite/client/deps/@cloudbase_js-sdk.js',
-      ]
-      const importErrors: string[] = []
-      let cloudbaseModule: Record<string, unknown> | undefined
-
-      for (const moduleUrl of moduleUrls) {
-        try {
-          cloudbaseModule = await import(moduleUrl) as Record<string, unknown>
-          break
-        }
-        catch (error) {
-          importErrors.push(`${moduleUrl}: ${stringifyBrowserError(error)}`)
-        }
-      }
-
-      const globalRecord = globalThis as Record<string, unknown>
-      const cloudbase = asBrowserRecord(cloudbaseModule?.default)
-        ?? cloudbaseModule
-        ?? asBrowserRecord(globalRecord.cloudbase)
-      const init = typeof cloudbase?.init === 'function' ? cloudbase.init : undefined
-      if (!init)
-        throw new Error(`Unable to load @cloudbase/js-sdk in browser: ${importErrors.join('; ')}`)
-
-      const app = asBrowserRecord(Reflect.apply(init, cloudbase, [{ env }]))
-      const authFactory = typeof app?.auth === 'function' ? app.auth : undefined
-      if (!authFactory)
-        throw new Error('@cloudbase/js-sdk app.auth() is unavailable.')
-
-      const auth = asBrowserRecord(Reflect.apply(authFactory, app, [{ persistence: 'local' }]))
-      const signInWithPassword = typeof auth?.signInWithPassword === 'function'
-        ? auth.signInWithPassword
-        : undefined
-      if (!signInWithPassword)
-        throw new Error('@cloudbase/js-sdk auth.signInWithPassword() is unavailable.')
-
-      await Reflect.apply(signInWithPassword, auth, [{ password, username }])
-      const getLoginState = typeof auth.getLoginState === 'function'
-        ? auth.getLoginState
-        : undefined
-      if (!getLoginState)
-        throw new Error('@cloudbase/js-sdk auth.getLoginState() is unavailable.')
-
-      const loginState = asBrowserRecord(await Reflect.apply(getLoginState, auth, []))
-      const user = asBrowserRecord(loginState?.user)
-      const uid = typeof user?.uid === 'string' ? user.uid : ''
-      if (!uid)
-        throw new Error(`CloudBase password sign-in did not produce a user for ${username}.`)
-
-      return uid
-    },
-    {
-      env: YUNLEFUN_CLOUDBASE_ENV,
-      password: credentials.password,
-      username: credentials.username,
-    },
-  )
-
-  expect(signedInUid, `CloudBase password sign-in should return a uid for ${credentials.username}`).toBeTruthy()
+async function signedInSitePage(context: BrowserContext, credentials: { password: string, username: string }): Promise<Page> {
+  return signedInYunlefunSitePage(context, credentials, {
+    cloudbaseEnv: YUNLEFUN_CLOUDBASE_ENV,
+    siteUrl: SITE_URL,
+  })
 }
 
 async function createCloudRoom(page: Page, title: string): Promise<string> {

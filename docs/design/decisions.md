@@ -267,9 +267,9 @@ export function usePainter(painter: Painter) {
 3. NoSQL 保存 phase/deadline 真相。Redis 只做通知、presence、限流和 deadline sorted-set 加速；Pub/Sub 丢消息由 outbox、5 秒 watermark 和 delta/snapshot 恢复弥补。
 4. 玩法画布是结构独立的 `ActivityDocument`、repository、collection 和 storage prefix。activity API 无法接收主工程 document id；宿主权限、权威角色和工具 allowlist 取交集。
 5. v1 只加载同 bundle 的第一方 `RoomActivityExtension`。package exports、restricted imports、冻结 facade 和 disposer 检查是架构隔离，不宣称是恶意代码安全沙箱。
-6. Pictionary 使用独立路由和轻量 activity room；主工程只提供入口，不承载完整游戏 UI。
+6. Pictionary 使用根绘画界面的按需 Activity 插件宿主和轻量 activity room。普通 `/` 流程不加载插件 chunk，也不创建 activity Painter、定时器或网络连接；旧房间路由只做兼容跳转。插件仍使用独立 `ActivityDocument`，不会把游戏笔迹接入主工程 repository。
 
-**理由**：事务边界保证并发、重试和进程崩溃时不会重复计分或泄露答案；持久游标保证漏掉最后一条 Pub/Sub 仍能发现；物理 canvas 隔离让“游戏不修改主工程”成为类型和存储层约束，而不是调用约定。
+**理由**：事务边界保证并发、重试和进程崩溃时不会重复计分或泄露答案；持久游标保证漏掉最后一条 Pub/Sub 仍能发现；物理 canvas 隔离让“游戏不修改主工程”成为类型和存储层约束，而不是调用约定；按需宿主允许玩法复用 Saier 的视觉与工具组件，同时不增加普通绘画启动路径的运行时资源。
 
 **非目标**：v1 不提供第三方插件 SDK、游客、语音、全球匹配、离线多人合并或 Redis Streams 第二套真相。生产 realtime 资源、Redis/VPC 与双实例启用仍须通过独立 rollout gate。
 

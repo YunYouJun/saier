@@ -44,7 +44,9 @@ describe('realtime gateway core', () => {
     }
     const frame = {
       activityEpoch: 2,
+      baseSize: 36,
       brushVersion: 'saier.activity-brush.v1',
+      color: '#12ABef',
       controllerEpoch: 4,
       phaseEpoch: 3,
       points: [{ x: 1, y: 2, pressure: 1 }],
@@ -55,10 +57,16 @@ describe('realtime gateway core', () => {
       type: 'preview',
       tool: 'pen',
     }
-    expect(core.validatePreview(frame, authority)).toMatchObject({ strokeId: 'stroke-1' })
+    expect(core.validatePreview(frame, authority)).toMatchObject({ baseSize: 36, color: '#12abef', strokeId: 'stroke-1' })
+    expect(core.validatePreview({ ...frame, baseSize: undefined, color: undefined }, authority)).toMatchObject({
+      baseSize: 8,
+      color: '#202020',
+    })
     expect(() => core.validatePreview({ ...frame, controllerEpoch: 3 }, authority)).toThrow('STALE_PREVIEW')
     expect(() => core.validatePreview({ ...frame, points: [{ x: Number.NaN, y: 2 }] }, authority)).toThrow('INVALID_PREVIEW')
     expect(() => core.validatePreview({ ...frame, points: Array.from({ length: 33 }, () => ({ x: 1, y: 2 })) }, authority)).toThrow('INVALID_PREVIEW')
+    expect(() => core.validatePreview({ ...frame, baseSize: 129 }, authority)).toThrow('INVALID_PREVIEW')
+    expect(() => core.validatePreview({ ...frame, color: 'red' }, authority)).toThrow('INVALID_PREVIEW')
   })
 
   it('drops previews and merges presence before refusing committed events', () => {

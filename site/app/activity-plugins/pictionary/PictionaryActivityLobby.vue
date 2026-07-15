@@ -1,15 +1,20 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from '#imports'
 import { validateCustomWordBank } from '@saier/collaboration'
 import { useYunlefunRoomActivities } from '~/composables/useYunlefunRoomActivities'
+import { createSiteActivityLocation, parsePictionaryJoinTarget } from '~/utils/activityPluginRoutes'
 
 const router = useRouter()
+const emit = defineEmits<{
+  exit: []
+}>()
 const activities = useYunlefunRoomActivities()
 const title = ref('周末你画我猜')
 const customWords = ref('')
 const joinTarget = ref('')
 const formError = ref('')
+let disposed = false
 
 const parsedWords = computed(() => customWords.value
   .split(/[\n,，]/u)
@@ -21,48 +26,62 @@ async function createGame(): Promise<void> {
   try {
     const words = parsedWords.value.length > 0 ? validateCustomWordBank(parsedWords.value) : undefined
     const created = await activities.createRoom(title.value)
-    const activated = await activities.activatePictionary({
+    if (abortDisposedWork())
+      return
+    await activities.activatePictionary({
       commandId: crypto.randomUUID(),
       config: { customBank: Boolean(words) },
       roomId: created.session.room.id,
       words,
     })
-    await router.push({
-      path: `/games/pictionary/${created.session.room.id}`,
-      query: created.inviteToken ? { invite: created.inviteToken, session: activated.sessionId } : undefined,
-    })
+    if (abortDisposedWork())
+      return
+    await router.push(createSiteActivityLocation({
+      inviteToken: created.inviteToken,
+      roomId: created.session.room.id,
+      type: 'pictionary',
+    }))
   }
   catch (error) {
-    formError.value = error instanceof Error ? error.message : '创建失败，请稍后重试'
+    if (disposed)
+      activities.dispose()
+    else
+      formError.value = error instanceof Error ? error.message : '创建失败，请稍后重试'
   }
 }
+
+function abortDisposedWork(): boolean {
+  if (!disposed)
+    return false
+  activities.dispose()
+  return true
+}
+
+onBeforeUnmount(() => {
+  disposed = true
+  activities.dispose()
+})
 
 async function joinGame(): Promise<void> {
   const value = joinTarget.value.trim()
   if (!value)
     return
-  try {
-    const url = new URL(value, window.location.origin)
-    const segments = url.pathname.split('/').filter(Boolean)
-    const roomId = segments.at(-1) ?? value
-    await router.push({
-      path: `/games/pictionary/${roomId}`,
-      query: url.searchParams.get('invite') ? { invite: url.searchParams.get('invite')! } : undefined,
-    })
+  const request = parsePictionaryJoinTarget(value, window.location.origin)
+  if (!request) {
+    formError.value = '请输入有效的邀请链接或房间 ID'
+    return
   }
-  catch {
-    await router.push(`/games/pictionary/${value}`)
-  }
+  await router.push(createSiteActivityLocation(request))
 }
 </script>
 
 <template>
   <main class="pictionary-home">
     <header class="pictionary-home__brand">
-      <NuxtLink to="/" class="pictionary-home__back">
+      <button type="button" class="pictionary-home__back" @click="emit('exit')">
         <span class="i-ph-arrow-left" />
         返回 Saier
-      </NuxtLink>
+      </button>
       <span class="pictionary-home__eyebrow">SAIER ACTIVITY</span>
       <h1>你画，我猜。</h1>
       <p>临时游戏画布与主工程完全分开。开局、分享链接，最多 12 人一起玩。</p>
@@ -110,7 +129,7 @@ async function joinGame(): Promise<void> {
         </div>
         <label>
           <span>邀请链接</span>
-          <input v-model="joinTarget" autocomplete="off" placeholder="https://…/games/pictionary/sr_…">
+          <input v-model="joinTarget" autocomplete="off" placeholder="https://…/?activity=pictionary&activityRoom=sr_…">
         </label>
         <button class="pictionary-button" type="submit" :disabled="!joinTarget.trim()">
           进入房间
@@ -155,7 +174,11 @@ async function joinGame(): Promise<void> {
   gap: 7px;
   margin-bottom: 48px;
   color: #5d5752;
+  padding: 0;
+  border: 0;
   text-decoration: none;
+  background: transparent;
+  cursor: pointer;
 }
 
 .pictionary-home__eyebrow {

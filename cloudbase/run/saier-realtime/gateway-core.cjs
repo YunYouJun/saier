@@ -8,6 +8,8 @@ const CANVAS_WIDTH = 1024
 const CANVAS_HEIGHT = 768
 const ACTIVITY_BRUSH_VERSION = 'saier.activity-brush.v1'
 const ACTIVITY_TOOLS = new Set(['pen', 'marker', 'eraser'])
+const MIN_ACTIVITY_BRUSH_SIZE = 1
+const MAX_ACTIVITY_BRUSH_SIZE = 128
 
 const TRANSPORT_TRANSITIONS = Object.freeze({
   'connecting': new Set(['realtime', 'reconnecting', 'fatal']),
@@ -175,6 +177,16 @@ function validatePreview(frame, authority) {
   }
   if (!ACTIVITY_TOOLS.has(frame.tool) || frame.brushVersion !== ACTIVITY_BRUSH_VERSION)
     throw gatewayError('INVALID_PREVIEW', 'Preview tool or brush version is not allowed.')
+  const defaultBaseSize = frame.tool === 'marker' ? 22 : frame.tool === 'eraser' ? 20 : 8
+  const baseSize = frame.baseSize ?? defaultBaseSize
+  const color = frame.color ?? '#202020'
+  if (!Number.isFinite(baseSize)
+    || baseSize < MIN_ACTIVITY_BRUSH_SIZE
+    || baseSize > MAX_ACTIVITY_BRUSH_SIZE) {
+    throw gatewayError('INVALID_PREVIEW', 'Preview baseSize is out of range.')
+  }
+  if (typeof color !== 'string' || !/^#[\da-f]{6}$/iu.test(color))
+    throw gatewayError('INVALID_PREVIEW', 'Preview color is invalid.')
   return {
     activityEpoch: frame.activityEpoch,
     controllerEpoch: frame.controllerEpoch,
@@ -185,6 +197,8 @@ function validatePreview(frame, authority) {
     sessionId: frame.sessionId,
     strokeId: frame.strokeId,
     tool: frame.tool,
+    baseSize,
+    color: color.toLowerCase(),
     brushVersion: frame.brushVersion,
     type: 'preview',
   }

@@ -154,7 +154,7 @@ title: Roadmap (P0–P14)
 
 - **目标**：在 P13-07 的权威 Activity 基础上交付第一方你画我猜，验证安全扩展边界和临时 activity canvas，不修改主工程文档。
 - **范围**：
-  - 独立 `/games/pictionary` 创建/加入页与 `/games/pictionary/[roomId]` 游戏页。
+  - 根绘画界面按需加载的 Pictionary Activity 插件，内部包含创建/加入 Lobby 与房间状态；旧 `/games/pictionary`、`/games/pictionary/[roomId]` 只保留兼容跳转。
   - 2–12 人 lobby、题库、choosing/drawing/reveal/finished 状态机、私有画手 projection、猜词、计分、离线宽限和 controller takeover。
   - 固定 1024×768 单层 activity canvas，只开放 pen/marker/eraser、颜色和笔径。
   - `realtimeCommittedEvents`、`realtimePreview`、`pictionary`、`redisDeadlineAcceleration` 四个独立 feature flag。

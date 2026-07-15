@@ -1,25 +1,47 @@
 <script setup lang="ts">
-import type { ActivityCanvasOperation } from '@saier/collaboration'
+import type { ActiveActivity, ActivityCanvasOperation } from '@saier/collaboration'
 import type { SaierStrokeCommit } from '@saier/core'
 import type { Painter } from 'saier'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { createPainter, PainterEraser } from 'saier'
-import { useRoute } from '#imports'
 import { useActivityRealtimeShadow } from '~/composables/useActivityRealtimeShadow'
 import { useYunlefunAuth } from '~/composables/useYunlefunAuth'
 import { useYunlefunRoomActivities } from '~/composables/useYunlefunRoomActivities'
+import { createSiteActivityHref } from '~/utils/activityPluginRoutes'
 
-const route = useRoute()
+const props = defineProps<{
+  inviteToken?: string
+  roomId: string
+}>()
+
+const emit = defineEmits<{
+  exit: []
+  openLobby: []
+}>()
+
 const activities = useYunlefunRoomActivities()
 const auth = useYunlefunAuth()
-const roomId = computed(() => String(route.params.roomId ?? ''))
-const inviteToken = computed(() => typeof route.query.invite === 'string' ? route.query.invite : undefined)
+const roomId = computed(() => props.roomId)
+const inviteToken = computed(() => props.inviteToken)
 const state = computed(() => activities.publicState.value)
 const currentUserId = computed(() => auth.account.value?.uid ?? '')
 const currentPlayer = computed(() => state.value?.players[currentUserId.value])
 const isHost = computed(() => state.value?.gameHostUserId === currentUserId.value)
 const isDrawer = computed(() => state.value?.round?.drawerId === currentUserId.value)
 const canDraw = computed(() => state.value?.phase === 'drawing' && isDrawer.value)
+const currentPrivateProjection = computed(() => {
+  const currentState = state.value
+  const projection = activities.privateProjection.value
+  if (!currentState
+    || !projection
+    || projection.sessionId !== currentState.sessionId
+    || projection.privateProjectionRevision !== currentState.privateProjectionRevision
+    || projection.phase !== currentState.phase
+    || projection.roundId !== currentState.round?.roundId) {
+    return undefined
+  }
+  return projection
+})
 const players = computed(() => Object.values(state.value?.players ?? {}).sort((a, b) => b.score - a.score || a.joinedAt - b.joinedAt))
 const canvasRef = ref<HTMLCanvasElement>()
 const previewCanvasRef = ref<HTMLCanvasElement>()
@@ -33,6 +55,7 @@ const previewLastPoints = new Map<string, { x: number, y: number }>()
 const controllerConnectionId = crypto.randomUUID()
 const selectedTool = ref<'pen' | 'marker' | 'eraser'>('pen')
 const selectedColor = ref('#202020')
+const selectedBrushSize = ref(8)
 const cycles = ref<1 | 2 | 3 | 4 | 5>(2)
 const duration = ref<60_000 | 90_000 | 120_000>(90_000)
 let painter: Painter | undefined
@@ -41,6 +64,8 @@ let removeStrokePreviewListener: (() => void) | undefined
 let pollTimer: ReturnType<typeof setInterval> | undefined
 let clockTimer: ReturnType<typeof setInterval> | undefined
 let syncInFlight = false
+let privateProjectionSync: Promise<void> | undefined
+let disposed = false
 
 const realtime = useActivityRealtimeShadow({
   createToken: async () => {
@@ -72,7 +97,7 @@ const phaseLabel = computed(() => ({
   lobby: '等待开局',
   reveal: revealReady.value ? '揭晓答案' : '同步最后笔迹',
 }[state.value?.phase ?? 'lobby'] as string))
-const answer = computed(() => revealReady.value ? activities.privateProjection.value?.answer : undefined)
+const answer = computed(() => revealReady.value ? currentPrivateProjection.value?.answer : undefined)
 const transportLabel = computed(() => activities.features.realtimeCommittedEvents
   ? `实时链路 · ${realtime.state.value}`
   : '权威轮询')
@@ -80,6 +105,8 @@ const transportLabel = computed(() => activities.features.realtimeCommittedEvent
 onMounted(async () => {
   try {
     const room = await activities.joinRoom(roomId.value, inviteToken.value)
+    if (abortDisposedWork())
+      return
     const activity = room.room.activeActivity
     if (!activity)
       throw new Error('房间尚未创建游戏')
@@ -90,41 +117,64 @@ onMounted(async () => {
       sessionId: activity.sessionId,
       type: 'joinGame',
     })
+    if (abortDisposedWork())
+      return
     await syncAuthority()
+    if (abortDisposedWork())
+      return
     if (activities.features.realtimeCommittedEvents && activities.realtimeUrl)
       await realtime.start(activity)
+    if (abortDisposedWork())
+      return
     pollTimer = setInterval(syncAuthority, 1500)
     clockTimer = setInterval(() => now.value = Date.now(), 250)
   }
   catch (error) {
-    fatalError.value = error instanceof Error ? error.message : '无法加入房间'
+    if (disposed)
+      activities.dispose()
+    else
+      fatalError.value = error instanceof Error ? error.message : '无法加入房间'
   }
 })
 
 onBeforeUnmount(() => {
+  disposed = true
   if (pollTimer)
     clearInterval(pollTimer)
   if (clockTimer)
     clearInterval(clockTimer)
   destroyActivityPainter()
   realtime.stop()
+  activities.dispose()
 })
 
 watch(
   () => state.value?.round?.roundId,
-  async (roundId, previousRoundId) => {
+  (roundId, previousRoundId) => {
     if (!roundId || roundId === previousRoundId)
       return
     appliedStrokeIds.clear()
     appliedCanvasSeq.value = 0
-    await createActivityPainter(roundId)
+    clearRemotePreviews()
   },
 )
 
-watch([selectedTool, selectedColor], applyPainterTool)
+watch(
+  () => [
+    state.value?.sessionId,
+    state.value?.privateProjectionRevision,
+    state.value?.phase,
+    state.value?.round?.roundId,
+    currentUserId.value,
+  ],
+  () => requestPrivateProjectionSync(),
+  { flush: 'post' },
+)
+
+watch([selectedTool, selectedColor, selectedBrushSize], applyPainterTool)
 
 async function syncAuthority(): Promise<void> {
-  if (syncInFlight)
+  if (disposed || syncInFlight)
     return
   const activity = activities.activeActivity.value ?? activities.roomSession.value?.room.activeActivity
   if (!activity)
@@ -137,6 +187,8 @@ async function syncAuthority(): Promise<void> {
       roomMetadataRevision: activities.roomSession.value?.room.roomMetadataRevision ?? 0,
       roundId: state.value?.round?.roundId,
     })
+    if (abortDisposedWork())
+      return
     if (result.kind === 'SESSION_ENDED') {
       fatalError.value = '本局已经结束'
       return
@@ -147,6 +199,8 @@ async function syncAuthority(): Promise<void> {
         lastEventSeq: 0,
         roomMetadataRevision: 0,
       })
+      if (abortDisposedWork())
+        return
     }
     if (result.kind === 'SESSION_ENDED' || result.kind === 'RESYNC_REQUIRED')
       return
@@ -160,9 +214,9 @@ async function syncAuthority(): Promise<void> {
     await applyCanvasOperations(operations)
     if (appliedCanvasSeq.value > canvasSeqBeforeApply)
       clearRemotePreviews()
-    const projectionRevision = result.watermark.privateProjectionRevision
-    if (projectionRevision !== activities.privateProjection.value?.privateProjectionRevision)
-      await activities.getPrivateProjection(activity)
+    await syncPrivateProjection(activity)
+    if (abortDisposedWork())
+      return
     const config = activities.publicState.value?.config
     if (config) {
       cycles.value = config.cycles
@@ -170,33 +224,95 @@ async function syncAuthority(): Promise<void> {
     }
   }
   catch (error) {
-    fatalError.value = error instanceof Error ? error.message : '同步失败'
+    if (disposed)
+      activities.dispose()
+    else
+      fatalError.value = error instanceof Error ? error.message : '同步失败'
   }
   finally {
     syncInFlight = false
   }
 }
 
+async function syncPrivateProjection(
+  requestedActivity = activities.activeActivity.value ?? activities.roomSession.value?.room.activeActivity,
+): Promise<void> {
+  if (disposed || !requestedActivity || privateProjectionCoversPublicState(requestedActivity))
+    return
+  if (privateProjectionSync) {
+    await privateProjectionSync
+    return
+  }
+
+  privateProjectionSync = activities.getPrivateProjection(requestedActivity).then(() => undefined)
+  try {
+    await privateProjectionSync
+  }
+  finally {
+    privateProjectionSync = undefined
+  }
+}
+
+function requestPrivateProjectionSync(): void {
+  void syncPrivateProjection().catch((error) => {
+    if (!disposed)
+      fatalError.value = error instanceof Error ? error.message : '同步题目失败'
+  })
+}
+
+function privateProjectionCoversPublicState(activity: Pick<ActiveActivity, 'sessionId'>): boolean {
+  const currentState = state.value
+  const projection = activities.privateProjection.value
+  if (!currentState || !projection || projection.sessionId !== activity.sessionId)
+    return false
+  if (projection.privateProjectionRevision > currentState.privateProjectionRevision)
+    return true
+  return projection.privateProjectionRevision === currentState.privateProjectionRevision
+    && projection.phase === currentState.phase
+    && projection.roundId === currentState.round?.roundId
+}
+
+function abortDisposedWork(): boolean {
+  if (!disposed)
+    return false
+  activities.dispose()
+  return true
+}
+
 async function createActivityPainter(roundId: string): Promise<void> {
   const activity = activities.activeActivity.value ?? activities.roomSession.value?.room.activeActivity
   if (!activity || !canvasRef.value)
     return
+  const strokeEventScope = {
+    activityEpoch: activity.activityEpoch,
+    documentScope: 'activity' as const,
+    roundId,
+    sessionId: activity.sessionId,
+  }
+  if (painter) {
+    painter.options.strokeEventScope = strokeEventScope
+    painter.clearCanvas()
+    applyPainterTool()
+    return
+  }
   destroyActivityPainter()
   await nextTick()
-  painter = createPainter({
+  const activityPainter = createPainter({
     backend: 'tiled',
     boardSize: { width: 1024, height: 768 },
     pixiOptions: { backgroundAlpha: 0 },
     size: { width: 1024, height: 768 },
-    strokeEventScope: {
-      activityEpoch: activity.activityEpoch,
-      documentScope: 'activity',
-      roundId,
-      sessionId: activity.sessionId,
-    },
+    strokeEventScope,
     view: canvasRef.value,
   })
-  await painter.init()
+  painter = activityPainter
+  await activityPainter.init()
+  if (disposed || painter !== activityPainter) {
+    activityPainter.destroy()
+    if (painter === activityPainter)
+      painter = undefined
+    return
+  }
   applyPainterTool()
   removeStrokeListener = painter.onStrokeCommitted((event) => {
     if (!canDraw.value || event.roundId !== state.value?.round?.roundId)
@@ -220,6 +336,8 @@ async function createActivityPainter(roundId: string): Promise<void> {
       sessionId: current.sessionId,
       strokeId: event.strokeId,
       tool: selectedTool.value,
+      baseSize: selectedBrushSize.value,
+      color: selectedColor.value,
     })
   })
 }
@@ -238,13 +356,18 @@ function applyPainterTool(): void {
     return
   if (selectedTool.value === 'eraser') {
     painter.useTool('eraser')
-    PainterEraser.size = 20
+    PainterEraser.size = selectedBrushSize.value
     return
   }
   painter.useTool('brush')
   painter.brush.setPreset(selectedTool.value === 'marker' ? 'marker' : 'pen')
-  painter.brush.setSize(selectedTool.value === 'marker' ? 22 : 8)
+  painter.brush.setSize(selectedBrushSize.value)
   painter.brush.setColor(Number.parseInt(selectedColor.value.slice(1), 16))
+}
+
+function selectTool(tool: 'pen' | 'marker' | 'eraser'): void {
+  selectedTool.value = tool
+  selectedBrushSize.value = tool === 'marker' ? 22 : tool === 'eraser' ? 20 : 8
 }
 
 async function applyCanvasOperations(operations: Array<ActivityCanvasOperation<SaierStrokeCommit>>): Promise<void> {
@@ -313,8 +436,12 @@ function renderRemotePreview(message: Record<string, unknown>): void {
     return
   context.lineCap = 'round'
   context.lineJoin = 'round'
-  context.lineWidth = message.tool === 'marker' ? 22 : message.tool === 'eraser' ? 20 : 8
-  context.strokeStyle = message.tool === 'eraser' ? '#a9a29a' : '#e8402e'
+  context.lineWidth = Number.isFinite(message.baseSize)
+    ? Math.max(1, Math.min(128, Number(message.baseSize)))
+    : message.tool === 'marker' ? 22 : message.tool === 'eraser' ? 20 : 8
+  context.strokeStyle = message.tool === 'eraser'
+    ? '#a9a29a'
+    : typeof message.color === 'string' && /^#[\da-f]{6}$/iu.test(message.color) ? message.color : '#202020'
   for (const rawPoint of points) {
     const point = rawPoint as { x?: unknown, y?: unknown }
     if (!Number.isFinite(point.x) || !Number.isFinite(point.y))
@@ -430,7 +557,11 @@ async function setPlayerMuted(userId: string, muted: boolean): Promise<void> {
 }
 
 async function copyInvite(): Promise<void> {
-  await navigator.clipboard.writeText(activities.roomSession.value?.shareUrl || window.location.href)
+  await navigator.clipboard.writeText(createSiteActivityHref({
+    inviteToken: inviteToken.value,
+    roomId: roomId.value,
+    type: 'pictionary',
+  }, window.location.origin))
   liveGuess.value = '邀请链接已复制'
 }
 
@@ -453,22 +584,28 @@ function requireRoundState() {
 <template>
   <main class="pictionary-room">
     <header class="pictionary-room__topbar">
-      <NuxtLink to="/games/pictionary" class="pictionary-room__brand">SAIER / PICTIONARY</NuxtLink>
+      <button type="button" class="pictionary-room__brand is-button" @click="emit('exit')">SAIER / PICTIONARY</button>
       <div class="pictionary-room__status">
         <span class="pictionary-room__live-dot" />
         {{ transportLabel }}
       </div>
-      <button type="button" class="room-action" @click="copyInvite">
-        <span class="i-ph-share-network" />
-        邀请
-      </button>
+      <div class="pictionary-room__actions">
+        <button type="button" class="room-action" @click="copyInvite">
+          <span class="i-ph-share-network" />
+          邀请
+        </button>
+        <button type="button" class="room-action" @click="emit('exit')">
+          <span class="i-ph-x" />
+          退出插件
+        </button>
+      </div>
     </header>
 
     <section v-if="fatalError && !state" class="room-fatal" role="alert">
       <span class="i-ph-warning-circle" />
       <h1>无法进入游戏</h1>
       <p>{{ fatalError }}</p>
-      <NuxtLink to="/games/pictionary">返回游戏大厅</NuxtLink>
+      <button type="button" class="room-link" @click="emit('openLobby')">返回游戏大厅</button>
     </section>
 
     <template v-else>
@@ -495,18 +632,18 @@ function requireRoundState() {
 
           <div v-if="isHost" class="lobby-settings">
             <label>轮数
-              <select v-model.number="cycles" @change="updateLobby">
+              <select v-model.number="cycles" :disabled="activities.busy.value" @change="updateLobby">
                 <option v-for="value in [1, 2, 3, 4, 5]" :key="value" :value="value">{{ value }}</option>
               </select>
             </label>
             <label>每轮
-              <select v-model.number="duration" @change="updateLobby">
+              <select v-model.number="duration" :disabled="activities.busy.value" @change="updateLobby">
                 <option :value="60000">60 秒</option>
                 <option :value="90000">90 秒</option>
                 <option :value="120000">120 秒</option>
               </select>
             </label>
-            <button class="room-primary" type="button" :disabled="players.filter(player => player.status === 'active').length < 2" @click="startGame">
+            <button class="room-primary" type="button" :disabled="activities.busy.value || players.filter(player => player.status === 'active').length < 2" @click="startGame">
               开始游戏
             </button>
           </div>
@@ -524,6 +661,11 @@ function requireRoundState() {
             <time>{{ remainingSeconds.toString().padStart(2, '0') }}</time>
           </div>
 
+          <p v-if="canDraw" class="drawer-answer" aria-live="polite">
+            <span>你的题目</span>
+            <strong>{{ currentPrivateProjection?.answer || '正在同步题目…' }}</strong>
+          </p>
+
           <div class="activity-canvas" :class="{ 'is-readonly': !canDraw }">
             <canvas ref="canvasRef" />
             <canvas ref="previewCanvasRef" class="activity-canvas__preview" width="1024" height="768" aria-hidden="true" />
@@ -533,7 +675,7 @@ function requireRoundState() {
                 <h2>选一个题目开始画</h2>
                 <div class="candidate-list">
                   <button
-                    v-for="(candidate, index) in activities.privateProjection.value?.candidates ?? []"
+                    v-for="(candidate, index) in currentPrivateProjection?.candidates ?? []"
                     :key="candidate"
                     type="button"
                     @click="chooseWord(index)"
@@ -552,15 +694,19 @@ function requireRoundState() {
             <div v-if="state?.phase === 'finished'" class="canvas-overlay is-reveal">
               <span class="room-kicker">FINAL SCORE</span>
               <h2>{{ players[0]?.userId }} 获胜</h2>
-              <NuxtLink class="room-primary" to="/games/pictionary">再开一局</NuxtLink>
+              <button class="room-primary" type="button" @click="emit('openLobby')">再开一局</button>
             </div>
           </div>
 
           <div v-if="canDraw" class="drawing-tools">
-            <button v-for="tool in ['pen', 'marker', 'eraser'] as const" :key="tool" :class="{ 'is-active': selectedTool === tool }" type="button" @click="selectedTool = tool">
+            <button v-for="tool in ['pen', 'marker', 'eraser'] as const" :key="tool" :class="{ 'is-active': selectedTool === tool }" type="button" @click="selectTool(tool)">
               {{ { pen: '画笔', marker: '马克笔', eraser: '橡皮' }[tool] }}
             </button>
             <input v-if="selectedTool !== 'eraser'" v-model="selectedColor" type="color" aria-label="笔刷颜色">
+            <label class="drawing-size">
+              <span>粗细 {{ selectedBrushSize }}</span>
+              <input v-model.number="selectedBrushSize" type="range" min="1" max="128" step="1" aria-label="画笔粗细">
+            </label>
             <button v-if="isDrawer" type="button" @click="takeController">接管绘制</button>
           </div>
 
@@ -614,11 +760,15 @@ function requireRoundState() {
 }
 
 .pictionary-room__brand {
+  padding: 0;
+  border: 0;
   color: #25211f;
   font-size: 12px;
   font-weight: 900;
   letter-spacing: .12em;
   text-decoration: none;
+  background: transparent;
+  cursor: pointer;
 }
 
 .pictionary-room__status {
@@ -639,6 +789,12 @@ function requireRoundState() {
 
 .online-dot.is-offline {
   background: #aaa39c;
+}
+
+.pictionary-room__actions {
+  display: flex;
+  justify-self: end;
+  gap: 8px;
 }
 
 .room-action {
@@ -838,6 +994,20 @@ function requireRoundState() {
   font-variant-numeric: tabular-nums;
 }
 
+.drawer-answer {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 6px 10px;
+  color: #665f59;
+  font-size: 12px;
+}
+
+.drawer-answer strong {
+  color: #e8402e;
+  font-size: 18px;
+}
+
 .activity-canvas {
   position: relative;
   overflow: hidden;
@@ -931,6 +1101,21 @@ function requireRoundState() {
   border: 1px solid #c9c0b7;
   border-radius: 8px;
   background: #fff;
+}
+
+.drawing-size {
+  display: grid;
+  min-width: 150px;
+  align-content: center;
+  gap: 2px;
+  padding-inline: 8px;
+  color: #635d58;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.drawing-size input {
+  width: 100%;
 }
 
 .guess-bar input {
@@ -1030,6 +1215,16 @@ function requireRoundState() {
   font-size: 52px;
 }
 
+.room-link {
+  padding: 0;
+  border: 0;
+  color: #e8402e;
+  font: inherit;
+  text-decoration: underline;
+  background: transparent;
+  cursor: pointer;
+}
+
 @media (max-width: 860px) {
   .pictionary-room__topbar {
     grid-template-columns: 1fr auto;
@@ -1037,6 +1232,10 @@ function requireRoundState() {
   }
 
   .pictionary-room__status {
+    display: none;
+  }
+
+  .pictionary-room__actions .room-action:last-child {
     display: none;
   }
 

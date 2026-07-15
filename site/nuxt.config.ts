@@ -58,6 +58,17 @@ export default defineNuxtConfig({
   },
 
   vite: {
+    build: {
+      rollupOptions: {
+        output: {
+          chunkFileNames(chunkInfo) {
+            if (chunkInfo.name === 'PictionaryActivityPlugin')
+              return '_nuxt/activity-pictionary.[hash].js'
+            return '_nuxt/[hash].js'
+          },
+        },
+      },
+    },
     optimizeDeps: {
       include: [
         '@cloudbase/js-sdk',

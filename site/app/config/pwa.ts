@@ -35,6 +35,12 @@ export const pwa: ModuleOptions = {
     ],
   },
   workbox: {
+    globIgnores: [
+      '**/activity-pictionary.*.js',
+      '**/activity-pictionary.*.css',
+      '**/PictionaryActivityPlugin.*.js',
+      '**/PictionaryActivityPlugin.*.css',
+    ],
     globPatterns: ['**/*.{js,css,html,txt,png,ico,svg}'],
     navigateFallbackDenylist: [/^\/api\//],
     navigateFallback: '/',

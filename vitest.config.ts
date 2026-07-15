@@ -15,7 +15,16 @@ const alias = {
 export default defineConfig({
   plugins: [vue()],
   optimizeDeps: {
-    include: ['consola', 'hotkeys-js', 'mitt', 'pixi.js/advanced-blend-modes', 'pixi.js/math-extras'],
+    include: [
+      'ag-psd',
+      'consola',
+      'hotkeys-js',
+      'mitt',
+      'pixi.js',
+      'pixi.js/advanced-blend-modes',
+      'pixi.js/math-extras',
+      'reka-ui',
+    ],
   },
   resolve: {
     alias,

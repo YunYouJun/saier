@@ -9,23 +9,21 @@ const alias = {
   '@saier/core': resolve(rootDir, 'packages/core/src/index.ts'),
   '@saier/pixi': resolve(rootDir, 'packages/pixi/src/index.ts'),
   '@saier/vue': resolve(rootDir, 'packages/vue'),
+  'saier': resolve(rootDir, 'packages/saier/src/index.ts'),
   '~': resolve(rootDir, 'site/app'),
+}
+const browserTestFiles = [
+  'packages/vue/test/**/*.browser.spec.ts',
+  'packages/saier/test/**/*.browser.spec.ts',
+  'packages/pixi/test/**/*.browser.spec.ts',
+  'site/app/**/*.browser.spec.ts',
+]
+const browserOptimizeDeps = {
+  entries: browserTestFiles,
 }
 
 export default defineConfig({
   plugins: [vue()],
-  optimizeDeps: {
-    include: [
-      'ag-psd',
-      'consola',
-      'hotkeys-js',
-      'mitt',
-      'pixi.js',
-      'pixi.js/advanced-blend-modes',
-      'pixi.js/math-extras',
-      'reka-ui',
-    ],
-  },
   resolve: {
     alias,
   },
@@ -51,17 +49,13 @@ export default defineConfig({
       },
       {
         plugins: [vue()],
+        optimizeDeps: browserOptimizeDeps,
         resolve: {
           alias,
         },
         test: {
           name: 'browser',
-          include: [
-            'packages/vue/test/**/*.browser.spec.ts',
-            'packages/saier/test/**/*.browser.spec.ts',
-            'packages/pixi/test/**/*.browser.spec.ts',
-            'site/app/**/*.browser.spec.ts',
-          ],
+          include: browserTestFiles,
           // Browser specs drive real WebGL; running files in parallel exhausts
           // GPU / browser resources and makes heavy specs (e.g. 5000-dab) flake
           // under load. Run them sequentially with generous timeouts — slower but

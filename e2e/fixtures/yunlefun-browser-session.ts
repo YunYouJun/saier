@@ -1,5 +1,11 @@
 import type { BrowserContext, Page } from '@playwright/test'
+import { readFile } from 'node:fs/promises'
+import { basename, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { expect } from '@playwright/test'
+
+const VITE_CLOUDBASE_DEPS_DIR = fileURLToPath(new URL('../../site/node_modules/.cache/vite/client/deps/', import.meta.url))
+const SDK_PROXY_PATH = '/__saier_e2e_sdk/'
 
 export interface YunlefunTestCredentials {
   password: string
@@ -17,11 +23,17 @@ export async function signedInYunlefunSitePage(
   credentials: YunlefunTestCredentials,
   options: SignedInYunlefunPageOptions,
 ): Promise<Page> {
+  const sdkModuleUrl = await installCloudbaseSdkProxy(context, options.siteUrl)
   const page = await context.newPage()
   await page.goto(`${options.siteUrl}/`)
   if (options.waitForPainter !== false)
     await waitForPainterReady(page)
-  await signInWithCloudbasePassword(page, credentials, options.cloudbaseEnv)
+  await signInWithCloudbasePassword(
+    page,
+    credentials,
+    options.cloudbaseEnv,
+    sdkModuleUrl,
+  )
   await page.reload()
   if (options.waitForPainter !== false)
     await waitForPainterReady(page)
@@ -38,7 +50,8 @@ export async function waitForPainterReady(page: Page): Promise<void> {
         const app = record.__PIXI_APP__ && typeof record.__PIXI_APP__ === 'object'
           ? record.__PIXI_APP__ as Record<string, unknown>
           : undefined
-        return Boolean(app?.renderer)
+        const canvas = document.querySelector<HTMLCanvasElement>('.site-painter canvas')
+        return Boolean(app?.renderer || (canvas && canvas.width > 0 && canvas.height > 0))
       }),
       { timeout: 30_000, message: 'site: Pixi app.renderer should exist before cloud room interaction' },
     )
@@ -49,9 +62,10 @@ async function signInWithCloudbasePassword(
   page: Page,
   credentials: YunlefunTestCredentials,
   cloudbaseEnv: string,
+  sdkModuleUrl: string,
 ): Promise<void> {
   const signedInUid = await page.evaluate(
-    async ({ env, password, username }) => {
+    async ({ env, password, proxiedSdkModuleUrl, username }) => {
       function asBrowserRecord(value: unknown): Record<string, unknown> | undefined {
         return value && typeof value === 'object' ? value as Record<string, unknown> : undefined
       }
@@ -61,6 +75,7 @@ async function signInWithCloudbasePassword(
       }
 
       const moduleUrls = [
+        proxiedSdkModuleUrl,
         '/node_modules/.cache/vite/client/deps/@cloudbase_js-sdk.js',
         '/node_modules/.vite/deps/@cloudbase_js-sdk.js',
         '/_nuxt/node_modules/.cache/vite/client/deps/@cloudbase_js-sdk.js',
@@ -116,9 +131,31 @@ async function signInWithCloudbasePassword(
     {
       env: cloudbaseEnv,
       password: credentials.password,
+      proxiedSdkModuleUrl: sdkModuleUrl,
       username: credentials.username,
     },
   )
 
   expect(signedInUid, `CloudBase password sign-in should return a uid for ${credentials.username}`).toBeTruthy()
+}
+
+async function installCloudbaseSdkProxy(context: BrowserContext, siteUrl: string): Promise<string> {
+  const origin = new URL(siteUrl).origin
+  const sdkModuleUrl = `${origin}${SDK_PROXY_PATH}cloudbase-sdk.js`
+  await context.route(`${origin}${SDK_PROXY_PATH}*`, async (route) => {
+    const requestedName = basename(new URL(route.request().url()).pathname)
+    const sourceName = requestedName === 'cloudbase-sdk.js' ? '@cloudbase_js-sdk.js' : requestedName
+    if (!/^[@\w.-]+\.js$/u.test(sourceName)) {
+      await route.abort('blockedbyclient')
+      return
+    }
+    try {
+      const body = await readFile(resolve(VITE_CLOUDBASE_DEPS_DIR, sourceName), 'utf8')
+      await route.fulfill({ body, contentType: 'text/javascript; charset=utf-8', status: 200 })
+    }
+    catch {
+      await route.fulfill({ body: 'Not found', contentType: 'text/plain', status: 404 })
+    }
+  })
+  return sdkModuleUrl
 }

@@ -58,7 +58,7 @@ const DEFAULT_PANEL_SIZE = {
 
 export function useDesktopPainterPanels(options: UseDesktopPainterPanelsOptions) {
   const workspaceRef = shallowRef<HTMLElement>()
-  const panelGroups = shallowRef<SiteDesktopPainterPanelGroup[]>(createDefaultPanelGroups(1280, 720))
+  const panelGroups = shallowRef<SiteDesktopPainterPanelGroup[]>(createDefaultDesktopPanelGroups(1280, 720))
   const dragging = shallowRef<DragState>()
   const activeGroupId = shallowRef<string>()
   const nextZ = shallowRef(20)
@@ -101,71 +101,10 @@ export function useDesktopPainterPanels(options: UseDesktopPainterPanelsOptions)
     stopWindowDragListeners()
   })
 
-  function createDefaultPanelGroups(width: number, height: number): SiteDesktopPainterPanelGroup[] {
-    const rightX = defaultRightPanelX(width)
-    const navigatorY = Math.max(12, height - 252)
-    const diagnosticsY = Math.max(12, navigatorY - DEFAULT_PANEL_SIZE.height - 12)
-
-    return [
-      {
-        id: 'tools',
-        panelIds: ['options', 'controls'],
-        activePanelId: 'options',
-        collapsed: false,
-        anchorX: 'left',
-        anchorY: 'top',
-        anchorOffsetX: 12,
-        anchorOffsetY: 12,
-        x: 12,
-        y: 12,
-        z: 12,
-      },
-      {
-        id: 'layers',
-        panelIds: ['layers'],
-        activePanelId: 'layers',
-        collapsed: false,
-        anchorX: 'right',
-        anchorY: 'top',
-        anchorOffsetX: Math.max(PANEL_MARGIN, width - rightX - DEFAULT_PANEL_SIZE.width),
-        anchorOffsetY: 12,
-        x: rightX,
-        y: 12,
-        z: 11,
-      },
-      {
-        id: 'navigator',
-        panelIds: ['navigator'],
-        activePanelId: 'navigator',
-        collapsed: false,
-        anchorX: 'right',
-        anchorY: 'bottom',
-        anchorOffsetX: Math.max(PANEL_MARGIN, width - rightX - DEFAULT_PANEL_SIZE.width),
-        anchorOffsetY: 12,
-        x: rightX,
-        y: navigatorY,
-        z: 10,
-      },
-      {
-        id: 'diagnostics',
-        panelIds: ['diagnostics'],
-        activePanelId: 'diagnostics',
-        collapsed: false,
-        anchorX: 'right',
-        anchorY: 'bottom',
-        anchorOffsetX: Math.max(PANEL_MARGIN, width - rightX - DEFAULT_PANEL_SIZE.width),
-        anchorOffsetY: Math.max(PANEL_MARGIN, height - diagnosticsY - DEFAULT_PANEL_SIZE.height),
-        x: rightX,
-        y: diagnosticsY,
-        z: 9,
-      },
-    ]
-  }
-
   function resetPanelLayout(): void {
     const bounds = workspaceBounds(workspaceRef)
     workspaceSize.value = bounds
-    panelGroups.value = createDefaultPanelGroups(bounds.width, bounds.height)
+    panelGroups.value = createDefaultDesktopPanelGroups(bounds.width, bounds.height)
     syncPanelGroups()
     void nextTick(() => {
       clampAndRefreshPanelGroups()
@@ -568,10 +507,6 @@ export function useDesktopPainterPanels(options: UseDesktopPainterPanelsOptions)
     }
   }
 
-  function defaultRightPanelX(width: number): number {
-    return Math.max(12, width - DEFAULT_PANEL_SIZE.width - PANEL_RIGHT_GUTTER)
-  }
-
   function panelStyle(group: SiteDesktopPainterPanelGroup): CSSProperties {
     return {
       left: `${group.x}px`,
@@ -607,6 +542,86 @@ export function useDesktopPainterPanels(options: UseDesktopPainterPanelsOptions)
     visiblePanelsForGroup,
     workspaceRef,
   }
+}
+
+/** Creates the initial expanded desktop panel layout for the current workspace size. */
+export function createDefaultDesktopPanelGroups(width: number, height: number): SiteDesktopPainterPanelGroup[] {
+  const rightX = defaultRightPanelX(width)
+  const controlsY = Math.max(12, height - DEFAULT_PANEL_SIZE.height - 12)
+  const navigatorY = Math.max(12, height - 252)
+  const diagnosticsY = Math.max(12, navigatorY - DEFAULT_PANEL_SIZE.height - 12)
+
+  return [
+    {
+      id: 'options',
+      panelIds: ['options'],
+      activePanelId: 'options',
+      collapsed: false,
+      anchorX: 'left',
+      anchorY: 'top',
+      anchorOffsetX: 12,
+      anchorOffsetY: 12,
+      x: 12,
+      y: 12,
+      z: 12,
+    },
+    {
+      id: 'controls',
+      panelIds: ['controls'],
+      activePanelId: 'controls',
+      collapsed: false,
+      anchorX: 'left',
+      anchorY: 'bottom',
+      anchorOffsetX: 12,
+      anchorOffsetY: 12,
+      x: 12,
+      y: controlsY,
+      z: 13,
+    },
+    {
+      id: 'layers',
+      panelIds: ['layers'],
+      activePanelId: 'layers',
+      collapsed: false,
+      anchorX: 'right',
+      anchorY: 'top',
+      anchorOffsetX: Math.max(PANEL_MARGIN, width - rightX - DEFAULT_PANEL_SIZE.width),
+      anchorOffsetY: 12,
+      x: rightX,
+      y: 12,
+      z: 11,
+    },
+    {
+      id: 'navigator',
+      panelIds: ['navigator'],
+      activePanelId: 'navigator',
+      collapsed: false,
+      anchorX: 'right',
+      anchorY: 'bottom',
+      anchorOffsetX: Math.max(PANEL_MARGIN, width - rightX - DEFAULT_PANEL_SIZE.width),
+      anchorOffsetY: 12,
+      x: rightX,
+      y: navigatorY,
+      z: 10,
+    },
+    {
+      id: 'diagnostics',
+      panelIds: ['diagnostics'],
+      activePanelId: 'diagnostics',
+      collapsed: false,
+      anchorX: 'right',
+      anchorY: 'bottom',
+      anchorOffsetX: Math.max(PANEL_MARGIN, width - rightX - DEFAULT_PANEL_SIZE.width),
+      anchorOffsetY: Math.max(PANEL_MARGIN, height - diagnosticsY - DEFAULT_PANEL_SIZE.height),
+      x: rightX,
+      y: diagnosticsY,
+      z: 9,
+    },
+  ]
+}
+
+function defaultRightPanelX(width: number): number {
+  return Math.max(12, width - DEFAULT_PANEL_SIZE.width - PANEL_RIGHT_GUTTER)
 }
 
 function workspaceBounds(workspaceRef: ShallowRef<HTMLElement | undefined>): WorkspaceBounds {

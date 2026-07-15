@@ -83,10 +83,10 @@ const loginLabel = computed(() => {
   flex: 0 0 auto;
   align-items: center;
   gap: 7px;
-  border: 1px solid rgb(255 255 255 / 14%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 8px;
-  background: rgb(255 255 255 / 8%);
-  color: white;
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text);
   font-size: 12px;
   line-height: 1;
   padding-inline: 10px;
@@ -99,13 +99,13 @@ const loginLabel = computed(() => {
 }
 
 .site-account-button--signed-in {
-  background: rgb(85 190 138 / 18%);
-  border-color: rgb(112 220 165 / 26%);
+  background: var(--saier-color-success-soft);
+  border-color: var(--saier-color-success-border);
 }
 
 .site-account-button--error {
-  border-color: rgb(255 128 128 / 34%);
-  background: rgb(255 96 96 / 14%);
+  border-color: var(--saier-color-danger-border);
+  background: var(--saier-color-danger-soft);
 }
 
 .site-account-button__avatar {
@@ -115,7 +115,7 @@ const loginLabel = computed(() => {
   flex: 0 0 auto;
   place-items: center;
   border-radius: 50%;
-  background: rgb(255 255 255 / 16%);
+  background: var(--saier-color-surface-strong);
   font-size: 11px;
   font-weight: 700;
 }

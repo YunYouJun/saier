@@ -154,11 +154,11 @@ title: Roadmap (P0–P14)
 
 - **目标**：在 P13-07 的权威 Activity 基础上交付第一方你画我猜，验证安全扩展边界和临时 activity canvas，不修改主工程文档。
 - **范围**：
-  - 根绘画界面按需加载的 Pictionary Activity 插件，内部包含创建/加入 Lobby 与房间状态；旧 `/games/pictionary`、`/games/pictionary/[roomId]` 只保留兼容跳转。
+  - 根绘画界面通过 manifest registry 按需加载 Pictionary Activity 插件；插件以独立临时 workspace tab 承载 Lobby / 房间 / Activity Painter，主工程始终挂载且不写入游戏笔迹；旧 `/games/pictionary`、`/games/pictionary/[roomId]` 只保留兼容跳转。
   - 2–12 人 lobby、题库、choosing/drawing/reveal/finished 状态机、私有画手 projection、猜词、计分、离线宽限和 controller takeover。
   - 固定 1024×768 单层 activity canvas，只开放 pen/marker/eraser、颜色和笔径。
   - `realtimeCommittedEvents`、`realtimePreview`、`pictionary`、`redisDeadlineAcceleration` 四个独立 feature flag。
-- **验收**：HTTP/polling 单独可完成整局；答案不出现在公共 API/event/log/outbox；漏通知、Redis 故障、旧 epoch 和多 tab 不改变权威结果；主工程 operation log、snapshot revision 和 storage namespace 不变。
+- **验收**：HTTP/polling 单独可完成整局；答案不出现在公共 API/event/log/outbox；漏通知、Redis 故障、旧 epoch 和多 tab 不改变权威结果；Activity tab 与工程 tab 往返不卸载主 Painter，关闭 Activity tab 后插件资源被释放；主工程 operation log、snapshot revision 和 storage namespace 不变。
 - **发布门槛**：上海 VPC Redis 连通、CloudRun `MinNum >= 2`、滚动 drain、100-room 容量和安全攻击矩阵通过后，才允许逐级开启 realtime flags。
 - **不做**：第三方插件市场、游客、分队、语音、全球匹配和公共自定义题库市场。
 

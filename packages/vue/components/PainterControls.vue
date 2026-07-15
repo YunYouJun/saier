@@ -236,11 +236,9 @@ function toHexByte(value: number): string {
     class="painter-controls"
     :class="{ 'painter-controls--inline-color': colorPanelMode === 'inline' }"
     rounded-lg
-    bg="dark-100"
     flex="~ col"
     gap="1"
     p="1"
-    text-white
   >
     <template v-if="mode !== 'palette'">
       <PainterIconButton
@@ -283,7 +281,7 @@ function toHexByte(value: number): string {
         v-model="activeColor"
         density="compact"
         :labels="colorPickerLabels"
-        :size="116"
+        :size="84"
         :visible-sections="colorSections"
       />
     </section>
@@ -313,48 +311,53 @@ function toHexByte(value: number): string {
 </template>
 
 <style scoped>
+.painter-controls {
+  background: var(--saier-color-panel, #121216);
+  color: var(--saier-color-text, white);
+}
+
 .painter-controls--inline-color {
-  width: 276px;
-  padding: 6px;
+  width: 252px;
+  padding: 5px;
 }
 
 .painter-controls__color-panel {
   display: grid;
   min-width: 0;
-  gap: 8px;
+  gap: 6px;
 }
 
 .painter-controls__color-targets {
   display: inline-flex;
   min-width: 0;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .painter-controls__color-target {
   display: inline-flex;
-  height: 28px;
+  height: 26px;
   align-items: center;
-  gap: 6px;
-  border: 1px solid rgb(255 255 255 / 10%);
+  gap: 5px;
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 6px;
-  background: rgb(255 255 255 / 7%);
-  color: rgb(255 255 255 / 78%);
-  padding-inline: 7px;
+  background: var(--saier-color-surface, rgb(255 255 255 / 6%));
+  color: var(--saier-color-text-muted, rgb(255 255 255 / 76%));
+  padding-inline: 6px;
 }
 
 .painter-controls__color-target:hover,
 .painter-controls__color-target.is-active {
-  border-color: rgb(96 165 250 / 58%);
-  background: rgb(96 165 250 / 18%);
-  color: white;
+  border-color: var(--saier-color-accent-border, rgb(96 165 250 / 58%));
+  background: var(--saier-color-accent-soft, rgb(96 165 250 / 18%));
+  color: var(--saier-color-text, white);
 }
 
 .painter-controls__color-chip {
-  width: 14px;
-  height: 14px;
-  border: 1px solid rgb(255 255 255 / 64%);
+  width: 13px;
+  height: 13px;
+  border: 1px solid var(--saier-color-swatch-outline, rgb(255 255 255 / 64%));
   border-radius: 999px;
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 34%);
+  box-shadow: inset 0 0 0 1px var(--saier-color-swatch-inset, rgb(0 0 0 / 34%));
 }
 </style>

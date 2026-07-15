@@ -61,6 +61,13 @@ export interface ReplayPainterStrokeOptions {
   recordHistory?: boolean
 }
 
+export interface ReplayPainterStrokeTimedOptions extends ReplayPainterStrokeOptions {
+  /** Playback speed multiplier. Values greater than 1 replay faster. */
+  speed?: number
+  /** Cancels an in-progress preview replay. */
+  signal?: AbortSignal
+}
+
 export interface ExportPainterStrokeLogOptions {
   documentId?: string
 }
@@ -261,6 +268,63 @@ export class PainterStrokeRecording {
     }
   }
 
+  /**
+   * Replays one stroke according to its stroke-local event timestamps.
+   *
+   * This is intended for isolated preview painters. Regular document restore
+   * should continue to use the synchronous {@link replayStroke} path.
+   */
+  async replayStrokeTimed(
+    commit: SaierStrokeCommit,
+    options: ReplayPainterStrokeTimedOptions = {},
+  ): Promise<StrokePatch> {
+    if (commit.schema !== SAIER_STROKE_SCHEMA)
+      throw new Error(`Unsupported stroke schema: ${commit.schema}`)
+
+    const speed = normalizeReplaySpeed(options.speed)
+    const engine = this.createEngine(commit)
+    let dirty = empty()
+    let strokeOpen = false
+    this.replaying = true
+
+    try {
+      throwIfReplayAborted(options.signal)
+      this.painter.surface.beginStroke(commit.layerId)
+      strokeOpen = true
+      engine.beginStroke(commit.brushContextSnapshot)
+
+      let previousTime = 0
+      for (const event of commit.events) {
+        await waitForReplayDelay((event.t - previousTime) / speed, options.signal)
+        previousTime = event.t
+        dirty = union(dirty, this.replayEvent(commit, engine, event))
+        this.painter.flushSurfaceUploads()
+      }
+
+      throwIfReplayAborted(options.signal)
+      dirty = union(dirty, this.paintDabs(commit, engine, engine.endStroke()))
+      const patch = this.painter.surface.endStroke(commit.layerId)
+      strokeOpen = false
+      if (options.recordHistory !== false)
+        this.painter.recordStrokePatch(patch)
+      else
+        this.painter.refreshDerivedDisplays(dirty)
+      this.painter.flushSurfaceUploads()
+      return patch
+    }
+    catch (error) {
+      if (strokeOpen) {
+        this.painter.surface.endStroke(commit.layerId)
+        this.painter.refreshDerivedDisplays(dirty)
+        this.painter.flushSurfaceUploads()
+      }
+      throw error
+    }
+    finally {
+      this.replaying = false
+    }
+  }
+
   replayLog(log: SaierStrokeLog, options: ReplayPainterStrokeOptions = {}): StrokePatch[] {
     const patches: StrokePatch[] = []
     for (const operation of log.operations) {
@@ -359,6 +423,43 @@ export class PainterStrokeRecording {
       patchHash: hashTiledSurfaceRegion(surface, rect),
     }
   }
+}
+
+function normalizeReplaySpeed(speed = 1): number {
+  if (!Number.isFinite(speed) || speed <= 0)
+    return 1
+  return speed
+}
+
+function throwIfReplayAborted(signal: AbortSignal | undefined): void {
+  if (!signal?.aborted)
+    return
+  const error = new Error('Stroke replay aborted')
+  error.name = 'AbortError'
+  throw error
+}
+
+function waitForReplayDelay(delay: number, signal: AbortSignal | undefined): Promise<void> {
+  throwIfReplayAborted(signal)
+  const duration = Math.max(0, Math.round(delay))
+  if (duration === 0)
+    return Promise.resolve()
+
+  return new Promise((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout>
+    const abort = () => {
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', abort)
+      const error = new Error('Stroke replay aborted')
+      error.name = 'AbortError'
+      reject(error)
+    }
+    timer = setTimeout(() => {
+      signal?.removeEventListener('abort', abort)
+      resolve()
+    }, duration)
+    signal?.addEventListener('abort', abort, { once: true })
+  })
 }
 
 function readSurface(surface: unknown, layerId: string): TiledSurface | undefined {

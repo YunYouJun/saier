@@ -56,6 +56,12 @@ interface SiteMessages {
     signedIn: string
     signingIn: string
   }
+  activities: {
+    close: string
+    loadFailed: string
+    loading: string
+    unavailable: string
+  }
   cloudFiles: {
     brushLibrary: string
     brushLibraryCount: string
@@ -152,12 +158,12 @@ interface SiteMessages {
   }
   menu: {
     file: string
+    activities: string
     newCanvas: string
     openProject: string
     saveProject: string
     cloudSync: string
     cloudRoom: string
-    pictionary: string
     importBrush: string
     importImage: string
     exportPreview: string
@@ -169,6 +175,10 @@ interface SiteMessages {
     zoomIn: string
     zoomOut: string
     language: string
+    appearance: string
+    themeSystem: string
+    themeLight: string
+    themeDark: string
     others: string
     keyboardShortcuts: string
     filter: string
@@ -220,6 +230,8 @@ interface SiteMessages {
     title: string
   }
   recording: {
+    closePreview: string
+    emptyHint: string
     exportFailed: string
     exportLog: string
     importFailed: string
@@ -229,6 +241,7 @@ interface SiteMessages {
     pause: string
     play: string
     position: string
+    previewActive: string
     reset: string
     speed: string
     step: string
@@ -432,6 +445,12 @@ const messages: Record<SiteLocale, SiteMessages> = {
       signedIn: 'Signed in',
       signingIn: 'Signing in',
     },
+    activities: {
+      close: 'Close activity',
+      loadFailed: 'Could not load this Activity. Try again later.',
+      loading: 'Loading Activity...',
+      unavailable: 'This Activity plugin is unavailable.',
+    },
     cloudFiles: {
       brushLibrary: 'Brush library',
       brushLibraryCount: 'Brushes',
@@ -528,12 +547,12 @@ const messages: Record<SiteLocale, SiteMessages> = {
     },
     menu: {
       file: 'File',
+      activities: 'Activities',
       newCanvas: 'New canvas',
       openProject: 'Open project',
       saveProject: 'Save project',
       cloudSync: 'Cloud sync...',
       cloudRoom: 'Cloud room...',
-      pictionary: 'Pictionary...',
       importBrush: 'Import brush...',
       importImage: 'Import image',
       exportPreview: 'Preview export',
@@ -545,6 +564,10 @@ const messages: Record<SiteLocale, SiteMessages> = {
       zoomIn: 'Zoom in',
       zoomOut: 'Zoom out',
       language: 'Language',
+      appearance: 'Appearance',
+      themeSystem: 'Follow system',
+      themeLight: 'Light',
+      themeDark: 'Dark',
       others: 'Others',
       keyboardShortcuts: 'Keyboard Shortcuts...',
       filter: 'Filter',
@@ -596,6 +619,8 @@ const messages: Record<SiteLocale, SiteMessages> = {
       title: 'Navigator',
     },
     recording: {
+      closePreview: 'Close replay preview',
+      emptyHint: 'Start recording, then draw to create a replay',
       exportFailed: 'Could not export the stroke log.',
       exportLog: 'Export stroke log',
       importFailed: 'Could not import this stroke log.',
@@ -605,6 +630,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
       pause: 'Pause replay',
       play: 'Play replay',
       position: 'Replay position',
+      previewActive: 'Replay preview · original canvas is unchanged',
       reset: 'Reset replay position',
       speed: 'Replay speed',
       step: 'Step replay',
@@ -662,6 +688,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
         'recording:import-log': 'Import stroke log',
         'recording:pause': 'Pause replay',
         'recording:play': 'Play replay',
+        'recording:close-preview': 'Close replay preview',
         'recording:seek-start': 'Reset replay position',
         'recording:step-forward': 'Step replay',
         'selection:cancel': 'Cancel selection',
@@ -882,6 +909,12 @@ const messages: Record<SiteLocale, SiteMessages> = {
       signedIn: '已登录',
       signingIn: '登录中',
     },
+    activities: {
+      close: '关闭活动',
+      loadFailed: 'Activity 插件加载失败，请稍后重试。',
+      loading: '正在加载 Activity…',
+      unavailable: '这个 Activity 插件不可用。',
+    },
     cloudFiles: {
       brushLibrary: '笔刷库',
       brushLibraryCount: '笔刷数',
@@ -978,12 +1011,12 @@ const messages: Record<SiteLocale, SiteMessages> = {
     },
     menu: {
       file: '文件',
+      activities: '活动',
       newCanvas: '新建画布',
       openProject: '打开工程',
       saveProject: '保存工程',
       cloudSync: '云同步...',
       cloudRoom: '云端房间...',
-      pictionary: '你画我猜...',
       importBrush: '导入笔刷...',
       importImage: '导入图片',
       exportPreview: '预览导出',
@@ -995,6 +1028,10 @@ const messages: Record<SiteLocale, SiteMessages> = {
       zoomIn: '放大',
       zoomOut: '缩小',
       language: '语言',
+      appearance: '外观',
+      themeSystem: '跟随系统',
+      themeLight: '亮色',
+      themeDark: '暗色',
       others: '其他',
       keyboardShortcuts: '快捷键设置...',
       filter: '滤镜',
@@ -1046,6 +1083,8 @@ const messages: Record<SiteLocale, SiteMessages> = {
       title: '导航器',
     },
     recording: {
+      closePreview: '关闭回放预览',
+      emptyHint: '先开启录制，再绘制笔迹即可回放',
       exportFailed: '无法导出笔迹日志。',
       exportLog: '导出笔迹日志',
       importFailed: '无法导入这个笔迹日志。',
@@ -1055,6 +1094,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
       pause: '暂停回放',
       play: '播放回放',
       position: '回放位置',
+      previewActive: '回放预览中 · 原画布不会被修改',
       reset: '重置回放位置',
       speed: '回放速度',
       step: '步进回放',
@@ -1112,6 +1152,7 @@ const messages: Record<SiteLocale, SiteMessages> = {
         'recording:import-log': '导入笔迹日志',
         'recording:pause': '暂停回放',
         'recording:play': '播放回放',
+        'recording:close-preview': '关闭回放预览',
         'recording:seek-start': '重置回放位置',
         'recording:step-forward': '步进回放',
         'selection:cancel': '取消选择',

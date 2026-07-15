@@ -5,11 +5,14 @@ import SiteStrokeReplayControls from './SiteStrokeReplayControls.vue'
 const mounted: { unmount: () => void }[] = []
 
 const labels = {
+  closePreview: 'Close replay preview',
+  emptyHint: 'Start recording, then draw to create a replay',
   exportLog: 'Export stroke log',
   importLog: 'Import stroke log',
   pause: 'Pause replay',
   play: 'Play replay',
   position: 'Replay position',
+  previewActive: 'Replay preview · original canvas is unchanged',
   reset: 'Reset replay position',
   speed: 'Replay speed',
   step: 'Step replay',
@@ -24,6 +27,7 @@ function mountControls(options: {
   count?: number
   playing?: boolean
   position?: number
+  previewing?: boolean
   speed?: number
 } = {}) {
   const commands: string[] = []
@@ -40,6 +44,7 @@ function mountControls(options: {
         labels,
         'playing': options.playing ?? false,
         'position': options.position ?? 1,
+        'previewing': options.previewing ?? false,
         'speed': options.speed ?? 1,
         'onCommand': (command: string) => commands.push(command),
         'onSeek': (position: number) => positions.push(position),
@@ -89,6 +94,18 @@ describe('site stroke replay controls', () => {
       'recording:step-forward',
       'recording:seek-start',
     ])
+  })
+
+  it('explains the recording prerequisite and closes isolated preview', async () => {
+    const empty = mountControls({ count: 0, position: 0 })
+    expect(empty.el.textContent).toContain('Start recording, then draw to create a replay')
+
+    const active = mountControls({ previewing: true })
+    buttonByTitle(active.el, 'Close replay preview').click()
+    await nextTick()
+
+    expect(active.el.textContent).toContain('original canvas is unchanged')
+    expect(active.commands).toContain('recording:close-preview')
   })
 
   it('shows pause while playing and disables forward playback at the end', () => {

@@ -234,11 +234,11 @@ function safelyReleasePointerCapture(target: HTMLElement, pointerId: number): vo
   width: min(100%, 260px);
   min-width: 180px;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 8px;
-  background: rgb(20 21 24 / 92%);
-  color: rgb(255 255 255 / 88%);
-  box-shadow: 0 16px 44px rgb(0 0 0 / 28%);
+  background: var(--saier-color-panel, rgb(20 21 24 / 92%));
+  color: var(--saier-color-text, white);
+  box-shadow: var(--saier-shadow-panel, 0 16px 44px rgb(0 0 0 / 28%));
 }
 
 .painter-navigator__header,
@@ -251,7 +251,7 @@ function safelyReleasePointerCapture(target: HTMLElement, pointerId: number): vo
 
 .painter-navigator__header {
   padding: 8px 9px 7px;
-  border-bottom: 1px solid rgb(255 255 255 / 9%);
+  border-bottom: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
 }
 
 .painter-navigator__title {
@@ -276,15 +276,15 @@ function safelyReleasePointerCapture(target: HTMLElement, pointerId: number): vo
   width: 24px;
   height: 24px;
   place-items: center;
-  border: 1px solid rgb(255 255 255 / 9%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 5px;
-  background: rgb(255 255 255 / 6%);
-  color: rgb(255 255 255 / 72%);
+  background: var(--saier-color-surface, rgb(255 255 255 / 6%));
+  color: var(--saier-color-text-muted, rgb(255 255 255 / 76%));
 }
 
 .painter-navigator__icon:hover {
-  background: rgb(255 255 255 / 12%);
-  color: white;
+  background: var(--saier-color-surface-hover, rgb(255 255 255 / 10%));
+  color: var(--saier-color-text, white);
 }
 
 .painter-navigator__surface {
@@ -294,14 +294,14 @@ function safelyReleasePointerCapture(target: HTMLElement, pointerId: number): vo
   max-height: 190px;
   margin: 8px auto;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 5px;
   background:
-    linear-gradient(45deg, rgb(255 255 255 / 10%) 25%, transparent 25%),
-    linear-gradient(-45deg, rgb(255 255 255 / 10%) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, rgb(255 255 255 / 10%) 75%),
-    linear-gradient(-45deg, transparent 75%, rgb(255 255 255 / 10%) 75%),
-    rgb(31 33 37);
+    linear-gradient(45deg, var(--saier-color-checker-light, rgb(255 255 255 / 10%)) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--saier-color-checker-light, rgb(255 255 255 / 10%)) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--saier-color-checker-light, rgb(255 255 255 / 10%)) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--saier-color-checker-light, rgb(255 255 255 / 10%)) 75%),
+    var(--saier-color-checker-dark, rgb(31 33 37));
   background-position: 0 0, 0 8px, 8px -8px, -8px 0;
   background-size: 16px 16px;
   cursor: crosshair;
@@ -314,7 +314,7 @@ function safelyReleasePointerCapture(target: HTMLElement, pointerId: number): vo
 
 .painter-navigator__surface:focus-visible,
 .painter-navigator__icon:focus-visible {
-  outline: 2px solid rgb(147 197 253 / 72%);
+  outline: 2px solid var(--saier-color-focus, rgb(147 197 253 / 72%));
   outline-offset: 1px;
 }
 
@@ -331,7 +331,7 @@ function safelyReleasePointerCapture(target: HTMLElement, pointerId: number): vo
   display: grid;
   min-height: 112px;
   place-items: center;
-  color: rgb(255 255 255 / 48%);
+  color: var(--saier-color-text-subtle, rgb(255 255 255 / 54%));
   font-size: 12px;
   line-height: 1.2;
 }
@@ -349,22 +349,22 @@ function safelyReleasePointerCapture(target: HTMLElement, pointerId: number): vo
   position: absolute;
   min-width: 10px;
   min-height: 10px;
-  border: 2px solid rgb(92 213 255 / 96%);
+  border: 2px solid var(--saier-color-info, rgb(92 213 255 / 96%));
   border-radius: 3px;
   background: transparent;
   box-shadow:
-    0 0 0 1px rgb(0 0 0 / 52%),
-    0 0 18px rgb(92 213 255 / 28%);
+    0 0 0 1px var(--saier-color-swatch-inset, rgb(0 0 0 / 52%)),
+    0 0 18px var(--saier-color-info-border, rgb(92 213 255 / 28%));
   pointer-events: none;
 }
 
 .painter-navigator.is-dragging .painter-navigator__viewport {
-  border-color: rgb(255 255 255 / 96%);
+  border-color: var(--saier-color-swatch-outline, rgb(255 255 255 / 96%));
 }
 
 .painter-navigator__meta {
   padding: 0 9px 8px;
-  color: rgb(255 255 255 / 54%);
+  color: var(--saier-color-text-subtle, rgb(255 255 255 / 54%));
   font-size: 11px;
   line-height: 1.2;
 }

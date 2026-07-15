@@ -464,7 +464,7 @@ room-storage/saier/{roomId}/activities/{activityEpoch}/{sessionId}/
 
 Every preview/commit carries session, activity, round and controller fences. The activity package does not export Painter/Pixi/site implementations and restricted-import lint rules reject reverse dependencies. Main-project collaboration ignores `documentScope: 'activity'` events.
 
-The site hosts first-party activities through a small loader registry. `/?activity=pictionary` opens its create/join lobby and `activityRoom=…` opens a room; the plugin module is a named dynamic chunk, excluded from PWA precache, and is not fetched or executed on an ordinary `/` visit. Exiting unmounts its isolated Painter, polling/realtime transports and shared activity session state. The legacy `/games/pictionary` and `/games/pictionary/[roomId]` routes redirect to this host so existing invitations remain valid.
+The site hosts first-party activities through an explicit manifest registry. `/?activity=pictionary` opens a temporary workspace tab for its create/join lobby and `activityRoom=…` opens a room in the same tab. `SitePainterApplication` and the main Painter stay mounted; switching to a document tab only hides the Activity, while closing the Activity tab unmounts its isolated Painter, polling/realtime transports and shared activity session state. The plugin module remains a named dynamic chunk, excluded from PWA precache, and is not fetched or executed on an ordinary `/` visit. The legacy `/games/pictionary` and `/games/pictionary/[roomId]` routes redirect to this host so existing invitations remain valid.
 
 ### Deadline and transport degradation
 

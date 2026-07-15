@@ -2,6 +2,7 @@ import type { Component } from 'vue'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createApp, h, nextTick, onBeforeUnmount } from 'vue'
 import SiteActivityPluginHost from './SiteActivityPluginHost.vue'
+import '~/assets/theme.css'
 
 const mounted: Array<() => void> = []
 
@@ -37,6 +38,7 @@ describe('site activity plugin host', () => {
     expect(loadCount).toBe(0)
 
     const el = document.createElement('div')
+    el.className = 'dark'
     document.body.appendChild(el)
     const app = createApp({
       render: () => h(SiteActivityPluginHost, {
@@ -53,6 +55,10 @@ describe('site activity plugin host', () => {
     await flushPluginLoad()
 
     expect(loadCount).toBe(1)
+    const host = el.querySelector<HTMLElement>('.site-activity-plugin-host')!
+    expect(host.hasAttribute('data-saier-theme')).toBe(false)
+    expect(host.getAttribute('data-theme-policy')).toBe('inherit')
+    expect(getComputedStyle(host).getPropertyValue('--saier-color-text').trim()).toBe('#fff')
     expect(el.querySelector('.fake-activity-plugin')?.textContent).toBe('room-1:token-1')
     const pluginButton = el.querySelector('.fake-activity-plugin') as HTMLButtonElement
     pluginButton.click()
@@ -60,6 +66,30 @@ describe('site activity plugin host', () => {
 
     mounted.pop()?.()
     expect(disposeCount).toBe(1)
+  })
+
+  it('inherits the application theme when a plugin has no fixed policy', async () => {
+    const el = document.createElement('div')
+    el.className = 'dark'
+    document.body.appendChild(el)
+    const app = createApp({
+      render: () => h(SiteActivityPluginHost, {
+        loadPlugin: () => async () => ({ default: { render: () => h('div', 'Custom') } }),
+        request: { type: 'pictionary' },
+        resolveTheme: () => 'inherit' as const,
+      }),
+    })
+    app.mount(el)
+    mounted.push(() => {
+      app.unmount()
+      el.remove()
+    })
+    await flushPluginLoad()
+
+    const host = el.querySelector('.site-activity-plugin-host')
+    expect(host?.hasAttribute('data-saier-theme')).toBe(false)
+    expect(host?.getAttribute('data-theme-policy')).toBe('inherit')
+    expect(getComputedStyle(host!).getPropertyValue('--saier-color-text').trim()).toBe('#fff')
   })
 
   it('does not attempt to render an unknown plugin', async () => {

@@ -80,7 +80,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 </script>
 
 <template>
-  <div class="site-mobile-painter">
+  <div class="site-mobile-painter" :class="{ 'is-activity': workspaceKind === 'activity' }">
     <header class="site-mobile-painter__topbar">
       <div class="site-mobile-painter__brand">
         <span class="site-mobile-painter__logo i-ri-artboard-2-line" aria-hidden="true" />
@@ -151,7 +151,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
       </aside>
 
       <section
-        v-if="sheetOpen && activePanel"
+        v-if="workspaceKind === 'document' && sheetOpen && activePanel"
         class="site-mobile-painter__sheet"
         :aria-label="panelLabels[activePanel.id]"
       >
@@ -243,7 +243,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
       </section>
     </main>
 
-    <footer class="site-mobile-painter__dock">
+    <footer v-if="workspaceKind === 'document'" class="site-mobile-painter__dock">
       <div class="site-mobile-painter__toolbar">
         <slot name="toolbar" />
       </div>
@@ -274,8 +274,12 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   min-height: 0;
   grid-template-rows: auto auto auto minmax(0, 1fr) auto;
   overflow: hidden;
-  background: #202124;
-  color: white;
+  background: var(--saier-color-app-background);
+  color: var(--saier-color-text);
+}
+
+.site-mobile-painter.is-activity {
+  grid-template-rows: auto auto auto minmax(0, 1fr);
 }
 
 .site-mobile-painter__topbar {
@@ -285,8 +289,8 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   justify-content: space-between;
   gap: 10px;
   padding: calc(env(safe-area-inset-top) + 8px) 10px 8px;
-  border-bottom: 1px solid rgb(255 255 255 / 8%);
-  background: rgb(15 16 18 / 96%);
+  border-bottom: 1px solid var(--saier-color-border);
+  background: var(--saier-color-chrome);
 }
 
 .site-mobile-painter__brand {
@@ -322,7 +326,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   overflow: hidden;
   max-width: min(58vw, 360px);
   margin: 0;
-  color: rgb(255 255 255 / 54%);
+  color: var(--saier-color-text-subtle);
   font-size: 11px;
   line-height: 14px;
   text-overflow: ellipsis;
@@ -355,10 +359,10 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   height: 32px;
   align-items: center;
   gap: 6px;
-  border: 1px solid rgb(255 255 255 / 14%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 7px;
-  background: rgb(255 255 255 / 8%);
-  color: white;
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text);
   cursor: pointer;
   font-size: 11px;
   list-style: none;
@@ -370,13 +374,13 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 }
 
 .site-mobile-painter__locale-menu[open] .site-mobile-painter__locale {
-  border-color: rgb(147 197 253 / 34%);
-  background: rgb(255 255 255 / 12%);
+  border-color: var(--saier-color-accent-border);
+  background: var(--saier-color-surface-hover);
 }
 
 .site-mobile-painter__locale:focus-visible,
 .site-mobile-painter__locale-option:focus-visible {
-  outline: 2px solid rgb(147 197 253 / 72%);
+  outline: 2px solid var(--saier-color-focus);
   outline-offset: 1px;
 }
 
@@ -392,10 +396,10 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   display: grid;
   min-width: 128px;
   gap: 2px;
-  border: 1px solid rgb(255 255 255 / 13%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 8px;
-  background: rgb(20 21 24 / 96%);
-  box-shadow: 0 16px 42px rgb(0 0 0 / 28%);
+  background: var(--saier-color-panel-raised);
+  box-shadow: var(--saier-shadow-panel);
   padding: 4px;
 }
 
@@ -408,7 +412,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   border: 0;
   border-radius: 5px;
   background: transparent;
-  color: rgb(255 255 255 / 72%);
+  color: var(--saier-color-text-muted);
   font-size: 12px;
   padding: 0 8px;
   text-align: left;
@@ -416,8 +420,8 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 
 .site-mobile-painter__locale-option:hover,
 .site-mobile-painter__locale-option.is-active {
-  background: rgb(255 255 255 / 9%);
-  color: white;
+  background: var(--saier-color-surface-hover);
+  color: var(--saier-color-text);
 }
 
 .site-mobile-painter__locale-check {
@@ -432,8 +436,8 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 .site-mobile-painter__menu {
   min-width: 0;
   overflow-x: auto;
-  border-bottom: 1px solid rgb(255 255 255 / 8%);
-  background: rgb(20 21 24 / 94%);
+  border-bottom: 1px solid var(--saier-color-border);
+  background: var(--saier-color-panel);
   scrollbar-width: none;
 }
 
@@ -465,7 +469,13 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 }
 
 .site-mobile-painter__canvas-host :slotted(canvas) {
-  background: #303136;
+  background: var(--saier-color-workspace);
+}
+
+.site-mobile-painter__canvas-host :slotted(.site-stroke-replay-canvas) {
+  position: absolute;
+  z-index: 30;
+  inset: 0;
 }
 
 .site-mobile-painter__loading {
@@ -474,8 +484,8 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgb(20 21 24 / 70%);
-  color: rgb(255 255 255 / 72%);
+  background: color-mix(in srgb, var(--saier-color-panel) 70%, transparent);
+  color: var(--saier-color-text-muted);
   font-size: 13px;
 }
 
@@ -487,10 +497,10 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   display: grid;
   width: min(172px, calc(100vw - 20px));
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 14%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 8px;
-  background: rgb(15 16 18 / 92%);
-  box-shadow: 0 18px 40px rgb(0 0 0 / 28%);
+  background: var(--saier-color-chrome);
+  box-shadow: var(--saier-shadow-panel);
 }
 
 .site-mobile-painter__preview-header {
@@ -500,7 +510,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   justify-content: space-between;
   gap: 8px;
   padding: 7px 8px;
-  color: rgb(255 255 255 / 78%);
+  color: var(--saier-color-text-muted);
   font-size: 11px;
 }
 
@@ -511,10 +521,10 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   height: 28px;
   flex: 0 0 auto;
   place-items: center;
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 7px;
-  background: rgb(255 255 255 / 6%);
-  color: rgb(255 255 255 / 74%);
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text-muted);
   font-size: 15px;
 }
 
@@ -523,7 +533,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   width: 100%;
   max-height: 220px;
   object-fit: contain;
-  background: #fff;
+  background: var(--saier-color-canvas-paper);
 }
 
 .site-mobile-painter__sheet {
@@ -537,10 +547,10 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   min-height: 168px;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 13%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 8px;
-  background: rgb(17 18 21 / 96%);
-  box-shadow: 0 -18px 48px rgb(0 0 0 / 34%);
+  background: var(--saier-color-panel-raised);
+  box-shadow: var(--saier-shadow-dialog);
 }
 
 .site-mobile-painter__sheet-header {
@@ -549,7 +559,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   align-items: center;
   gap: 8px;
   padding: 8px 8px 6px;
-  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  border-bottom: 1px solid var(--saier-color-border);
 }
 
 .site-mobile-painter__sheet-tabs {
@@ -573,10 +583,10 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   flex: 0 0 auto;
   align-items: center;
   gap: 6px;
-  border: 1px solid rgb(255 255 255 / 8%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 7px;
-  background: rgb(255 255 255 / 5%);
-  color: rgb(255 255 255 / 66%);
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text-muted);
   font-size: 12px;
   padding-inline: 9px;
 }
@@ -588,9 +598,9 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 }
 
 .site-mobile-painter__sheet-tab.is-active {
-  border-color: rgb(96 165 250 / 52%);
-  background: rgb(96 165 250 / 18%);
-  color: white;
+  border-color: var(--saier-color-accent-border);
+  background: var(--saier-color-accent-soft);
+  color: var(--saier-color-text);
 }
 
 .site-mobile-painter__sheet-body,
@@ -614,8 +624,8 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   min-width: 0;
   gap: 6px;
   padding: 6px 8px calc(env(safe-area-inset-bottom) + 8px);
-  border-top: 1px solid rgb(255 255 255 / 10%);
-  background: rgb(15 16 18 / 97%);
+  border-top: 1px solid var(--saier-color-border);
+  background: var(--saier-color-chrome);
 }
 
 .site-mobile-painter__toolbar {
@@ -647,10 +657,10 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   place-items: center;
   grid-template-rows: 18px 13px;
   gap: 3px;
-  border: 1px solid rgb(255 255 255 / 9%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 7px;
-  background: rgb(255 255 255 / 5%);
-  color: rgb(255 255 255 / 68%);
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text-muted);
   padding: 5px 4px;
 }
 
@@ -668,9 +678,9 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 }
 
 .site-mobile-painter__panel-button.is-active {
-  border-color: rgb(52 211 153 / 50%);
-  background: rgb(52 211 153 / 16%);
-  color: white;
+  border-color: var(--saier-color-success-border);
+  background: var(--saier-color-success-soft);
+  color: var(--saier-color-text);
 }
 
 @media (max-width: 420px) {

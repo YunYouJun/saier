@@ -242,7 +242,7 @@ function roleLabel(role: YunlefunCloudRoomSession['role']): string {
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgb(10 11 13 / 62%);
+  background: var(--saier-color-scrim);
   padding: 20px;
 }
 
@@ -252,11 +252,11 @@ function roleLabel(role: YunlefunCloudRoomSession['role']): string {
   max-height: min(760px, calc(100dvh - 40px));
   grid-template-rows: auto;
   overflow: auto;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 8px;
-  background: #17181b;
-  box-shadow: 0 24px 72px rgb(0 0 0 / 38%);
-  color: white;
+  background: var(--saier-color-panel-raised);
+  box-shadow: var(--saier-shadow-dialog);
+  color: var(--saier-color-text);
   padding: 16px;
   gap: 12px;
 }
@@ -285,7 +285,7 @@ function roleLabel(role: YunlefunCloudRoomSession['role']): string {
 .site-cloud-room__hint,
 .site-cloud-room__caption,
 .site-cloud-room__member small {
-  color: rgb(255 255 255 / 54%);
+  color: var(--saier-color-text-subtle);
   font-size: 12px;
   line-height: 16px;
 }
@@ -299,10 +299,10 @@ function roleLabel(role: YunlefunCloudRoomSession['role']): string {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 7px;
-  background: rgb(255 255 255 / 6%);
-  color: white;
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text);
 }
 
 .site-cloud-room__icon {
@@ -319,8 +319,8 @@ function roleLabel(role: YunlefunCloudRoomSession['role']): string {
 }
 
 .site-cloud-room__button--primary {
-  border-color: rgb(96 165 250 / 56%);
-  background: rgb(96 165 250 / 18%);
+  border-color: var(--saier-color-accent-border);
+  background: var(--saier-color-accent-soft);
 }
 
 .site-cloud-room__button:disabled {
@@ -333,9 +333,9 @@ function roleLabel(role: YunlefunCloudRoomSession['role']): string {
 .site-cloud-room__error,
 .site-cloud-room__session,
 .site-cloud-room__form {
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 8px;
-  background: rgb(255 255 255 / 5%);
+  background: var(--saier-color-surface);
   padding: 10px;
 }
 
@@ -346,7 +346,7 @@ function roleLabel(role: YunlefunCloudRoomSession['role']): string {
   justify-content: space-between;
   gap: 12px;
   margin: 0;
-  color: rgb(255 255 255 / 72%);
+  color: var(--saier-color-text-muted);
   font-size: 12px;
 }
 
@@ -354,7 +354,7 @@ function roleLabel(role: YunlefunCloudRoomSession['role']): string {
   flex: 0 0 auto;
   border: 0;
   background: transparent;
-  color: #60a5fa;
+  color: var(--saier-color-accent);
   font-size: 12px;
 }
 
@@ -365,11 +365,11 @@ function roleLabel(role: YunlefunCloudRoomSession['role']): string {
 }
 
 .site-cloud-room__status {
-  color: #34d399;
+  color: var(--saier-color-success);
 }
 
 .site-cloud-room__error {
-  color: #f87171;
+  color: var(--saier-color-danger);
 }
 
 .site-cloud-room__session,
@@ -401,26 +401,26 @@ function roleLabel(role: YunlefunCloudRoomSession['role']): string {
 
 .site-cloud-room__room-title em {
   flex: 0 0 auto;
-  border: 1px solid rgb(52 211 153 / 40%);
+  border: 1px solid var(--saier-color-success-border);
   border-radius: 999px;
-  color: #34d399;
+  color: var(--saier-color-success);
   font-size: 11px;
   font-style: normal;
   padding: 2px 7px;
 }
 
 .site-cloud-room__field span {
-  color: rgb(255 255 255 / 62%);
+  color: var(--saier-color-text-muted);
   font-size: 12px;
 }
 
 .site-cloud-room__input {
   width: 100%;
   min-width: 0;
-  border: 1px solid #2f3338;
+  border: 1px solid var(--saier-color-border-strong);
   border-radius: 7px;
-  background: rgb(0 0 0 / 22%);
-  color: white;
+  background: var(--saier-color-control-track);
+  color: var(--saier-color-text);
   font-size: 12px;
   line-height: 18px;
   padding: 8px 9px;
@@ -432,7 +432,7 @@ function roleLabel(role: YunlefunCloudRoomSession['role']): string {
 }
 
 .site-cloud-room__members {
-  border-top: 1px solid rgb(255 255 255 / 9%);
+  border-top: 1px solid var(--saier-color-border);
   padding-top: 10px;
 }
 
@@ -454,11 +454,11 @@ function roleLabel(role: YunlefunCloudRoomSession['role']): string {
   height: 7px;
   flex: 0 0 auto;
   border-radius: 999px;
-  background: rgb(255 255 255 / 26%);
+  background: var(--saier-color-surface-strong);
 }
 
 .site-cloud-room__presence.is-online {
-  background: #34d399;
+  background: var(--saier-color-success);
 }
 
 @media (max-width: 680px) {

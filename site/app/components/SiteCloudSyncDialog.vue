@@ -70,9 +70,12 @@ const emit = defineEmits<{
 
 const pendingRemoveId = shallowRef<string>()
 const pendingRenameId = shallowRef<string>()
+const pendingLoadId = shallowRef<string>()
 const renameDraft = shallowRef('')
 
 const canUseCloud = computed(() => props.isAuthenticated)
+const isRefreshing = computed(() => props.status === 'loading')
+const isUploadingProject = computed(() => props.status === 'uploading' || props.status === 'finalizing')
 const isBusy = computed(() =>
   props.status === 'loading'
   || props.status === 'uploading'
@@ -124,6 +127,8 @@ const brushLibraryStatusLabel = computed(() => {
     return props.labels.brushLibrarySyncing
   return ''
 })
+const uploadButtonLabel = computed(() => isUploadingProject.value ? statusLabel.value : props.labels.uploadCurrent)
+const liveStatusLabel = computed(() => [statusLabel.value, brushLibraryStatusLabel.value].filter(Boolean).join(' · '))
 const brushLibrarySummary = computed(() => {
   if (props.brushLibraryCount <= 0)
     return props.labels.brushLibraryEmpty
@@ -139,12 +144,26 @@ const brushLibrarySummary = computed(() => {
 watch(
   () => props.open,
   (open) => {
-    if (!open)
+    if (!open) {
       pendingRemoveId.value = undefined
-    if (!open)
+      pendingLoadId.value = undefined
       cancelRename()
+    }
   },
 )
+
+watch(
+  () => props.status,
+  (status, previousStatus) => {
+    if (status === 'error' || (previousStatus === 'downloading' && status !== 'downloading'))
+      pendingLoadId.value = undefined
+  },
+)
+
+function requestLoad(file: YunlefunCloudFile): void {
+  pendingLoadId.value = file.id
+  emit('loadFile', file)
+}
 
 function requestRemove(file: YunlefunCloudFile): void {
   if (pendingRemoveId.value === file.id) {
@@ -225,20 +244,22 @@ function formatBytes(bytes: number): string {
         <button
           type="button"
           class="site-cloud-sync__button"
+          :aria-busy="isRefreshing"
           :disabled="isBusy"
           @click="emit('refresh')"
         >
-          <span class="i-ph-arrows-clockwise" />
-          <span>{{ labels.refresh }}</span>
+          <span :class="isRefreshing ? 'i-ph-spinner-gap site-cloud-sync__spinner' : 'i-ph-arrows-clockwise'" />
+          <span>{{ isRefreshing ? labels.checkingQuota : labels.refresh }}</span>
         </button>
         <button
           type="button"
           class="site-cloud-sync__button site-cloud-sync__button--primary"
+          :aria-busy="isUploadingProject"
           :disabled="!canUseCloud || isBusy"
           @click="emit('uploadCurrent')"
         >
-          <span class="i-ph-cloud-arrow-up" />
-          <span>{{ labels.uploadCurrent }}</span>
+          <span :class="isUploadingProject ? 'i-ph-spinner-gap site-cloud-sync__spinner' : 'i-ph-cloud-arrow-up'" />
+          <span>{{ uploadButtonLabel }}</span>
         </button>
       </div>
 
@@ -254,9 +275,9 @@ function formatBytes(bytes: number): string {
         </template>
       </div>
 
-      <p v-if="statusLabel" class="site-cloud-sync__status">
-        {{ statusLabel }}
-      </p>
+      <span class="site-cloud-sync__live-status" role="status" aria-live="polite" aria-atomic="true">
+        {{ liveStatusLabel }}
+      </span>
       <p v-if="errorMessage" class="site-cloud-sync__error">
         {{ errorMessage }}
       </p>
@@ -273,17 +294,15 @@ function formatBytes(bytes: number): string {
         <button
           type="button"
           class="site-cloud-sync__button"
+          :aria-busy="isBrushLibraryBusy"
           :disabled="!canUseCloud || isBusy || isBrushLibraryBusy"
           @click="emit('syncBrushLibrary')"
         >
-          <span class="i-ph-paint-brush" />
-          <span>{{ labels.brushLibrarySync }}</span>
+          <span :class="isBrushLibraryBusy ? 'i-ph-spinner-gap site-cloud-sync__spinner' : 'i-ph-paint-brush'" />
+          <span>{{ isBrushLibraryBusy ? labels.brushLibrarySyncing : labels.brushLibrarySync }}</span>
         </button>
       </section>
 
-      <p v-if="brushLibraryStatusLabel" class="site-cloud-sync__status">
-        {{ brushLibraryStatusLabel }}
-      </p>
       <p v-if="brushLibraryErrorMessage" class="site-cloud-sync__error">
         {{ brushLibraryErrorMessage }}
       </p>
@@ -345,8 +364,8 @@ function formatBytes(bytes: number): string {
             >
               <span class="i-ph-pencil-simple" />
             </button>
-            <button type="button" class="site-cloud-sync__icon-button" :disabled="isBusy" :title="labels.load" @click="emit('loadFile', file)">
-              <span class="i-ph-cloud-arrow-down" />
+            <button type="button" class="site-cloud-sync__icon-button" :aria-busy="pendingLoadId === file.id" :disabled="isBusy" :title="labels.load" @click="requestLoad(file)">
+              <span :class="pendingLoadId === file.id ? 'i-ph-spinner-gap site-cloud-sync__spinner' : 'i-ph-cloud-arrow-down'" />
             </button>
             <button
               type="button"
@@ -375,7 +394,7 @@ function formatBytes(bytes: number): string {
   place-items: center;
   overflow: auto;
   padding: 14px;
-  background: rgb(0 0 0 / 42%);
+  background: var(--saier-color-scrim);
 }
 
 .site-cloud-sync__panel {
@@ -386,11 +405,11 @@ function formatBytes(bytes: number): string {
   max-height: min(680px, calc(100vh - 28px));
   min-height: 0;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 13%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 8px;
-  background: rgb(20 20 22 / 96%);
-  box-shadow: 0 24px 70px rgb(0 0 0 / 42%);
-  color: white;
+  background: var(--saier-color-panel-raised);
+  box-shadow: var(--saier-shadow-dialog);
+  color: var(--saier-color-text);
   padding: 12px;
 }
 
@@ -416,10 +435,10 @@ function formatBytes(bytes: number): string {
 .site-cloud-sync__icon,
 .site-cloud-sync__button,
 .site-cloud-sync__icon-button {
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 6px;
-  background: rgb(255 255 255 / 7%);
-  color: white;
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text);
 }
 
 .site-cloud-sync__icon,
@@ -438,22 +457,36 @@ function formatBytes(bytes: number): string {
   gap: 7px;
   font-size: 13px;
   padding: 0 10px;
+  white-space: nowrap;
+}
+
+.site-cloud-sync__spinner {
+  animation: site-cloud-sync-spin 800ms linear infinite;
+}
+
+.site-cloud-sync__live-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .site-cloud-sync__button--primary {
-  border-color: rgb(94 234 212 / 28%);
-  background: rgb(20 184 166 / 22%);
+  border-color: var(--saier-color-success-border);
+  background: var(--saier-color-success-soft);
 }
 
 .site-cloud-sync__icon-button--danger:hover {
-  border-color: rgb(255 128 128 / 34%);
-  background: rgb(255 96 96 / 16%);
+  border-color: var(--saier-color-danger-border);
+  background: var(--saier-color-danger-soft);
 }
 
 .site-cloud-sync__icon-button--danger.is-confirming {
-  border-color: rgb(255 128 128 / 45%);
-  background: rgb(255 96 96 / 22%);
-  color: #ffe0e0;
+  border-color: var(--saier-color-danger-border);
+  background: var(--saier-color-danger-soft);
+  color: var(--saier-color-danger-text);
 }
 
 .site-cloud-sync__button:disabled,
@@ -483,8 +516,8 @@ function formatBytes(bytes: number): string {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: rgb(255 255 255 / 7%);
-  color: rgb(255 255 255 / 72%);
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text-muted);
 }
 
 .site-cloud-sync__brush-library {
@@ -492,8 +525,8 @@ function formatBytes(bytes: number): string {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: rgb(125 211 252 / 8%);
-  color: rgb(255 255 255 / 78%);
+  background: var(--saier-color-info-soft);
+  color: var(--saier-color-text-muted);
 }
 
 .site-cloud-sync__brush-copy {
@@ -502,7 +535,7 @@ function formatBytes(bytes: number): string {
 
 .site-cloud-sync__subtitle {
   margin: 0 0 2px;
-  color: rgb(255 255 255 / 92%);
+  color: var(--saier-color-text);
   font-size: 13px;
 }
 
@@ -512,19 +545,19 @@ function formatBytes(bytes: number): string {
 }
 
 .site-cloud-sync__status {
-  background: rgb(96 165 250 / 12%);
-  color: rgb(191 219 254);
+  background: var(--saier-color-accent-soft);
+  color: var(--saier-color-accent-text);
 }
 
 .site-cloud-sync__error {
-  background: rgb(255 96 96 / 13%);
-  color: #ffd5d5;
+  background: var(--saier-color-danger-soft);
+  color: var(--saier-color-danger-text);
 }
 
 .site-cloud-sync__link {
   border: 0;
   background: transparent;
-  color: rgb(125 211 252);
+  color: var(--saier-color-info-text);
   font: inherit;
   text-decoration: none;
 }
@@ -533,7 +566,7 @@ function formatBytes(bytes: number): string {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 7px;
 }
 
@@ -541,9 +574,9 @@ function formatBytes(bytes: number): string {
   position: sticky;
   z-index: 1;
   top: 0;
-  border-bottom: 1px solid rgb(255 255 255 / 8%);
-  background: rgb(28 28 31 / 98%);
-  color: rgb(255 255 255 / 62%);
+  border-bottom: 1px solid var(--saier-color-border);
+  background: var(--saier-color-panel-raised);
+  color: var(--saier-color-text-muted);
   font-size: 12px;
   font-weight: 700;
   padding: 8px 10px;
@@ -555,8 +588,8 @@ function formatBytes(bytes: number): string {
   min-height: 38px;
   align-items: center;
   gap: 12px;
-  border-top: 1px solid rgb(255 255 255 / 8%);
-  color: rgb(255 255 255 / 76%);
+  border-top: 1px solid var(--saier-color-border);
+  color: var(--saier-color-text-muted);
   font-size: 13px;
   padding: 7px 10px;
 }
@@ -570,15 +603,15 @@ function formatBytes(bytes: number): string {
   z-index: 1;
   top: 33px;
   min-height: 30px;
-  background: rgb(28 28 31 / 98%);
-  color: rgb(255 255 255 / 46%);
+  background: var(--saier-color-panel-raised);
+  color: var(--saier-color-text-subtle);
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
 }
 
 .site-cloud-sync__empty {
-  color: rgb(255 255 255 / 46%);
+  color: var(--saier-color-text-subtle);
   font-size: 13px;
   padding: 22px 10px;
   text-align: center;
@@ -593,18 +626,18 @@ function formatBytes(bytes: number): string {
 }
 
 .site-cloud-sync__name {
-  color: rgb(255 255 255 / 90%);
+  color: var(--saier-color-text);
 }
 
 .site-cloud-sync__rename-input {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  border: 1px solid rgb(125 211 252 / 34%);
+  border: 1px solid var(--saier-color-info-border);
   border-radius: 5px;
   outline: none;
-  background: rgb(255 255 255 / 9%);
-  color: white;
+  background: var(--saier-color-surface-hover);
+  color: var(--saier-color-text);
   font: inherit;
   padding: 5px 7px;
 }
@@ -612,6 +645,18 @@ function formatBytes(bytes: number): string {
 .site-cloud-sync__actions {
   justify-content: flex-end;
   gap: 6px;
+}
+
+@keyframes site-cloud-sync-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-cloud-sync__spinner {
+    animation: none;
+  }
 }
 
 @media (max-width: 640px) {

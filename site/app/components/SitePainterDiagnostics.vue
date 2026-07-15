@@ -155,11 +155,11 @@ function formatNumber(value: number | undefined): string {
 .site-diagnostics {
   width: min(300px, calc(100vw - 24px));
   padding: 10px;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 8px;
-  background: rgb(18 18 20 / 90%);
-  box-shadow: 0 18px 50px rgb(0 0 0 / 28%);
-  color: white;
+  background: var(--saier-color-panel);
+  box-shadow: var(--saier-shadow-panel);
+  color: var(--saier-color-text);
   font-size: 12px;
 }
 
@@ -175,12 +175,12 @@ function formatNumber(value: number | undefined): string {
 
 .site-diagnostics__header {
   padding-bottom: 8px;
-  border-bottom: 1px solid rgb(255 255 255 / 10%);
+  border-bottom: 1px solid var(--saier-color-border);
   font-weight: 650;
 }
 
 .site-diagnostics__header strong {
-  color: #facc15;
+  color: var(--saier-color-warning);
   font-size: 11px;
   font-weight: 650;
   text-transform: uppercase;
@@ -196,7 +196,7 @@ function formatNumber(value: number | undefined): string {
 .site-diagnostics__section span {
   overflow: hidden;
   min-width: 0;
-  color: rgb(255 255 255 / 56%);
+  color: var(--saier-color-text-subtle);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -204,7 +204,7 @@ function formatNumber(value: number | undefined): string {
 .site-diagnostics__summary dd,
 .site-diagnostics__section strong {
   margin: 0;
-  color: rgb(255 255 255 / 82%);
+  color: var(--saier-color-text);
   font-variant-numeric: tabular-nums;
   font-weight: 560;
   white-space: nowrap;
@@ -214,12 +214,12 @@ function formatNumber(value: number | undefined): string {
   display: grid;
   gap: 4px;
   padding-top: 8px;
-  border-top: 1px solid rgb(255 255 255 / 8%);
+  border-top: 1px solid var(--saier-color-border);
 }
 
 .site-diagnostics__section h2 {
   margin: 0;
-  color: rgb(255 255 255 / 78%);
+  color: var(--saier-color-text-muted);
   font-size: 12px;
   font-weight: 650;
 }

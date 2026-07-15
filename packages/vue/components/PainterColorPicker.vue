@@ -130,13 +130,13 @@ function toHex(value: string | number): string {
 .painter-color-picker__button {
   width: 36px;
   height: 36px;
-  border: 2px solid rgb(255 255 255 / 86%);
+  border: 2px solid var(--saier-color-swatch-outline, rgb(255 255 255 / 86%));
   border-radius: 50%;
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 46%);
+  box-shadow: inset 0 0 0 1px var(--saier-color-swatch-inset, rgb(0 0 0 / 46%));
 }
 
 .painter-color-picker__button:focus-visible {
-  outline: 2px solid rgb(96 165 250 / 78%);
+  outline: 2px solid var(--saier-color-focus, rgb(96 165 250 / 78%));
   outline-offset: 3px;
 }
 
@@ -147,10 +147,10 @@ function toHex(value: string | number): string {
   left: calc(100% + 10px);
   width: 306px;
   padding: 12px;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 8px;
-  background: rgb(30 30 32 / 96%);
-  box-shadow: 0 18px 50px rgb(0 0 0 / 38%);
+  background: var(--saier-color-panel-raised, rgb(30 30 32 / 96%));
+  box-shadow: var(--saier-shadow-menu, 0 18px 50px rgb(0 0 0 / 38%));
 }
 
 @media (max-width: 640px) {

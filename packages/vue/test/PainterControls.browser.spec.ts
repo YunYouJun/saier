@@ -66,15 +66,22 @@ function createFakePainter(): Painter {
   } as unknown as Painter
 }
 
-function mountControls(options: { guardClear?: boolean, onClear?: ReturnType<typeof vi.fn> } = {}): MountedControls & { onClear: ReturnType<typeof vi.fn> } {
+function mountControls(options: {
+  colorPanelMode?: 'inline' | 'popover'
+  guardClear?: boolean
+  mode?: 'full' | 'palette'
+  onClear?: ReturnType<typeof vi.fn>
+} = {}): MountedControls & { onClear: ReturnType<typeof vi.fn> } {
   const onClear = options.onClear ?? vi.fn()
   const painter = createFakePainter()
   const el = document.createElement('div')
   document.body.appendChild(el)
 
   const app = createApp(PainterControls, {
+    colorPanelMode: options.colorPanelMode,
     guardClear: options.guardClear,
     labels: { clear: 'Clear' },
+    mode: options.mode,
     onClear,
     painter,
   })
@@ -131,5 +138,19 @@ describe('painter controls', () => {
 
     expect(onClear).not.toHaveBeenCalled()
     expect(painter.clearCanvas).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses the compact picker layout for the inline palette', async () => {
+    const { el } = mountControls({ colorPanelMode: 'inline', mode: 'palette' })
+    await nextTick()
+
+    const picker = el.querySelector<HTMLElement>('.color-wheel-picker--compact')
+    const swatch = el.querySelector<HTMLElement>('.color-wheel-picker__swatch')
+    const wheel = el.querySelector<HTMLElement>('.color-wheel-picker__wheel')
+
+    expect(picker).not.toBeNull()
+    expect(wheel?.style.width).toBe('84px')
+    expect(getComputedStyle(swatch!).width).toBe('24px')
+    expect(el.querySelectorAll('.painter-slider--compact')).toHaveLength(3)
   })
 })

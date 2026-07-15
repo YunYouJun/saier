@@ -442,9 +442,9 @@ function clamp(value: number, min: number, max: number): number {
   min-width: 0;
   gap: 6px;
   padding: 4px;
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 6px;
-  background: linear-gradient(180deg, rgb(255 255 255 / 5%), transparent 42%), rgb(0 0 0 / 20%);
+  background: linear-gradient(180deg, var(--saier-color-surface, rgb(255 255 255 / 5%)), transparent 42%), var(--saier-color-control-track, rgb(0 0 0 / 20%));
 }
 
 .brush-preset-header {
@@ -462,7 +462,7 @@ function clamp(value: number, min: number, max: number): number {
   gap: 0;
   overflow-x: auto;
   overflow-y: hidden;
-  border-bottom: 1px solid rgb(255 255 255 / 10%);
+  border-bottom: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   mask-image: linear-gradient(90deg, transparent 0, black 9px, black calc(100% - 12px), transparent 100%);
   padding: 0 10px 0 7px;
   scrollbar-width: none;
@@ -484,10 +484,10 @@ function clamp(value: number, min: number, max: number): number {
   gap: 4px;
   margin-bottom: -1px;
   border: 1px solid transparent;
-  border-bottom-color: rgb(255 255 255 / 10%);
+  border-bottom-color: var(--saier-color-border, rgb(255 255 255 / 10%));
   border-radius: 5px 5px 0 0;
   background: transparent;
-  color: rgb(255 255 255 / 62%);
+  color: var(--saier-color-text-muted, rgb(255 255 255 / 76%));
   font-size: 11px;
   line-height: 1;
   padding: 0 7px;
@@ -495,17 +495,17 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 .brush-preset-group.is-active {
-  border-color: rgb(96 165 250 / 40%);
-  border-bottom-color: rgb(18 18 22 / 95%);
-  background: linear-gradient(180deg, rgb(96 165 250 / 16%), rgb(255 255 255 / 5%)), rgb(18 18 22 / 95%);
-  color: white;
+  border-color: var(--saier-color-accent-border, rgb(96 165 250 / 40%));
+  border-bottom-color: var(--saier-color-panel, rgb(18 18 22 / 95%));
+  background: linear-gradient(180deg, var(--saier-color-accent-soft, rgb(96 165 250 / 16%)), var(--saier-color-surface, rgb(255 255 255 / 5%))), var(--saier-color-panel, rgb(18 18 22 / 95%));
+  color: var(--saier-color-text, white);
 }
 
 .brush-preset-group:focus-visible,
 .brush-preset-action:focus-visible,
 .brush-preset-menu__item:focus-visible,
 .brush-preset-card:focus-visible {
-  outline: 2px solid rgb(147 197 253 / 78%);
+  outline: 2px solid var(--saier-color-focus, rgb(147 197 253 / 78%));
   outline-offset: 1px;
 }
 
@@ -517,7 +517,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 .brush-preset-group__count {
-  color: rgb(255 255 255 / 42%);
+  color: var(--saier-color-text-subtle, rgb(255 255 255 / 54%));
   font-variant-numeric: tabular-nums;
 }
 
@@ -535,7 +535,7 @@ function clamp(value: number, min: number, max: number): number {
   width: 1px;
   height: 18px;
   margin-right: 3px;
-  background: rgb(255 255 255 / 10%);
+  background: var(--saier-color-surface-hover, rgb(255 255 255 / 10%));
   content: '';
 }
 
@@ -544,22 +544,22 @@ function clamp(value: number, min: number, max: number): number {
   width: 27px;
   height: 26px;
   place-items: center;
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 4px;
-  background: rgb(255 255 255 / 5%);
-  color: rgb(255 255 255 / 78%);
+  background: var(--saier-color-surface, rgb(255 255 255 / 6%));
+  color: var(--saier-color-text-muted, rgb(255 255 255 / 76%));
   font-size: 14px;
   line-height: 1;
 }
 
 .brush-preset-action:hover {
-  background: rgb(255 255 255 / 10%);
+  background: var(--saier-color-surface-hover, rgb(255 255 255 / 10%));
 }
 
 .brush-preset-action--primary {
-  border-color: rgb(96 165 250 / 28%);
-  background: rgb(96 165 250 / 13%);
-  color: white;
+  border-color: var(--saier-color-accent-border, rgb(96 165 250 / 28%));
+  background: var(--saier-color-accent-soft, rgb(96 165 250 / 13%));
+  color: var(--saier-color-text, white);
 }
 
 .brush-preset-action:disabled {
@@ -581,9 +581,9 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 .brush-preset-actions__menu[open] .brush-preset-action--menu {
-  border-color: rgb(255 255 255 / 18%);
-  background: rgb(255 255 255 / 11%);
-  color: white;
+  border-color: var(--saier-color-border-strong, rgb(255 255 255 / 22%));
+  background: var(--saier-color-surface-hover, rgb(255 255 255 / 10%));
+  color: var(--saier-color-text, white);
 }
 
 .brush-preset-menu {
@@ -594,10 +594,10 @@ function clamp(value: number, min: number, max: number): number {
   display: grid;
   width: 178px;
   gap: 1px;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 5px;
-  background: rgb(18 18 22 / 96%);
-  box-shadow: 0 12px 32px rgb(0 0 0 / 34%);
+  background: var(--saier-color-panel-raised, rgb(18 18 22 / 96%));
+  box-shadow: var(--saier-shadow-menu, 0 12px 32px rgb(0 0 0 / 34%));
   padding: 4px;
 }
 
@@ -612,7 +612,7 @@ function clamp(value: number, min: number, max: number): number {
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: rgb(255 255 255 / 76%);
+  color: var(--saier-color-text-muted, rgb(255 255 255 / 76%));
   font-size: 11px;
   line-height: 1;
   padding: 0 7px;
@@ -620,8 +620,8 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 .brush-preset-menu__item:hover {
-  background: rgb(255 255 255 / 8%);
-  color: white;
+  background: var(--saier-color-surface, rgb(255 255 255 / 6%));
+  color: var(--saier-color-text, white);
 }
 
 .brush-preset-menu__item:disabled {
@@ -671,10 +671,10 @@ function clamp(value: number, min: number, max: number): number {
   align-items: center;
   justify-items: center;
   gap: 1px;
-  border: 1px solid rgb(255 255 255 / 7%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 7%));
   border-radius: 5px;
-  background: rgb(255 255 255 / 4%);
-  color: rgb(255 255 255 / 82%);
+  background: var(--saier-color-surface, rgb(255 255 255 / 4%));
+  color: var(--saier-color-text, white);
   font-size: 11px;
   line-height: 1.05;
   padding: 5px 4px 6px;
@@ -682,15 +682,15 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 .brush-preset-card.is-active {
-  border-color: rgb(96 165 250 / 62%);
-  background: linear-gradient(180deg, rgb(96 165 250 / 20%), rgb(96 165 250 / 8%)), rgb(255 255 255 / 4%);
-  color: white;
-  box-shadow: inset 0 0 0 1px rgb(96 165 250 / 25%);
+  border-color: var(--saier-color-accent-border, rgb(96 165 250 / 62%));
+  background: linear-gradient(180deg, var(--saier-color-accent-strong, rgb(96 165 250 / 20%)), var(--saier-color-accent-soft, rgb(96 165 250 / 8%))), var(--saier-color-surface, rgb(255 255 255 / 4%));
+  color: var(--saier-color-text, white);
+  box-shadow: inset 0 0 0 1px var(--saier-color-accent-border, rgb(96 165 250 / 25%));
 }
 
 .brush-preset-card:hover {
-  border-color: rgb(255 255 255 / 20%);
-  background: rgb(255 255 255 / 8%);
+  border-color: var(--saier-color-border-strong, rgb(255 255 255 / 22%));
+  background: var(--saier-color-surface, rgb(255 255 255 / 6%));
 }
 
 .brush-preset-card.is-disabled {
@@ -699,8 +699,8 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 .brush-preset-card.is-disabled:hover {
-  border-color: rgb(255 255 255 / 7%);
-  background: rgb(255 255 255 / 4%);
+  border-color: var(--saier-color-border, rgb(255 255 255 / 7%));
+  background: var(--saier-color-surface, rgb(255 255 255 / 4%));
 }
 
 .brush-preset-card__icon {
@@ -807,11 +807,11 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 .brush-preset-icon--blender {
-  color: rgb(167 243 208);
+  color: var(--saier-color-success-text, rgb(167 243 208));
 }
 
 .brush-preset-icon--watercolor {
-  color: rgb(125 211 252);
+  color: var(--saier-color-info-text, rgb(125 211 252));
 }
 
 .brush-preset-icon--watercolor::before {
@@ -835,7 +835,7 @@ function clamp(value: number, min: number, max: number): number {
 
 .brush-preset-icon--custom::after {
   inset: 4px 3px;
-  border: 1px dashed rgb(255 255 255 / 54%);
+  border: 1px dashed var(--saier-color-text-subtle, rgb(255 255 255 / 54%));
   border-radius: 5px;
 }
 
@@ -849,7 +849,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 .brush-preset-card__meta {
-  color: rgb(255 255 255 / 42%);
+  color: var(--saier-color-text-subtle, rgb(255 255 255 / 54%));
   font-size: 10px;
   grid-area: meta;
   font-variant-numeric: tabular-nums;
@@ -863,8 +863,8 @@ function clamp(value: number, min: number, max: number): number {
   max-width: calc(100% - 6px);
   overflow: hidden;
   border-radius: 3px;
-  background: rgb(0 0 0 / 36%);
-  color: rgb(255 255 255 / 62%);
+  background: var(--saier-color-control-track, rgb(0 0 0 / 36%));
+  color: var(--saier-color-text-muted, rgb(255 255 255 / 76%));
   font-size: 7px;
   line-height: 1;
   padding: 2px 3px;
@@ -879,12 +879,12 @@ function clamp(value: number, min: number, max: number): number {
   grid-template-columns: 70px minmax(0, 1fr);
   gap: 7px;
   align-items: center;
-  border: 1px solid rgb(255 255 255 / 8%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 5px;
   background:
     linear-gradient(90deg, rgb(255 255 255 / 5%) 1px, transparent 1px) 0 0 / 12px 12px,
     linear-gradient(0deg, rgb(255 255 255 / 5%) 1px, transparent 1px) 0 0 / 12px 12px,
-    rgb(0 0 0 / 18%);
+    var(--saier-color-brush-preview-background, #1c1d21);
   padding: 6px;
 }
 
@@ -898,9 +898,9 @@ function clamp(value: number, min: number, max: number): number {
 
 .brush-preset-preview__dot {
   display: block;
-  border: 1px solid rgb(255 255 255 / 52%);
+  border: 1px solid var(--saier-color-brush-preview-foreground, rgb(255 255 255 / 52%));
   border-radius: 999px;
-  background: rgb(255 255 255 / 78%);
+  background: var(--saier-color-brush-preview-foreground, rgb(255 255 255 / 78%));
   box-shadow:
     0 0 0 1px rgb(0 0 0 / 24%),
     0 6px 18px rgb(0 0 0 / 30%);
@@ -912,7 +912,7 @@ function clamp(value: number, min: number, max: number): number {
   bottom: 8px;
   left: 7px;
   border-radius: 999px;
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 78%), transparent);
+  background: linear-gradient(90deg, transparent, var(--saier-color-brush-preview-foreground, rgb(255 255 255 / 78%)), transparent);
 }
 
 .brush-preset-preview__text {
@@ -923,7 +923,7 @@ function clamp(value: number, min: number, max: number): number {
 
 .brush-preset-preview__name {
   overflow: hidden;
-  color: white;
+  color: var(--saier-color-text, white);
   font-size: 12px;
   line-height: 1.1;
   text-overflow: ellipsis;
@@ -942,8 +942,8 @@ function clamp(value: number, min: number, max: number): number {
   max-width: 100%;
   overflow: hidden;
   border-radius: 3px;
-  background: rgb(255 255 255 / 7%);
-  color: rgb(255 255 255 / 58%);
+  background: var(--saier-color-surface, rgb(255 255 255 / 6%));
+  color: var(--saier-color-text-subtle, rgb(255 255 255 / 54%));
   font-size: 10px;
   line-height: 1;
   padding: 3px 4px;

@@ -58,7 +58,7 @@ const emit = defineEmits<{
   place-items: center;
   overflow: auto;
   padding: 14px;
-  background: rgb(0 0 0 / 46%);
+  background: var(--saier-color-scrim);
 }
 
 .site-confirm__panel {
@@ -66,11 +66,11 @@ const emit = defineEmits<{
   display: grid;
   width: min(380px, calc(100vw - 28px));
   gap: 14px;
-  border: 1px solid rgb(255 255 255 / 13%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 8px;
-  background: rgb(20 20 22 / 96%);
-  box-shadow: 0 24px 70px rgb(0 0 0 / 42%);
-  color: white;
+  background: var(--saier-color-panel-raised);
+  box-shadow: var(--saier-shadow-dialog);
+  color: var(--saier-color-text);
   padding: 14px;
 }
 
@@ -93,17 +93,17 @@ const emit = defineEmits<{
 }
 
 .site-confirm__message {
-  color: rgb(255 255 255 / 74%);
+  color: var(--saier-color-text-muted);
   font-size: 13px;
   line-height: 1.5;
 }
 
 .site-confirm__icon,
 .site-confirm__button {
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 6px;
-  background: rgb(255 255 255 / 7%);
-  color: white;
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text);
 }
 
 .site-confirm__icon {
@@ -120,16 +120,16 @@ const emit = defineEmits<{
 }
 
 .site-confirm__button--danger {
-  border-color: rgb(248 113 113 / 38%);
-  background: rgb(248 113 113 / 18%);
+  border-color: var(--saier-color-danger-border);
+  background: var(--saier-color-danger-soft);
 }
 
 .site-confirm__icon:hover,
 .site-confirm__button:hover {
-  background: rgb(255 255 255 / 12%);
+  background: var(--saier-color-surface-hover);
 }
 
 .site-confirm__button--danger:hover {
-  background: rgb(248 113 113 / 28%);
+  background: var(--saier-color-danger-soft);
 }
 </style>

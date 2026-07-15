@@ -267,9 +267,10 @@ export function usePainter(painter: Painter) {
 3. NoSQL 保存 phase/deadline 真相。Redis 只做通知、presence、限流和 deadline sorted-set 加速；Pub/Sub 丢消息由 outbox、5 秒 watermark 和 delta/snapshot 恢复弥补。
 4. 玩法画布是结构独立的 `ActivityDocument`、repository、collection 和 storage prefix。activity API 无法接收主工程 document id；宿主权限、权威角色和工具 allowlist 取交集。
 5. v1 只加载同 bundle 的第一方 `RoomActivityExtension`。package exports、restricted imports、冻结 facade 和 disposer 检查是架构隔离，不宣称是恶意代码安全沙箱。
-6. Pictionary 使用根绘画界面的按需 Activity 插件宿主和轻量 activity room。普通 `/` 流程不加载插件 chunk，也不创建 activity Painter、定时器或网络连接；旧房间路由只做兼容跳转。插件仍使用独立 `ActivityDocument`，不会把游戏笔迹接入主工程 repository。
+6. Pictionary 使用根绘画界面的按需 Activity 插件宿主和轻量 activity room。`SitePainterApplication` 始终挂载，Activity 以独立临时 workspace tab 接入；切换回工程 tab 只隐藏 Activity 并保持房间会话，关闭 Activity tab 才卸载插件。插件仍使用独立 `ActivityDocument`，不会把游戏笔迹接入主工程 repository。
+7. 第一方 Activity 通过显式 manifest registry 注册菜单、文案、图标、懒加载入口和呈现方式；shell、菜单、workspace tabs 与路由只消费通用描述符，不得按玩法 id 增加分支。普通 `/` 流程不加载插件 chunk，也不创建 activity Painter、定时器或网络连接；旧房间路由只做兼容跳转。v1 同时只承载一个 live Activity tab。
 
-**理由**：事务边界保证并发、重试和进程崩溃时不会重复计分或泄露答案；持久游标保证漏掉最后一条 Pub/Sub 仍能发现；物理 canvas 隔离让“游戏不修改主工程”成为类型和存储层约束，而不是调用约定；按需宿主允许玩法复用 Saier 的视觉与工具组件，同时不增加普通绘画启动路径的运行时资源。
+**理由**：事务边界保证并发、重试和进程崩溃时不会重复计分或泄露答案；持久游标保证漏掉最后一条 Pub/Sub 仍能发现；物理 canvas 隔离让“游戏不修改主工程”成为类型和存储层约束，而不是调用约定；临时 workspace tab 保留主工程、历史和面板状态，同时让 Activity Painter 与工程保存 / dirty / undo / 云同步语义完全分开；显式 registry 既是扩展点也是第一方安全白名单。
 
 **非目标**：v1 不提供第三方插件 SDK、游客、语音、全球匹配、离线多人合并或 Redis Streams 第二套真相。生产 realtime 资源、Redis/VPC 与双实例启用仍须通过独立 rollout gate。
 

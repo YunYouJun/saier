@@ -20,7 +20,17 @@ export default defineNuxtConfig({
     '@vite-pwa/nuxt',
   ],
 
-  css: ['@unocss/reset/tailwind.css'],
+  css: [
+    '@unocss/reset/tailwind.css',
+    '~/assets/theme.css',
+  ],
+
+  colorMode: {
+    classSuffix: '',
+    fallback: 'dark',
+    preference: 'system',
+    storageKey: 'saier:color-mode',
+  },
 
   app: {
     head: {

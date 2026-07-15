@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { SiteLocale, SiteLocaleOption } from '~/composables/useSiteI18n'
+import type { SiteThemePreference } from '~/composables/useSiteTheme'
+import type { SiteActivityMenuItem } from '~/types/activity-plugin'
 import type { SitePainterColorSectionId, SitePainterCommand, SitePainterMenuCommand, SitePainterPanelId, SitePainterTool } from '~/types/painter-app'
 import {
   MenubarCheckboxItem,
@@ -21,12 +23,12 @@ import { computed } from 'vue'
 
 interface SitePainterMenubarLabels {
   file: string
+  activities: string
   newCanvas: string
   openProject: string
   saveProject: string
   cloudSync: string
   cloudRoom: string
-  pictionary: string
   importBrush: string
   importImage: string
   exportPreview: string
@@ -38,6 +40,10 @@ interface SitePainterMenubarLabels {
   zoomIn: string
   zoomOut: string
   language: string
+  appearance: string
+  themeSystem: string
+  themeLight: string
+  themeDark: string
   others: string
   keyboardShortcuts: string
   filter: string
@@ -75,6 +81,7 @@ interface SitePainterMenubarLabels {
 }
 
 const props = defineProps<{
+  activityMenuItems: readonly SiteActivityMenuItem[]
   activeLayerVisible: boolean
   activeTool: SitePainterTool
   availablePanels: SitePainterPanelId[]
@@ -91,16 +98,19 @@ const props = defineProps<{
   locale: SiteLocale
   localeOptions: readonly SiteLocaleOption[]
   shortcuts: Readonly<Partial<Record<SitePainterCommand, string>>>
+  themePreference: SiteThemePreference
   colorSectionVisibility: Readonly<Record<SitePainterColorSectionId, boolean>>
   panelVisibility: Readonly<Record<SitePainterPanelId, boolean>>
 }>()
 
 const emit = defineEmits<{
   command: [command: SitePainterMenuCommand]
+  openActivity: [pluginId: string]
   setColorSectionVisible: [sectionId: SitePainterColorSectionId, visible: boolean]
   setActiveLayerVisible: [visible: boolean]
   setLocale: [locale: SiteLocale]
   setPanelVisible: [panelId: SitePainterPanelId, visible: boolean]
+  setThemePreference: [preference: SiteThemePreference]
 }>()
 
 const toolCommands: { value: SitePainterTool, labelKey: 'brush' | 'eraser' | 'pan' | 'image' | 'selection', icon: string }[] = [
@@ -189,14 +199,6 @@ function shortcutLabel(command: SitePainterCommand): string {
               <span>{{ labels.cloudRoom }}</span>
             </span>
           </MenubarItem>
-          <MenubarItem as-child>
-            <NuxtLink class="site-menubar__item" to="/?activity=pictionary">
-              <span class="site-menubar__item-main">
-                <span class="i-ph-game-controller" />
-                <span>{{ labels.pictionary }}</span>
-              </span>
-            </NuxtLink>
-          </MenubarItem>
           <MenubarSeparator class="site-menubar__separator" />
           <MenubarItem class="site-menubar__item" :disabled="disabled" @select="emit('command', 'file:import-image')">
             <span class="site-menubar__item-main">
@@ -220,6 +222,27 @@ function shortcutLabel(command: SitePainterCommand): string {
             <span class="site-menubar__item-main">
               <span class="i-ph-download" />
               <span>{{ labels.download }}</span>
+            </span>
+          </MenubarItem>
+        </MenubarContent>
+      </MenubarPortal>
+    </MenubarMenu>
+
+    <MenubarMenu value="activities">
+      <MenubarTrigger class="site-menubar__trigger">
+        {{ labels.activities }}
+      </MenubarTrigger>
+      <MenubarPortal>
+        <MenubarContent class="site-menubar__content" align="start" :side-offset="7">
+          <MenubarItem
+            v-for="activity in activityMenuItems"
+            :key="activity.id"
+            class="site-menubar__item"
+            @select="emit('openActivity', activity.id)"
+          >
+            <span class="site-menubar__item-main">
+              <span :class="activity.icon" />
+              <span>{{ activity.label }}</span>
             </span>
           </MenubarItem>
         </MenubarContent>
@@ -296,6 +319,51 @@ function shortcutLabel(command: SitePainterCommand): string {
                         </MenubarItemIndicator>
                       </span>
                       <span>{{ option.label }}</span>
+                    </span>
+                  </MenubarRadioItem>
+                </MenubarRadioGroup>
+              </MenubarSubContent>
+            </MenubarPortal>
+          </MenubarSub>
+          <MenubarSub>
+            <MenubarSubTrigger class="site-menubar__item">
+              <span class="site-menubar__item-main">
+                <span class="i-ph-circle-half-tilt" />
+                <span>{{ labels.appearance }}</span>
+              </span>
+              <span class="i-ph-caret-right site-menubar__sub-caret" />
+            </MenubarSubTrigger>
+            <MenubarPortal>
+              <MenubarSubContent class="site-menubar__content site-menubar__content--sub" :side-offset="8" :align-offset="-4">
+                <MenubarRadioGroup :model-value="themePreference">
+                  <MenubarRadioItem class="site-menubar__item" value="system" @select="emit('setThemePreference', 'system')">
+                    <span class="site-menubar__item-main">
+                      <span class="site-menubar__indicator-slot">
+                        <MenubarItemIndicator class="site-menubar__indicator">
+                          <span class="i-ph-check" />
+                        </MenubarItemIndicator>
+                      </span>
+                      <span>{{ labels.themeSystem }}</span>
+                    </span>
+                  </MenubarRadioItem>
+                  <MenubarRadioItem class="site-menubar__item" value="light" @select="emit('setThemePreference', 'light')">
+                    <span class="site-menubar__item-main">
+                      <span class="site-menubar__indicator-slot">
+                        <MenubarItemIndicator class="site-menubar__indicator">
+                          <span class="i-ph-check" />
+                        </MenubarItemIndicator>
+                      </span>
+                      <span>{{ labels.themeLight }}</span>
+                    </span>
+                  </MenubarRadioItem>
+                  <MenubarRadioItem class="site-menubar__item" value="dark" @select="emit('setThemePreference', 'dark')">
+                    <span class="site-menubar__item-main">
+                      <span class="site-menubar__indicator-slot">
+                        <MenubarItemIndicator class="site-menubar__indicator">
+                          <span class="i-ph-check" />
+                        </MenubarItemIndicator>
+                      </span>
+                      <span>{{ labels.themeDark }}</span>
                     </span>
                   </MenubarRadioItem>
                 </MenubarRadioGroup>
@@ -575,7 +643,7 @@ function shortcutLabel(command: SitePainterCommand): string {
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
-  color: rgb(255 255 255 / 78%);
+  color: var(--saier-color-text-muted);
   font-size: 13px;
   font-weight: 520;
   padding-inline: 10px;
@@ -583,21 +651,21 @@ function shortcutLabel(command: SitePainterCommand): string {
 
 .site-menubar__trigger:hover,
 .site-menubar__trigger[data-state='open'] {
-  border-color: rgb(255 255 255 / 12%);
-  background: rgb(255 255 255 / 9%);
-  color: white;
+  border-color: var(--saier-color-border);
+  background: var(--saier-color-surface-hover);
+  color: var(--saier-color-text);
 }
 
 :global(.site-menubar__content) {
   z-index: 1000;
   min-width: 214px;
   padding: 6px;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 8px;
-  background: rgb(20 20 22 / 96%);
+  background: var(--saier-color-panel-raised);
   backdrop-filter: blur(18px);
-  box-shadow: 0 18px 50px rgb(0 0 0 / 36%);
-  color: white;
+  box-shadow: var(--saier-shadow-menu);
+  color: var(--saier-color-text);
 }
 
 :global(.site-menubar__content--sub) {
@@ -619,7 +687,7 @@ function shortcutLabel(command: SitePainterCommand): string {
   justify-content: space-between;
   gap: 16px;
   border-radius: 6px;
-  color: rgb(255 255 255 / 82%);
+  color: var(--saier-color-text);
   cursor: default;
   font-size: 13px;
   outline: none;
@@ -628,17 +696,17 @@ function shortcutLabel(command: SitePainterCommand): string {
 }
 
 :global(.site-menubar__item[data-highlighted]) {
-  background: rgb(54 117 255 / 22%);
-  color: white;
+  background: var(--saier-color-accent-strong);
+  color: var(--saier-color-text);
 }
 
 :global(.site-menubar__item[data-disabled]) {
-  color: rgb(255 255 255 / 28%);
+  color: var(--saier-color-text-disabled);
 }
 
 :global(.site-menubar__item--danger[data-highlighted]) {
-  background: rgb(255 80 80 / 18%);
-  color: #ffd7d7;
+  background: var(--saier-color-danger-soft);
+  color: var(--saier-color-danger-text);
 }
 
 :global(.site-menubar__item-main) {
@@ -650,7 +718,7 @@ function shortcutLabel(command: SitePainterCommand): string {
 
 :global(.site-menubar__shortcut) {
   flex: 0 0 auto;
-  color: rgb(255 255 255 / 42%);
+  color: var(--saier-color-text-subtle);
   font-size: 12px;
 }
 
@@ -673,14 +741,14 @@ function shortcutLabel(command: SitePainterCommand): string {
 
 :global(.site-menubar__sub-caret) {
   flex: 0 0 auto;
-  color: rgb(255 255 255 / 44%);
+  color: var(--saier-color-text-subtle);
   font-size: 13px;
 }
 
 :global(.site-menubar__separator) {
   height: 1px;
   margin: 5px 4px;
-  background: rgb(255 255 255 / 10%);
+  background: var(--saier-color-surface-hover);
 }
 
 @media (max-width: 640px) {

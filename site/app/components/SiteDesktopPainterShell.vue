@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import type { SiteDesktopPainterPanelGroup } from '~/composables/useDesktopPainterPanels'
 import type { SiteLocale } from '~/composables/useSiteI18n'
 import type { SitePainterPanelId } from '~/types/painter-app'
 import type { SitePainterPanelItem, SitePainterShellEmits, SitePainterShellProps } from '~/types/painter-shell'
-import type { SiteDesktopPainterPanelGroup } from '~/composables/useDesktopPainterPanels'
 import { useDesktopPainterPanels } from '~/composables/useDesktopPainterPanels'
 
 const props = defineProps<SitePainterShellProps>()
@@ -57,7 +57,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 </script>
 
 <template>
-  <div class="site-painter">
+  <div class="site-painter" :class="{ 'is-activity': workspaceKind === 'activity' }">
     <header class="site-painter__chrome">
       <div class="site-painter__topbar">
         <div class="site-painter__primary">
@@ -108,7 +108,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
         </div>
       </div>
 
-      <div class="site-painter__toolbar">
+      <div v-if="workspaceKind === 'document'" class="site-painter__toolbar">
         <slot name="toolbar" />
       </div>
 
@@ -122,7 +122,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
         <slot name="canvas" />
       </div>
 
-      <div class="site-painter__panel-stage" aria-live="off">
+      <div v-show="workspaceKind === 'document'" class="site-painter__panel-stage" aria-live="off">
         <section
           v-for="group in panelGroups"
           v-show="shouldShowGroup(group)"
@@ -275,16 +275,24 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   min-height: 0;
   grid-template-rows: 132px minmax(0, 1fr);
   overflow: hidden;
-  background: #262629;
-  color: white;
+  background: var(--saier-color-app-background);
+  color: var(--saier-color-text);
+}
+
+.site-painter.is-activity {
+  grid-template-rows: 88px minmax(0, 1fr);
 }
 
 .site-painter__chrome {
   display: grid;
   min-width: 0;
   grid-template-rows: 44px 44px 44px;
-  border-bottom: 1px solid rgb(255 255 255 / 10%);
-  background: rgb(18 18 20 / 94%);
+  border-bottom: 1px solid var(--saier-color-border);
+  background: var(--saier-color-chrome);
+}
+
+.site-painter.is-activity .site-painter__chrome {
+  grid-template-rows: 44px 44px;
 }
 
 .site-painter__topbar {
@@ -392,7 +400,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 .site-painter__status {
   overflow: hidden;
   max-width: 280px;
-  color: rgb(255 255 255 / 52%);
+  color: var(--saier-color-text-subtle);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -408,10 +416,10 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   height: 32px;
   align-items: center;
   gap: 8px;
-  border: 1px solid rgb(255 255 255 / 14%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 8px;
-  background: rgb(255 255 255 / 8%);
-  color: white;
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text);
   cursor: pointer;
   font-size: 12px;
   list-style: none;
@@ -423,13 +431,13 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 }
 
 .site-painter__locale-menu[open] .site-painter__locale {
-  border-color: rgb(147 197 253 / 34%);
-  background: rgb(255 255 255 / 12%);
+  border-color: var(--saier-color-accent-border);
+  background: var(--saier-color-surface-hover);
 }
 
 .site-painter__locale:focus-visible,
 .site-painter__locale-option:focus-visible {
-  outline: 2px solid rgb(147 197 253 / 72%);
+  outline: 2px solid var(--saier-color-focus);
   outline-offset: 1px;
 }
 
@@ -445,10 +453,10 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   display: grid;
   min-width: 136px;
   gap: 2px;
-  border: 1px solid rgb(255 255 255 / 13%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 8px;
-  background: rgb(20 21 24 / 96%);
-  box-shadow: 0 16px 42px rgb(0 0 0 / 28%);
+  background: var(--saier-color-panel-raised);
+  box-shadow: var(--saier-shadow-panel);
   padding: 4px;
 }
 
@@ -461,7 +469,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   border: 0;
   border-radius: 5px;
   background: transparent;
-  color: rgb(255 255 255 / 72%);
+  color: var(--saier-color-text-muted);
   font-size: 12px;
   padding: 0 8px;
   text-align: left;
@@ -469,8 +477,8 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 
 .site-painter__locale-option:hover,
 .site-painter__locale-option.is-active {
-  background: rgb(255 255 255 / 9%);
-  color: white;
+  background: var(--saier-color-surface-hover);
+  color: var(--saier-color-text);
 }
 
 .site-painter__locale-check {
@@ -496,7 +504,13 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 }
 
 .site-painter__canvas-host :slotted(canvas) {
-  background: #333;
+  background: var(--saier-color-workspace);
+}
+
+.site-painter__canvas-host :slotted(.site-stroke-replay-canvas) {
+  position: absolute;
+  z-index: 30;
+  inset: 0;
 }
 
 .site-painter__panel-stage {
@@ -513,18 +527,24 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   min-width: 0;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 8px;
-  background: rgb(18 18 22 / 90%);
-  box-shadow: 0 18px 50px rgb(0 0 0 / 22%);
-  color: white;
+  background: var(--saier-color-panel);
+  box-shadow: var(--saier-shadow-panel);
+  color: var(--saier-color-text);
   pointer-events: auto;
+}
+
+.site-painter-panel--controls:not(.site-painter-panel--options):not(.site-painter-panel--layers):not(
+    .site-painter-panel--navigator
+  ):not(.site-painter-panel--diagnostics) {
+  width: min(272px, calc(100vw - 16px));
 }
 
 .site-painter-panel.is-active,
 .site-painter-panel.is-dragging {
-  border-color: rgb(147 197 253 / 26%);
-  box-shadow: 0 22px 64px rgb(0 0 0 / 30%);
+  border-color: var(--saier-color-accent-border);
+  box-shadow: var(--saier-shadow-dialog);
 }
 
 .site-painter-panel.is-dragging {
@@ -542,8 +562,8 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  border-bottom: 1px solid rgb(255 255 255 / 9%);
-  background: linear-gradient(180deg, rgb(255 255 255 / 7%), transparent), rgb(0 0 0 / 12%);
+  border-bottom: 1px solid var(--saier-color-border);
+  background: linear-gradient(180deg, var(--saier-color-surface), transparent), var(--saier-color-control-track);
   cursor: grab;
   padding: 4px;
   touch-action: none;
@@ -582,20 +602,20 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   border: 1px solid transparent;
   border-radius: 5px;
   background: transparent;
-  color: rgb(255 255 255 / 66%);
+  color: var(--saier-color-text-muted);
   font-size: 12px;
   padding: 0 7px;
 }
 
 .site-painter-panel__tab.is-active {
-  border-color: rgb(96 165 250 / 40%);
-  background: rgb(96 165 250 / 15%);
-  color: white;
+  border-color: var(--saier-color-accent-border);
+  background: var(--saier-color-accent-soft);
+  color: var(--saier-color-text);
 }
 
 .site-painter-panel__tab:focus-visible,
 .site-painter-panel__icon:focus-visible {
-  outline: 2px solid rgb(147 197 253 / 72%);
+  outline: 2px solid var(--saier-color-focus);
   outline-offset: 1px;
 }
 
@@ -620,19 +640,19 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   height: 26px;
   flex: 0 0 auto;
   place-items: center;
-  border: 1px solid rgb(255 255 255 / 8%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 5px;
-  background: rgb(255 255 255 / 5%);
-  color: rgb(255 255 255 / 64%);
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text-muted);
 }
 
 .site-painter-panel__icon:hover {
-  background: rgb(255 255 255 / 10%);
-  color: white;
+  background: var(--saier-color-surface-hover);
+  color: var(--saier-color-text);
 }
 
 .site-painter-panel__handle {
-  color: rgb(255 255 255 / 34%);
+  color: var(--saier-color-text-disabled);
 }
 
 .site-painter-panel__body {
@@ -675,7 +695,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 .site-painter__loading {
   top: 50%;
   left: 50%;
-  color: rgb(255 255 255 / 62%);
+  color: var(--saier-color-text-muted);
   font-size: 14px;
   transform: translate(-50%, -50%);
 }
@@ -685,9 +705,9 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   bottom: 12px;
   width: min(280px, calc(100vw - 24px));
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 8px;
-  background: rgb(18 18 20 / 92%);
+  background: var(--saier-color-panel);
 }
 
 .site-painter__preview-header {
@@ -695,7 +715,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   align-items: center;
   justify-content: space-between;
   padding: 8px 10px;
-  border-bottom: 1px solid rgb(255 255 255 / 10%);
+  border-bottom: 1px solid var(--saier-color-border);
   font-size: 12px;
   font-weight: 650;
 }
@@ -705,10 +725,10 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   width: 26px;
   height: 26px;
   place-items: center;
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 6px;
-  background: rgb(255 255 255 / 8%);
-  color: white;
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text);
 }
 
 .site-painter__preview-image {

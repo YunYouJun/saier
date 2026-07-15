@@ -513,22 +513,22 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
   gap: 6px;
   align-items: center;
   padding: 6px;
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 8px;
-  background: rgb(255 255 255 / 6%);
+  background: var(--saier-color-surface, rgb(255 255 255 / 6%));
 }
 
 .layer-tree-row__body.is-group {
-  background: rgb(255 255 255 / 8%);
+  background: var(--saier-color-surface, rgb(255 255 255 / 6%));
 }
 
 .layer-tree-row__body.is-active {
-  border-color: rgb(120 170 255 / 80%);
-  background: rgb(80 120 190 / 26%);
+  border-color: var(--saier-color-accent-border, rgb(120 170 255 / 80%));
+  background: var(--saier-color-accent-soft, rgb(80 120 190 / 26%));
 }
 
 .layer-tree-row__body.has-active-child {
-  border-color: rgb(120 170 255 / 40%);
+  border-color: var(--saier-color-accent-border, rgb(120 170 255 / 40%));
 }
 
 .layer-tree-row__spacer,
@@ -545,10 +545,10 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
 }
 
 .layer-tree-row__icon {
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 6px;
-  background: rgb(255 255 255 / 8%);
-  color: white;
+  background: var(--saier-color-surface, rgb(255 255 255 / 6%));
+  color: var(--saier-color-text, white);
 }
 
 .layer-tree-row__icon:disabled {
@@ -557,8 +557,8 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
 }
 
 .layer-tree-row__icon.is-on {
-  border-color: rgb(120 170 255 / 80%);
-  background: rgb(80 120 190 / 40%);
+  border-color: var(--saier-color-accent-border, rgb(120 170 255 / 80%));
+  background: var(--saier-color-accent-strong, rgb(80 120 190 / 40%));
 }
 
 .layer-tree-row__thumb-stack {
@@ -574,49 +574,49 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
   height: 36px;
   overflow: hidden;
   place-items: center;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 6px;
   background:
-    linear-gradient(45deg, rgb(255 255 255 / 18%) 25%, transparent 25%),
-    linear-gradient(-45deg, rgb(255 255 255 / 18%) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, rgb(255 255 255 / 18%) 75%),
-    linear-gradient(-45deg, transparent 75%, rgb(255 255 255 / 18%) 75%);
-  background-color: rgb(30 30 36);
+    linear-gradient(45deg, var(--saier-color-checker-light, #f1f2f4) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--saier-color-checker-light, #f1f2f4) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--saier-color-checker-light, #f1f2f4) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--saier-color-checker-light, #f1f2f4) 75%);
+  background-color: var(--saier-color-checker-dark, #d5d7dc);
   background-position:
     0 0,
     0 4px,
     4px -4px,
     -4px 0;
   background-size: 8px 8px;
-  color: white;
+  color: var(--saier-color-text, white);
   padding: 0;
 }
 
 .layer-tree-row__thumb.is-group {
-  background: rgb(255 255 255 / 8%);
-  color: rgb(180 205 255);
+  background: var(--saier-color-surface, rgb(255 255 255 / 6%));
+  color: var(--saier-color-accent-text, rgb(180 205 255));
   font-size: 20px;
 }
 
 .layer-tree-row__thumb.is-mask {
   background:
-    linear-gradient(45deg, rgb(255 255 255 / 70%) 25%, transparent 25%),
-    linear-gradient(-45deg, rgb(255 255 255 / 70%) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, rgb(255 255 255 / 70%) 75%),
-    linear-gradient(-45deg, transparent 75%, rgb(255 255 255 / 70%) 75%);
-  background-color: rgb(64 64 72);
+    linear-gradient(45deg, var(--saier-color-checker-light, #f1f2f4) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--saier-color-checker-light, #f1f2f4) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--saier-color-checker-light, #f1f2f4) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--saier-color-checker-light, #f1f2f4) 75%);
+  background-color: var(--saier-color-checker-dark, #d5d7dc);
   background-position:
     0 0,
     0 4px,
     4px -4px,
     -4px 0;
   background-size: 8px 8px;
-  color: rgb(20 20 26);
+  color: var(--saier-color-canvas-ink, rgb(20 20 26));
 }
 
 .layer-tree-row__thumb.is-on {
-  border-color: rgb(120 170 255 / 90%);
-  box-shadow: 0 0 0 1px rgb(120 170 255 / 80%);
+  border-color: var(--saier-color-accent-border, rgb(120 170 255 / 90%));
+  box-shadow: 0 0 0 1px var(--saier-color-accent-border, rgb(120 170 255 / 80%));
 }
 
 .layer-tree-row__thumb:disabled {
@@ -634,7 +634,7 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
   min-width: 0;
   border: 0;
   background: transparent;
-  color: white;
+  color: var(--saier-color-text, white);
   font: inherit;
   outline: 0;
 }
@@ -652,10 +652,10 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
 }
 
 .layer-tree-row__blend {
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 6px;
-  background: rgb(255 255 255 / 8%);
-  color: white;
+  background: var(--saier-color-surface, rgb(255 255 255 / 6%));
+  color: var(--saier-color-text, white);
 }
 
 .layer-tree-row__actions {

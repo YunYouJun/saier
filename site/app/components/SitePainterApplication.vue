@@ -1,19 +1,22 @@
 <script setup lang="ts">
 import type { PainterLayerNodeState, SaierProjectFile, SaierStrokeCommit, SaierStrokeLog, StrokePatch, TiledSurface, TilePatch } from '@saier/core'
 import type { Painter } from 'saier'
+import type { SiteActivityPluginType } from '~/activity-plugins/registry'
 import type { YunlefunCloudFile } from '~/composables/useYunlefunCloudFiles'
 import type { SetRoomMemberRoleOptions, SetRoomModeOptions } from '~/composables/useYunlefunCloudRooms'
+import type { SiteWorkspaceTab } from '~/types/activity-plugin'
 import type { SiteKeyboardShortcutRow, SiteNewCanvasRequest, SitePainterColorSectionId, SitePainterCommand, SitePainterFilterCommand, SitePainterMenuCommand, SitePainterPanelId, SitePainterTool } from '~/types/painter-app'
 import type { SitePainterShellMode } from '~/types/painter-shell'
+import type { SiteActivityPluginRequest } from '~/utils/activityPluginRoutes'
 import type { SaierProjectDraftFile } from '~/utils/projectDraft'
 import { usePainter } from '@saier/vue/composables/usePainter'
-import { computed, onBeforeUnmount, onMounted, reactive, shallowRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, shallowRef, useTemplateRef, watch } from 'vue'
+import { useRouter } from '#imports'
+import { isSiteActivityPluginType } from '~/activity-plugins/registry'
 import SiteDesktopPainterShell from '~/components/SiteDesktopPainterShell.vue'
 import SiteMobilePainterShell from '~/components/SiteMobilePainterShell.vue'
 import { useBeforeUnloadGuard } from '~/composables/useBeforeUnloadGuard'
-import { useSitePlatformAdapter } from '~/composables/useSitePlatformAdapter'
-import { useSitePainterShellMode } from '~/composables/useSitePainterShellMode'
-import { useSitePainterShortcuts } from '~/composables/useSitePainterShortcuts'
+import { useSiteActivityWorkspace } from '~/composables/useSiteActivityWorkspace'
 import {
   createCloudRoomAddLayerArgs,
   createCloudRoomLayerBooleanArgs,
@@ -21,14 +24,21 @@ import {
   createCloudRoomMoveNodeArgs,
   useSiteCloudRoomCollaboration,
 } from '~/composables/useSiteCloudRoomCollaboration'
+import { useSitePainterShellMode } from '~/composables/useSitePainterShellMode'
+import { useSitePainterShortcuts } from '~/composables/useSitePainterShortcuts'
+import { useSitePlatformAdapter } from '~/composables/useSitePlatformAdapter'
+import { useSiteTheme } from '~/composables/useSiteTheme'
+import { useStrokeReplayPreview } from '~/composables/useStrokeReplayPreview'
 import { useYunlefunBrushLibrary } from '~/composables/useYunlefunBrushLibrary'
 import { useYunlefunCloudFiles } from '~/composables/useYunlefunCloudFiles'
 import { parseCloudRoomLink, useYunlefunCloudRooms } from '~/composables/useYunlefunCloudRooms'
 import { SITE_PAINTER_COMMANDS } from '~/constants/painterCommands'
+import { createSiteActivityLocation } from '~/utils/activityPluginRoutes'
 import {
   isBrushPresetImportError,
   parseBrushPresetImportText,
 } from '~/utils/brushImport'
+import { CloudProjectDocumentRegistry } from '~/utils/cloudProjectDocuments'
 import { createCloudRoomClientOperationId } from '~/utils/cloudRoomOperations'
 import {
   clearProjectDraft,
@@ -40,6 +50,14 @@ import {
 interface UnsavedChangesConfirmRequest {
   resolve: (confirmed: boolean) => void
 }
+
+const props = withDefaults(defineProps<{
+  activityRequest?: SiteActivityPluginRequest | null
+}>(), {
+  activityRequest: null,
+})
+
+const router = useRouter()
 
 interface SiteNoticeItem {
   id: number
@@ -110,6 +128,10 @@ const {
   setLocale,
   text,
 } = useSiteI18n()
+const {
+  preference: themePreference,
+  setThemePreference,
+} = useSiteTheme()
 const platformAdapter = useSitePlatformAdapter()
 
 const exportPreview = shallowRef<string>()
@@ -142,6 +164,7 @@ const panelVisibility = reactive<Record<SitePainterPanelId, boolean>>({
 })
 
 const PROJECT_DRAFT_SAVE_DEBOUNCE_MS = 1200
+const cloudProjectDocuments = new CloudProjectDocumentRegistry()
 
 const {
   activeLayerId,
@@ -166,6 +189,28 @@ const {
 } = usePainter({
   debug: import.meta.env.DEV,
 })
+const {
+  activityActive,
+  activityMenuItems,
+  showActivity,
+  showDocument,
+  workspaceTabs,
+} = useSiteActivityWorkspace({
+  activityRequest: () => props.activityRequest,
+  closeDocumentLabel: () => text.value.documents.closeDocument,
+  documents,
+  locale,
+})
+const strokeReplayCanvas = useTemplateRef<HTMLCanvasElement>('strokeReplayCanvas')
+const {
+  captureBase: captureStrokeReplayBase,
+  clearBase: clearStrokeReplayBase,
+  close: closeStrokeReplayPreview,
+  hasBase: hasStrokeReplayBase,
+  playStroke: playPreviewStroke,
+  previewing: strokeReplayPreviewing,
+  showAt: showStrokeReplayAt,
+} = useStrokeReplayPreview({ canvas: strokeReplayCanvas })
 const {
   displayName: yunlefunDisplayName,
   errorMessage: yunlefunErrorMessage,
@@ -304,6 +349,7 @@ const shortcutsDisabled = computed(() =>
   || keyboardShortcutsDialogOpen.value
   || newCanvasDialogOpen.value
   || projectDraftRecoveryOpen.value
+  || strokeReplayPreviewing.value
   || unsavedChangesDialogOpen.value,
 )
 const {
@@ -393,6 +439,7 @@ let projectDraftStorageQueue = Promise.resolve()
 let removeProjectDraftListeners: (() => void) | undefined
 let removeStrokeRecordingListeners: (() => void) | undefined
 let restoringProjectDraft = false
+let strokeReplayAbortController: AbortController | undefined
 let strokeReplayTimer: ReturnType<typeof setTimeout> | undefined
 let siteNoticeId = 0
 
@@ -538,16 +585,20 @@ async function handleMenuCommand(command: SitePainterMenuCommand): Promise<void>
       await importStrokeLog()
       break
     case 'recording:play':
-      startStrokeReplay()
+      await startStrokeReplay()
       break
     case 'recording:pause':
       stopStrokeReplay()
       break
     case 'recording:seek-start':
-      seekStrokeReplay(0)
+      await seekStrokeReplay(0)
       break
     case 'recording:step-forward':
       await replayNextRecordedStroke()
+      break
+    case 'recording:close-preview':
+      stopStrokeReplay()
+      closeStrokeReplayPreview()
       break
   }
 }
@@ -654,7 +705,7 @@ async function restoreCloudRoomSnapshot(project: SaierProjectFile, revision: num
 function createCloudRoomPresence(): Record<string, unknown> {
   return {
     activeDocumentId: painter.value?.getActiveDocumentId(),
-    activeLayerId: activeLayerId.value,
+    activeLayerId: activeLayerId.value ?? undefined,
     tool: activeTool.value,
   }
 }
@@ -856,6 +907,7 @@ function createCanvasDocument(request: SiteNewCanvasRequest): void {
     height: request.height,
     defaultLayerLabel: layerLabel(1),
   })
+  showDocument()
   closeNewCanvasDialog()
 }
 
@@ -969,12 +1021,15 @@ async function uploadCurrentProjectToCloud(): Promise<void> {
   if (!p)
     return
 
+  const documentId = p.getActiveDocumentId()
   await saveProjectDraftNow(p)
   const project = p.exportProject()
   const result = await uploadCloudProject(project, {
     name: projectFileName(project),
   })
   if (result.ok) {
+    if (result.file)
+      cloudProjectDocuments.bind(result.file.id, documentId)
     p.markDocumentSaved()
     await clearProjectDraftIfClean(p)
   }
@@ -985,23 +1040,40 @@ async function loadCloudProject(file: YunlefunCloudFile): Promise<void> {
   if (!p)
     return
 
-  const result = await downloadCloudProject(file)
-  if (!result.ok || !result.project)
+  const openDocumentId = cloudProjectDocuments.resolve(file.id, documents.value.map(document => document.id))
+  if (openDocumentId) {
+    p.switchDocument(openDocumentId)
+    closeCloudSyncDialog()
+    return
+  }
+
+  if (!cloudProjectDocuments.beginLoading(file.id))
     return
 
   try {
-    p.importProject(result.project, { activate: true })
+    const result = await downloadCloudProject(file)
+    if (!result.ok || !result.project)
+      return
+
+    try {
+      const imported = p.importProject(result.project, { activate: true })
+      cloudProjectDocuments.bind(file.id, imported.id)
+      closeCloudSyncDialog()
+    }
+    catch (error) {
+      console.error('Failed to import cloud Saier project file.', error)
+      showProjectImportFailure('invalid-project')
+    }
   }
-  catch (error) {
-    console.error('Failed to import cloud Saier project file.', error)
-    showProjectImportFailure('invalid-project')
-    return
+  finally {
+    cloudProjectDocuments.finishLoading(file.id)
   }
-  closeCloudSyncDialog()
 }
 
 async function deleteCloudProject(file: YunlefunCloudFile): Promise<void> {
-  await removeCloudFile(file)
+  const result = await removeCloudFile(file)
+  if (result.ok)
+    cloudProjectDocuments.removeFile(file.id)
 }
 
 async function renameCloudProject(file: YunlefunCloudFile, name: string): Promise<void> {
@@ -1043,14 +1115,22 @@ function bindStrokeRecordingState(current: Painter | undefined): void {
     return
 
   const sync = () => syncStrokeRecordingState(current)
+  const syncActiveDocument = () => {
+    stopStrokeReplay()
+    closeStrokeReplayPreview()
+    strokeReplayPosition.value = 0
+    if (current.strokeRecording.isEnabled() && !hasStrokeReplayBase(current))
+      captureStrokeReplayBase(current)
+    sync()
+  }
   current.emitter.on('stroke:commit', sync)
   current.emitter.on('documents:change', sync)
-  current.emitter.on('active-document:change', sync)
+  current.emitter.on('active-document:change', syncActiveDocument)
   current.controller.on('layers:change', sync)
   removeStrokeRecordingListeners = () => {
     current.emitter.off('stroke:commit', sync)
     current.emitter.off('documents:change', sync)
-    current.emitter.off('active-document:change', sync)
+    current.emitter.off('active-document:change', syncActiveDocument)
     current.controller.off('layers:change', sync)
   }
 }
@@ -1081,31 +1161,26 @@ function toggleStrokeRecording(): void {
   if (!current)
     return
 
-  current.strokeRecording.setEnabled(!current.strokeRecording.isEnabled())
+  const enabled = !current.strokeRecording.isEnabled()
+  if (enabled && !hasStrokeReplayBase(current)) {
+    captureStrokeReplayBase(current)
+    strokeReplayPosition.value = 0
+  }
+  current.strokeRecording.setEnabled(enabled)
   syncStrokeRecordingState(current)
 }
 
 async function replayLastRecordedStroke(): Promise<void> {
-  if (!ensureCloudRoomCanEdit())
-    return
-
   const current = painter.value
   if (!current)
     return
 
-  const stroke = getReplayableRecordedStrokes(current).at(-1)
-  if (!stroke)
+  const strokes = getReplayableRecordedStrokes(current)
+  if (strokes.length === 0)
     return
 
-  current.strokeRecording.replayStroke(stroke)
-  current.flushSurfaceUploads()
-  scheduleProjectDraftSave(current)
-  await Promise.all([
-    refreshLayerThumbnails(),
-    refreshMemory(),
-    navigatorActions.refreshThumbnail(),
-  ])
-  syncStrokeRecordingState(current)
+  await seekStrokeReplay(strokes.length - 1)
+  await startStrokeReplay()
 }
 
 function clearStrokeRecording(): void {
@@ -1115,6 +1190,7 @@ function clearStrokeRecording(): void {
 
   stopStrokeReplay()
   current.strokeRecording.clear()
+  clearStrokeReplayBase(current)
   strokeReplayPosition.value = 0
   syncStrokeRecordingState(current)
 }
@@ -1166,9 +1242,12 @@ async function importStrokeLog(): Promise<void> {
   }
 
   try {
+    stopStrokeReplay()
+    captureStrokeReplayBase(current)
     const imported = current.strokeRecording.importLog(log, {
       documentId: current.getActiveDocumentId(),
       layerIdFallback: current.resolvePaintLayerId(layerId),
+      replace: true,
     })
     strokeReplayPosition.value = 0
     syncStrokeRecordingState(current)
@@ -1180,25 +1259,52 @@ async function importStrokeLog(): Promise<void> {
   }
 }
 
-function startStrokeReplay(): void {
+async function startStrokeReplay(): Promise<void> {
   if (strokeReplayPlaying.value || strokeReplayPosition.value >= strokeRecordingCount.value)
     return
 
-  strokeReplayPlaying.value = true
-  scheduleStrokeReplayTick(0)
+  const current = painter.value
+  if (!current)
+    return
+
+  try {
+    stopStrokeReplay()
+    await showStrokeReplayAt(current, getReplayableRecordedStrokes(current), strokeReplayPosition.value)
+    strokeReplayPlaying.value = true
+    scheduleStrokeReplayTick(0)
+  }
+  catch (error) {
+    console.error('Failed to prepare stroke replay preview.', error)
+    stopStrokeReplay()
+    showSiteNotice('error', text.value.recording.play, errorMessage(error))
+  }
 }
 
 function stopStrokeReplay(): void {
   strokeReplayPlaying.value = false
+  strokeReplayAbortController?.abort()
+  strokeReplayAbortController = undefined
   if (strokeReplayTimer !== undefined) {
     clearTimeout(strokeReplayTimer)
     strokeReplayTimer = undefined
   }
 }
 
-function seekStrokeReplay(position: number): void {
+async function seekStrokeReplay(position: number): Promise<void> {
   stopStrokeReplay()
   strokeReplayPosition.value = clampInteger(position, 0, strokeRecordingCount.value)
+  const current = painter.value
+  if (!current || strokeRecordingCount.value === 0)
+    return
+
+  try {
+    await showStrokeReplayAt(current, getReplayableRecordedStrokes(current), strokeReplayPosition.value)
+  }
+  catch (error) {
+    console.error('Failed to seek stroke replay preview.', error)
+    closeStrokeReplayPreview()
+    showSiteNotice('error', text.value.recording.play, errorMessage(error))
+  }
 }
 
 function setStrokeReplaySpeed(speed: number): void {
@@ -1224,14 +1330,10 @@ async function replayStrokePlaybackTick(): Promise<void> {
     return
   }
 
-  const nextStroke = painter.value ? getReplayableRecordedStrokes(painter.value)[strokeReplayPosition.value] : undefined
-  scheduleStrokeReplayTick(strokeReplayDelay(nextStroke))
+  scheduleStrokeReplayTick(0)
 }
 
 async function replayNextRecordedStroke(): Promise<boolean> {
-  if (!ensureCloudRoomCanEdit())
-    return false
-
   const current = painter.value
   if (!current)
     return false
@@ -1241,24 +1343,29 @@ async function replayNextRecordedStroke(): Promise<boolean> {
   if (!stroke)
     return false
 
-  current.strokeRecording.replayStroke(stroke)
-  current.flushSurfaceUploads()
-  strokeReplayPosition.value += 1
-  scheduleProjectDraftSave(current)
-  await Promise.all([
-    refreshLayerThumbnails(),
-    refreshMemory(),
-    navigatorActions.refreshThumbnail(),
-  ])
-  syncStrokeRecordingState(current)
-  return true
-}
+  if (!strokeReplayPreviewing.value)
+    await showStrokeReplayAt(current, strokes, strokeReplayPosition.value)
 
-function strokeReplayDelay(stroke: SaierStrokeCommit | undefined): number {
-  const duration = stroke
-    ? Math.max(...stroke.events.map(event => event.t), 160)
-    : 160
-  return Math.max(80, Math.round(duration / strokeReplaySpeed.value))
+  const controller = new AbortController()
+  strokeReplayAbortController = controller
+  try {
+    await playPreviewStroke(stroke, strokeReplaySpeed.value, controller.signal)
+    strokeReplayPosition.value += 1
+    syncStrokeRecordingState(current)
+    return true
+  }
+  catch (error) {
+    if (error instanceof Error && error.name === 'AbortError')
+      return false
+    console.error('Failed to replay recorded stroke.', error)
+    stopStrokeReplay()
+    showSiteNotice('error', text.value.recording.play, errorMessage(error))
+    return false
+  }
+  finally {
+    if (strokeReplayAbortController === controller)
+      strokeReplayAbortController = undefined
+  }
 }
 
 async function detectLocalProjectDraft(_current: Painter): Promise<void> {
@@ -1707,6 +1814,38 @@ function setStabilizerStrength(strength: number): void {
 
 function switchDocument(id: string): void {
   documentActions.switch(id)
+  showDocument()
+}
+
+function switchWorkspaceTab(tab: SiteWorkspaceTab): void {
+  if (tab.kind === 'activity') {
+    showActivity()
+    return
+  }
+  switchDocument(tab.documentId)
+}
+
+async function closeWorkspaceTab(tab: SiteWorkspaceTab): Promise<void> {
+  if (tab.kind === 'activity') {
+    await closeActivity()
+    return
+  }
+  await closeDocument(tab.documentId)
+}
+
+async function openActivity(pluginId: string): Promise<void> {
+  if (!isSiteActivityPluginType(pluginId))
+    return
+  if (props.activityRequest?.type === pluginId) {
+    showActivity()
+    return
+  }
+  await router.push(createSiteActivityLocation({ type: pluginId as SiteActivityPluginType }))
+}
+
+async function closeActivity(): Promise<void> {
+  showDocument()
+  await router.replace({ path: '/' })
 }
 
 async function closeDocument(id: string): Promise<void> {
@@ -1714,6 +1853,7 @@ async function closeDocument(id: string): Promise<void> {
     return
 
   documentActions.close(id)
+  cloudProjectDocuments.unbindDocument(id)
 }
 
 async function confirmDiscardUnsavedDocument(id?: string): Promise<boolean> {
@@ -1768,6 +1908,10 @@ function isRoomWriteCommand(command: SitePainterCommand): boolean {
     || command === 'recording:export-log'
     || command === 'recording:import-log'
     || command === 'recording:pause'
+    || command === 'recording:play'
+    || command === 'recording:step-forward'
+    || command === 'recording:replay-last'
+    || command === 'recording:close-preview'
     || command === 'recording:seek-start'
     || command === 'recording:toggle'
     || command === 'view:reset'
@@ -1817,6 +1961,8 @@ function canRunCommand(command: SitePainterCommand): boolean {
       return canReplayStrokeRecording.value && strokeReplayPosition.value < strokeRecordingCount.value
     case 'recording:pause':
       return strokeReplayPlaying.value
+    case 'recording:close-preview':
+      return strokeReplayPreviewing.value
     case 'recording:seek-start':
       return strokeReplayPosition.value > 0
     default:
@@ -1995,7 +2141,7 @@ async function createSiteCloudRoomE2eState(): Promise<SiteCloudRoomE2eState> {
   const session = cloudRoomSession.value
 
   return {
-    activeLayerId: activeLayerId.value,
+    activeLayerId: activeLayerId.value ?? undefined,
     canvasHash: await createSiteCloudRoomE2eCanvasHash(),
     headRevision: session?.room.headRevision ?? 0,
     latestSnapshotRevision: session?.room.latestSnapshotRevision ?? 0,
@@ -2122,6 +2268,7 @@ installSiteCloudRoomE2eBridge()
     :panel-visibility="panelVisibility"
     :status-label="statusLabel"
     :tagline="text.tagline"
+    :workspace-kind="activityActive ? 'activity' : 'document'"
     @close-preview="closePreview"
     @set-locale="setLocale"
     @set-panel-visible="setPanelVisible"
@@ -2141,6 +2288,7 @@ installSiteCloudRoomE2eBridge()
 
     <template #menubar>
       <SitePainterMenubar
+        :activity-menu-items="activityMenuItems"
         :active-layer-visible="activeLayer?.visible ?? false"
         :active-tool="activeTool"
         :available-panels="availablePanels"
@@ -2152,18 +2300,21 @@ installSiteCloudRoomE2eBridge()
         :can-repeat-filter="Boolean(lastFilterCommand)"
         :can-undo="state?.history.canUndo ?? false"
         :color-section-visibility="colorSectionVisibility"
-        :disabled="!painter"
+        :disabled="!painter || activityActive"
         :has-active-layer="Boolean(activeLayer)"
         :labels="text.menu"
         :locale="locale"
         :locale-options="localeOptions"
         :panel-visibility="panelVisibility"
         :shortcuts="menuShortcutLabels"
+        :theme-preference="themePreference"
         @command="handleMenuCommand"
+        @open-activity="openActivity"
         @set-active-layer-visible="setActiveLayerVisible"
         @set-color-section-visible="setColorSectionVisible"
         @set-locale="setLocale"
         @set-panel-visible="setPanelVisible"
+        @set-theme-preference="setThemePreference"
       />
     </template>
 
@@ -2188,6 +2339,7 @@ installSiteCloudRoomE2eBridge()
           :labels="text.recording"
           :playing="strokeReplayPlaying"
           :position="strokeReplayPosition"
+          :previewing="strokeReplayPreviewing"
           :speed="strokeReplaySpeed"
           @command="handleMenuCommand"
           @seek="seekStrokeReplay"
@@ -2197,18 +2349,42 @@ installSiteCloudRoomE2eBridge()
     </template>
 
     <template #documents>
-      <SiteFileTabs
-        :documents="documents"
+      <SiteWorkspaceTabs
         :disabled="!painter"
         :labels="text.documents"
+        :tabs="workspaceTabs"
         @new="createNewCanvas"
-        @switch="switchDocument"
-        @close="closeDocument"
+        @switch="switchWorkspaceTab"
+        @close="closeWorkspaceTab"
       />
     </template>
 
     <template #canvas>
-      <canvas ref="srcCanvas" />
+      <SiteActivityWorkspaceSurface
+        :active="activityActive"
+        :request="activityRequest"
+        @exit="closeActivity"
+      >
+        <template #document>
+          <canvas ref="srcCanvas" />
+          <canvas
+            v-show="strokeReplayPreviewing"
+            ref="strokeReplayCanvas"
+            aria-hidden="true"
+            class="site-stroke-replay-canvas"
+          />
+          <div
+            v-if="strokeReplayPreviewing"
+            class="site-stroke-replay-blocker"
+            role="status"
+          >
+            <span class="site-stroke-replay-badge">
+              <span class="i-ph-play-circle" />
+              {{ text.recording.previewActive }}
+            </span>
+          </div>
+        </template>
+      </SiteActivityWorkspaceSurface>
     </template>
 
     <template #options>
@@ -2393,5 +2569,30 @@ installSiteCloudRoomE2eBridge()
 
 .site-painter-toolbar-stack::-webkit-scrollbar {
   display: none;
+}
+
+.site-stroke-replay-blocker {
+  position: absolute;
+  z-index: 31;
+  inset: 0;
+  pointer-events: auto;
+}
+
+.site-stroke-replay-badge {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border: 1px solid var(--saier-color-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--saier-color-panel-raised) 78%, transparent);
+  box-shadow: var(--saier-shadow-control);
+  color: var(--saier-color-text);
+  font-size: 11px;
+  pointer-events: none;
+  transform: translateX(-50%);
 }
 </style>

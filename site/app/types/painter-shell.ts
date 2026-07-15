@@ -32,6 +32,7 @@ export interface SitePainterShellProps {
   panelVisibility: Readonly<Record<SitePainterPanelId, boolean>>
   statusLabel: string
   tagline: string
+  workspaceKind: 'activity' | 'document'
 }
 
 export interface SitePainterShellEmits {

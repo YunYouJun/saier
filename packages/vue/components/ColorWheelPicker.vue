@@ -449,6 +449,7 @@ function normalizeHue(value: number): number {
         :min="0"
         :step="1"
         :format-value="formatRgbValue"
+        :variant="density === 'compact' ? 'compact' : 'panel'"
       />
       <PainterSlider
         v-model="green"
@@ -457,6 +458,7 @@ function normalizeHue(value: number): number {
         :min="0"
         :step="1"
         :format-value="formatRgbValue"
+        :variant="density === 'compact' ? 'compact' : 'panel'"
       />
       <PainterSlider
         v-model="blue"
@@ -465,6 +467,7 @@ function normalizeHue(value: number): number {
         :min="0"
         :step="1"
         :format-value="formatRgbValue"
+        :variant="density === 'compact' ? 'compact' : 'panel'"
       />
     </div>
 
@@ -486,7 +489,7 @@ function normalizeHue(value: number): number {
 <style scoped>
 .color-wheel-picker {
   width: 100%;
-  color: white;
+  color: var(--saier-color-text, white);
   user-select: none;
 }
 
@@ -508,8 +511,8 @@ function normalizeHue(value: number): number {
   position: absolute;
   inset: 18px;
   border-radius: 50%;
-  background: rgb(30 30 32);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%);
+  background: var(--saier-color-panel-raised, rgb(30 30 32));
+  box-shadow: inset 0 0 0 1px var(--saier-color-border, rgb(255 255 255 / 10%));
 }
 
 .color-wheel-picker__wheel-thumb,
@@ -519,7 +522,7 @@ function normalizeHue(value: number): number {
   height: 14px;
   border: 2px solid white;
   border-radius: 999px;
-  box-shadow: 0 1px 6px rgb(0 0 0 / 62%);
+  box-shadow: var(--saier-shadow-control, 0 1px 6px rgb(0 0 0 / 62%));
   transform: translate(-50%, -50%);
 }
 
@@ -527,7 +530,7 @@ function normalizeHue(value: number): number {
 .color-wheel-picker__sv:focus-visible,
 .color-wheel-picker__hex input:focus-visible,
 .color-wheel-picker__swatch:focus-visible {
-  outline: 2px solid rgb(96 165 250 / 78%);
+  outline: 2px solid var(--saier-color-focus, rgb(96 165 250 / 78%));
   outline-offset: 2px;
 }
 
@@ -535,7 +538,7 @@ function normalizeHue(value: number): number {
   position: relative;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 8px;
   touch-action: none;
 }
@@ -569,16 +572,16 @@ function normalizeHue(value: number): number {
 .color-wheel-picker__preview {
   width: 34px;
   height: 34px;
-  border: 2px solid rgb(255 255 255 / 82%);
+  border: 2px solid var(--saier-color-swatch-outline, rgb(255 255 255 / 82%));
   border-radius: 999px;
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 40%);
+  box-shadow: inset 0 0 0 1px var(--saier-color-swatch-inset, rgb(0 0 0 / 40%));
 }
 
 .color-wheel-picker__hex {
   display: grid;
   min-width: 0;
   gap: 4px;
-  color: rgb(255 255 255 / 62%);
+  color: var(--saier-color-text-muted, rgb(255 255 255 / 76%));
   font-size: 11px;
 }
 
@@ -586,10 +589,10 @@ function normalizeHue(value: number): number {
   width: 100%;
   min-width: 0;
   height: 30px;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 6px;
-  background: rgb(0 0 0 / 22%);
-  color: white;
+  background: var(--saier-color-control-track, rgb(0 0 0 / 30%));
+  color: var(--saier-color-text, white);
   font: inherit;
   padding-inline: 8px;
   text-transform: lowercase;
@@ -611,25 +614,25 @@ function normalizeHue(value: number): number {
 .color-wheel-picker__swatch {
   aspect-ratio: 1;
   min-width: 0;
-  border: 1px solid rgb(255 255 255 / 16%);
+  border: 1px solid var(--saier-color-border-strong, rgb(255 255 255 / 22%));
   border-radius: 6px;
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 22%);
+  box-shadow: inset 0 0 0 1px var(--saier-color-swatch-inset, rgb(0 0 0 / 22%));
 }
 
 .color-wheel-picker__swatch.is-active {
-  border-color: rgb(255 255 255 / 82%);
+  border-color: var(--saier-color-text, white);
   box-shadow:
-    inset 0 0 0 1px rgb(0 0 0 / 32%),
-    0 0 0 2px rgb(96 165 250 / 70%);
+    inset 0 0 0 1px var(--saier-color-swatch-inset, rgb(0 0 0 / 32%)),
+    0 0 0 2px var(--saier-color-focus, rgb(96 165 250 / 70%));
 }
 
 .color-wheel-picker--compact .color-wheel-picker__pickers {
-  grid-template-columns: auto minmax(86px, 1fr);
-  gap: 8px;
+  grid-template-columns: auto minmax(82px, 1fr);
+  gap: 6px;
 }
 
 .color-wheel-picker--compact .color-wheel-picker__wheel-hole {
-  inset: 14px;
+  inset: 12px;
 }
 
 .color-wheel-picker--compact .color-wheel-picker__wheel-thumb,
@@ -639,34 +642,51 @@ function normalizeHue(value: number): number {
 }
 
 .color-wheel-picker--compact .color-wheel-picker__fields {
-  grid-template-columns: 28px minmax(0, 1fr);
-  gap: 8px;
-  margin-top: 8px;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 6px;
+  margin-top: 6px;
 }
 
 .color-wheel-picker--compact .color-wheel-picker__preview {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
 }
 
 .color-wheel-picker--compact .color-wheel-picker__hex {
   gap: 3px;
 }
 
+.color-wheel-picker--compact .color-wheel-picker__hex > span {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .color-wheel-picker--compact .color-wheel-picker__hex input {
-  height: 26px;
-  padding-inline: 7px;
+  height: 24px;
+  padding-inline: 6px;
 }
 
 .color-wheel-picker--compact .color-wheel-picker__rgb {
-  gap: 6px;
-  margin-top: 8px;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.color-wheel-picker--compact .color-wheel-picker__rgb :deep(.painter-slider--compact) {
+  height: 26px;
+  padding-inline: 6px;
+  --painter-slider-compact-track-size: 92px;
 }
 
 .color-wheel-picker--compact .color-wheel-picker__palette {
-  grid-template-columns: repeat(8, minmax(0, 1fr));
-  gap: 5px;
-  margin-top: 8px;
+  grid-template-columns: repeat(8, 24px);
+  gap: 4px;
+  justify-content: start;
+  margin-top: 6px;
 }
 
 .color-wheel-picker--compact .color-wheel-picker__swatch {

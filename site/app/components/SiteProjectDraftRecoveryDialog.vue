@@ -87,7 +87,7 @@ const emit = defineEmits<{
   place-items: center;
   overflow: auto;
   padding: 14px;
-  background: rgb(0 0 0 / 46%);
+  background: var(--saier-color-scrim);
 }
 
 .site-draft-recovery__panel {
@@ -95,11 +95,11 @@ const emit = defineEmits<{
   display: grid;
   width: min(440px, calc(100vw - 28px));
   gap: 14px;
-  border: 1px solid rgb(96 165 250 / 22%);
+  border: 1px solid var(--saier-color-accent-border);
   border-radius: 8px;
-  background: rgb(20 20 22 / 96%);
-  box-shadow: 0 24px 70px rgb(0 0 0 / 42%);
-  color: white;
+  background: var(--saier-color-panel-raised);
+  box-shadow: var(--saier-shadow-dialog);
+  color: var(--saier-color-text);
   padding: 14px;
 }
 
@@ -116,10 +116,10 @@ const emit = defineEmits<{
   width: 34px;
   height: 34px;
   place-items: center;
-  border: 1px solid rgb(96 165 250 / 24%);
+  border: 1px solid var(--saier-color-accent-border);
   border-radius: 7px;
-  background: rgb(96 165 250 / 14%);
-  color: #bfdbfe;
+  background: var(--saier-color-accent-soft);
+  color: var(--saier-color-accent-text);
   font-size: 18px;
 }
 
@@ -143,17 +143,17 @@ const emit = defineEmits<{
 }
 
 .site-draft-recovery__heading p {
-  color: rgb(255 255 255 / 70%);
+  color: var(--saier-color-text-muted);
   font-size: 13px;
   line-height: 1.5;
 }
 
 .site-draft-recovery__icon,
 .site-draft-recovery__button {
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 6px;
-  background: rgb(255 255 255 / 7%);
-  color: white;
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text);
 }
 
 .site-draft-recovery__icon {
@@ -166,9 +166,9 @@ const emit = defineEmits<{
 .site-draft-recovery__meta {
   display: grid;
   gap: 8px;
-  border: 1px solid rgb(255 255 255 / 9%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 7px;
-  background: rgb(255 255 255 / 5%);
+  background: var(--saier-color-surface);
   padding: 10px;
 }
 
@@ -179,14 +179,14 @@ const emit = defineEmits<{
 }
 
 .site-draft-recovery__meta dt {
-  color: rgb(255 255 255 / 45%);
+  color: var(--saier-color-text-subtle);
   font-size: 11px;
 }
 
 .site-draft-recovery__meta dd {
   min-width: 0;
   overflow: hidden;
-  color: rgb(255 255 255 / 82%);
+  color: var(--saier-color-text);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -206,22 +206,22 @@ const emit = defineEmits<{
 }
 
 .site-draft-recovery__button--primary {
-  border-color: rgb(96 165 250 / 44%);
-  background: rgb(96 165 250 / 20%);
+  border-color: var(--saier-color-accent-border);
+  background: var(--saier-color-accent-soft);
 }
 
 .site-draft-recovery__icon:hover,
 .site-draft-recovery__button:hover {
-  background: rgb(255 255 255 / 12%);
+  background: var(--saier-color-surface-hover);
 }
 
 .site-draft-recovery__button--primary:hover {
-  background: rgb(96 165 250 / 30%);
+  background: var(--saier-color-accent-strong);
 }
 
 .site-draft-recovery__icon:focus-visible,
 .site-draft-recovery__button:focus-visible {
-  outline: 2px solid rgb(147 197 253 / 72%);
+  outline: 2px solid var(--saier-color-focus);
   outline-offset: 1px;
 }
 </style>

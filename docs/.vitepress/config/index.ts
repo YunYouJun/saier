@@ -9,6 +9,7 @@ const GUIDES: DefaultTheme.NavItemWithLink[] = [
   { text: 'What is saier?', link: '/guide/what-is' },
   { text: 'Getting Started', link: '/guide/getting-started' },
   { text: 'Custom Brushes', link: '/guide/custom-brushes' },
+  { text: 'Stroke Recording', link: '/guide/stroke-recording' },
 ]
 
 // Engineering / planning docs — the source of truth executing agents (codex)

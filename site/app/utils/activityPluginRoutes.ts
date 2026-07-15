@@ -1,4 +1,5 @@
-export type SiteActivityPluginType = 'pictionary'
+import type { SiteActivityPluginType } from '~/activity-plugins/registry'
+import { isSiteActivityPluginType } from '~/activity-plugins/registry'
 
 export interface SiteActivityPluginRequest {
   inviteToken?: string
@@ -31,7 +32,7 @@ export function parseSiteActivityPluginQuery(
 ): SiteActivityPluginRequest | null {
   const type = firstQueryValue(query.activity)
   const roomId = firstQueryValue(query.activityRoom)
-  if (type !== 'pictionary' || (roomId !== undefined && !ROOM_ID_PATTERN.test(roomId)))
+  if (!type || !isSiteActivityPluginType(type) || (roomId !== undefined && !ROOM_ID_PATTERN.test(roomId)))
     return null
   return {
     inviteToken: firstQueryValue(query.invite),

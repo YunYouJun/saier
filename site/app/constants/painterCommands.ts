@@ -47,6 +47,7 @@ export const SITE_PAINTER_COMMANDS = [
   { id: 'recording:import-log', category: 'recording' },
   { id: 'recording:pause', category: 'recording' },
   { id: 'recording:play', category: 'recording' },
+  { id: 'recording:close-preview', category: 'recording' },
   { id: 'recording:seek-start', category: 'recording' },
   { id: 'recording:step-forward', category: 'recording' },
   { id: 'app:keyboard-shortcuts', category: 'app' },

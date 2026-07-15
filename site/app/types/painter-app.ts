@@ -32,6 +32,7 @@ export type SitePainterRecordingCommand
     | 'recording:import-log'
     | 'recording:pause'
     | 'recording:play'
+    | 'recording:close-preview'
     | 'recording:seek-start'
     | 'recording:step-forward'
 

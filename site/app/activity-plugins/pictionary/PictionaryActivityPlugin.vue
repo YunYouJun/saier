@@ -9,10 +9,6 @@ const props = defineProps<{
   roomId?: string
 }>()
 
-const emit = defineEmits<{
-  exit: []
-}>()
-
 const router = useRouter()
 
 async function openLobby(): Promise<void> {
@@ -25,8 +21,7 @@ async function openLobby(): Promise<void> {
     v-if="props.roomId"
     :room-id="props.roomId"
     :invite-token="props.inviteToken"
-    @exit="emit('exit')"
     @open-lobby="openLobby"
   />
-  <PictionaryActivityLobby v-else @exit="emit('exit')" />
+  <PictionaryActivityLobby v-else />
 </template>

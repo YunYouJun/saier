@@ -108,7 +108,7 @@ function precisionFromStep(step: number): number {
   display: grid;
   min-width: 0;
   gap: 5px;
-  color: rgb(255 255 255 / 84%);
+  color: var(--saier-color-text, white);
   font-size: 12px;
 }
 
@@ -134,7 +134,7 @@ function precisionFromStep(step: number): number {
 
 .painter-slider__value {
   min-width: 44px;
-  color: rgb(255 255 255 / 58%);
+  color: var(--saier-color-text-subtle, rgb(255 255 255 / 54%));
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   text-align: right;
@@ -156,38 +156,38 @@ function precisionFromStep(step: number): number {
   height: 6px;
   flex: 1;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 999px;
   background:
-    linear-gradient(90deg, rgb(255 255 255 / 8%) 1px, transparent 1px) 0 0 / 10px 100%,
-    rgb(0 0 0 / 30%);
+    linear-gradient(90deg, var(--saier-color-border, rgb(255 255 255 / 8%)) 1px, transparent 1px) 0 0 / 10px 100%,
+    var(--saier-color-control-track, rgb(0 0 0 / 30%));
 }
 
 .painter-slider__range {
   position: absolute;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #60a5fa, #34d399);
+  background: linear-gradient(90deg, var(--saier-color-accent, #60a5fa), var(--saier-color-success, #34d399));
 }
 
 .painter-slider__thumb {
   display: block;
   width: 12px;
   height: 18px;
-  border: 1px solid rgb(255 255 255 / 72%);
+  border: 1px solid var(--saier-color-border-strong, rgb(255 255 255 / 72%));
   border-radius: 4px;
-  background: rgb(31 35 42);
+  background: var(--saier-color-control-thumb, rgb(31 35 42));
   box-shadow:
-    0 0 0 1px rgb(0 0 0 / 40%),
-    0 4px 12px rgb(0 0 0 / 38%);
+    0 0 0 1px var(--saier-color-swatch-inset, rgb(0 0 0 / 40%)),
+    var(--saier-shadow-control, 0 4px 12px rgb(0 0 0 / 38%));
   outline: none;
 }
 
 .painter-slider__thumb:focus-visible {
-  border-color: rgb(147 197 253);
+  border-color: var(--saier-color-focus, rgb(147 197 253));
   box-shadow:
-    0 0 0 1px rgb(0 0 0 / 40%),
-    0 0 0 3px rgb(96 165 250 / 26%);
+    0 0 0 1px var(--saier-color-swatch-inset, rgb(0 0 0 / 40%)),
+    0 0 0 3px var(--saier-color-accent-soft, rgb(96 165 250 / 26%));
 }
 
 .painter-slider[data-disabled] {
@@ -200,9 +200,9 @@ function precisionFromStep(step: number): number {
   align-items: center;
   gap: 6px;
   padding: 0 7px;
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 5px;
-  color: rgb(255 255 255 / 76%);
+  color: var(--saier-color-text-muted, rgb(255 255 255 / 76%));
 }
 
 .painter-slider--compact .painter-slider__icon {

@@ -244,7 +244,7 @@ function memberName(member: YunlefunCloudRoomMember): string {
   display: grid;
   min-width: 0;
   gap: 12px;
-  border-top: 1px solid rgb(255 255 255 / 9%);
+  border-top: 1px solid var(--saier-color-border);
   padding-top: 12px;
 }
 
@@ -266,7 +266,7 @@ function memberName(member: YunlefunCloudRoomMember): string {
 .site-cloud-room-owner__field span,
 .site-cloud-room-owner__member small,
 .site-cloud-room-owner__note {
-  color: rgb(255 255 255 / 54%);
+  color: var(--saier-color-text-subtle);
   font-size: 12px;
   line-height: 16px;
 }
@@ -291,18 +291,18 @@ function memberName(member: YunlefunCloudRoomMember): string {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 7px;
-  background: rgb(255 255 255 / 6%);
-  color: white;
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text);
   font-size: 12px;
   padding: 0 10px;
 }
 
 .site-cloud-room-owner__mode-button.is-active,
 .site-cloud-room-owner__button--primary {
-  border-color: rgb(96 165 250 / 56%);
-  background: rgb(96 165 250 / 18%);
+  border-color: var(--saier-color-accent-border);
+  background: var(--saier-color-accent-soft);
 }
 
 .site-cloud-room-owner__button:disabled,
@@ -315,10 +315,10 @@ function memberName(member: YunlefunCloudRoomMember): string {
 .site-cloud-room-owner__select {
   width: 100%;
   min-width: 0;
-  border: 1px solid #2f3338;
+  border: 1px solid var(--saier-color-border-strong);
   border-radius: 7px;
-  background: rgb(0 0 0 / 22%);
-  color: white;
+  background: var(--saier-color-control-track);
+  color: var(--saier-color-text);
   font-size: 12px;
   line-height: 18px;
   padding: 8px 9px;
@@ -354,11 +354,11 @@ function memberName(member: YunlefunCloudRoomMember): string {
   height: 7px;
   flex: 0 0 auto;
   border-radius: 999px;
-  background: rgb(255 255 255 / 26%);
+  background: var(--saier-color-surface-strong);
 }
 
 .site-cloud-room-owner__presence.is-online {
-  background: #34d399;
+  background: var(--saier-color-success);
 }
 
 @media (max-width: 520px) {

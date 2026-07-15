@@ -237,17 +237,17 @@ function greatestCommonDivisor(a: number, b: number): number {
   place-items: center;
   overflow: auto;
   padding: 14px;
-  background: rgb(0 0 0 / 42%);
+  background: var(--saier-color-scrim);
 }
 
 .site-new-canvas__panel {
   box-sizing: border-box;
   width: min(420px, calc(100vw - 28px));
-  border: 1px solid rgb(255 255 255 / 13%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 8px;
-  background: rgb(20 20 22 / 96%);
-  box-shadow: 0 24px 70px rgb(0 0 0 / 42%);
-  color: white;
+  background: var(--saier-color-panel-raised);
+  box-shadow: var(--saier-shadow-dialog);
+  color: var(--saier-color-text);
   padding: 12px;
 }
 
@@ -275,17 +275,17 @@ function greatestCommonDivisor(a: number, b: number): number {
   width: 28px;
   height: 28px;
   place-items: center;
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 6px;
-  background: rgb(255 255 255 / 7%);
-  color: white;
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text);
 }
 
 .site-new-canvas__field {
   display: grid;
   min-width: 0;
   gap: 5px;
-  color: rgb(255 255 255 / 60%);
+  color: var(--saier-color-text-muted);
   font-size: 12px;
 }
 
@@ -294,18 +294,18 @@ function greatestCommonDivisor(a: number, b: number): number {
   width: 100%;
   min-width: 0;
   height: 34px;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 6px;
-  background: rgb(255 255 255 / 8%);
-  color: white;
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text);
   font-size: 13px;
   outline: none;
   padding: 0 9px;
 }
 
 .site-new-canvas__input:focus {
-  border-color: rgb(96 165 250 / 70%);
-  box-shadow: 0 0 0 2px rgb(96 165 250 / 16%);
+  border-color: var(--saier-color-accent-border);
+  box-shadow: 0 0 0 2px var(--saier-color-accent-soft);
 }
 
 .site-new-canvas__presets {
@@ -320,23 +320,23 @@ function greatestCommonDivisor(a: number, b: number): number {
   display: grid;
   min-width: 0;
   gap: 2px;
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 7px;
-  background: rgb(255 255 255 / 6%);
-  color: white;
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text);
   font-size: 12px;
   padding: 8px;
   text-align: left;
 }
 
 .site-new-canvas__preset small {
-  color: rgb(255 255 255 / 46%);
+  color: var(--saier-color-text-subtle);
   font-size: 10px;
 }
 
 .site-new-canvas__preset.is-active {
-  border-color: rgb(96 165 250 / 58%);
-  background: rgb(96 165 250 / 18%);
+  border-color: var(--saier-color-accent-border);
+  background: var(--saier-color-accent-soft);
 }
 
 .site-new-canvas__size > * {
@@ -349,9 +349,9 @@ function greatestCommonDivisor(a: number, b: number): number {
   align-items: center;
   gap: 10px;
   margin-top: 12px;
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 7px;
-  background: rgb(255 255 255 / 5%);
+  background: var(--saier-color-surface);
   padding: 8px;
 }
 
@@ -361,13 +361,14 @@ function greatestCommonDivisor(a: number, b: number): number {
   min-width: 0;
   place-items: center;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 6px;
   background:
-    linear-gradient(45deg, rgb(255 255 255 / 5%) 25%, transparent 25%),
-    linear-gradient(-45deg, rgb(255 255 255 / 5%) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, rgb(255 255 255 / 5%) 75%),
-    linear-gradient(-45deg, transparent 75%, rgb(255 255 255 / 5%) 75%);
+    linear-gradient(45deg, var(--saier-color-checker-light) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--saier-color-checker-light) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--saier-color-checker-light) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--saier-color-checker-light) 75%);
+  background-color: var(--saier-color-checker-dark);
   background-position:
     0 0,
     0 8px,
@@ -377,28 +378,28 @@ function greatestCommonDivisor(a: number, b: number): number {
 }
 
 .site-new-canvas__preview-frame {
-  border: 1px solid rgb(96 165 250 / 72%);
+  border: 1px solid var(--saier-color-accent-border);
   border-radius: 3px;
-  background: #fff;
-  box-shadow: 0 10px 24px rgb(0 0 0 / 28%);
+  background: var(--saier-color-canvas-paper);
+  box-shadow: var(--saier-shadow-panel);
 }
 
 .site-new-canvas__preview-frame.is-invalid {
-  border-color: rgb(252 165 165 / 70%);
-  background: rgb(255 255 255 / 52%);
+  border-color: var(--saier-color-danger-border);
+  background: var(--saier-color-canvas-error-paper);
 }
 
 .site-new-canvas__preview-meta {
   display: grid;
   min-width: 0;
   gap: 3px;
-  color: rgb(255 255 255 / 54%);
+  color: var(--saier-color-text-subtle);
   font-size: 11px;
 }
 
 .site-new-canvas__preview-meta strong {
   overflow: hidden;
-  color: white;
+  color: var(--saier-color-text);
   font-size: 13px;
   font-weight: 650;
   text-overflow: ellipsis;
@@ -406,13 +407,13 @@ function greatestCommonDivisor(a: number, b: number): number {
 }
 
 .site-new-canvas__preview-meta small {
-  color: rgb(255 255 255 / 46%);
+  color: var(--saier-color-text-subtle);
   font-size: 11px;
 }
 
 .site-new-canvas__error {
   margin: 8px 0 0;
-  color: #fca5a5;
+  color: var(--saier-color-danger-text);
   font-size: 12px;
 }
 
@@ -423,21 +424,21 @@ function greatestCommonDivisor(a: number, b: number): number {
 
 .site-new-canvas__button {
   height: 34px;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 6px;
-  background: rgb(255 255 255 / 7%);
-  color: white;
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text);
   font-size: 13px;
   padding: 0 12px;
 }
 
 .site-new-canvas__button--primary {
-  border-color: rgb(96 165 250 / 58%);
-  background: rgb(96 165 250 / 24%);
+  border-color: var(--saier-color-accent-border);
+  background: var(--saier-color-accent-strong);
 }
 
 .site-new-canvas__button:disabled {
-  color: rgb(255 255 255 / 28%);
+  color: var(--saier-color-text-disabled);
   pointer-events: none;
 }
 

@@ -1,9 +1,21 @@
 <script setup lang="ts">
+import { useSiteTheme } from '~/composables/useSiteTheme'
 import { appName } from '~/constants'
 
-useHead({
+const { resolvedTheme } = useSiteTheme()
+
+useHead(() => ({
+  htmlAttrs: {
+    'data-saier-theme': resolvedTheme.value,
+  },
+  meta: [
+    {
+      name: 'theme-color',
+      content: resolvedTheme.value === 'dark' ? '#202124' : '#e4e6e9',
+    },
+  ],
   title: appName,
-})
+}))
 </script>
 
 <template>
@@ -23,8 +35,4 @@ body,
   padding: 0;
 }
 
-html.dark {
-  background: #222;
-  color: white;
-}
 </style>

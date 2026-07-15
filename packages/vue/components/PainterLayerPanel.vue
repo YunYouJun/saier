@@ -225,10 +225,10 @@ function dropOnRootTop(event: DragEvent): void {
 <style scoped>
 .painter-layer-panel {
   width: min(336px, calc(100vw - 16px));
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 8px;
-  background: rgb(18 18 22 / 92%);
-  color: white;
+  background: var(--saier-color-panel, rgb(18 18 22 / 92%));
+  color: var(--saier-color-text, white);
   font-size: 12px;
 }
 
@@ -237,7 +237,7 @@ function dropOnRootTop(event: DragEvent): void {
   align-items: center;
   justify-content: space-between;
   padding: 8px;
-  border-bottom: 1px solid rgb(255 255 255 / 10%);
+  border-bottom: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
 }
 
 .painter-layer-panel__title {
@@ -255,10 +255,10 @@ function dropOnRootTop(event: DragEvent): void {
   height: 28px;
   flex: 0 0 auto;
   place-items: center;
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 6px;
-  background: rgb(255 255 255 / 8%);
-  color: white;
+  background: var(--saier-color-surface, rgb(255 255 255 / 6%));
+  color: var(--saier-color-text, white);
 }
 
 .painter-layer-panel__list {
@@ -275,6 +275,6 @@ function dropOnRootTop(event: DragEvent): void {
 }
 
 .painter-layer-panel__root-drop:hover {
-  background: rgb(120 170 255 / 22%);
+  background: var(--saier-color-accent-strong, rgb(120 170 255 / 22%));
 }
 </style>

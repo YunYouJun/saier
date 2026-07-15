@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  getSiteActivityPluginManifest,
+  listSiteActivityMenuItems,
+} from '../site/app/activity-plugins/registry'
+import {
   createSiteActivityHref,
   createSiteActivityLocation,
   parseLegacyPictionaryRoute,
@@ -8,6 +12,17 @@ import {
 } from '../site/app/utils/activityPluginRoutes'
 
 describe('site activity plugin routes', () => {
+  it('exposes first-party activity navigation through plugin manifests', () => {
+    expect(listSiteActivityMenuItems('en')).toEqual([
+      { icon: 'i-ph-game-controller', id: 'pictionary', label: 'Pictionary...' },
+    ])
+    expect(getSiteActivityPluginManifest('pictionary')).toEqual(expect.objectContaining({
+      id: 'pictionary',
+      presentation: 'workspace-tab',
+      theme: 'inherit',
+    }))
+  })
+
   it('parses only supported activity requests with valid room ids', () => {
     expect(parseSiteActivityPluginQuery({ activity: 'pictionary' })).toEqual({
       inviteToken: undefined,

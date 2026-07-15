@@ -130,6 +130,24 @@ describe('stroke recording runtime', () => {
 
     expect(readActiveLayerPixels(target)).toEqual(readActiveLayerPixels(source))
   })
+
+  it('replays stroke-local timing without changing the resulting pixels', async () => {
+    const source = await createFixture()
+    source.strokeRecording.setEnabled(true)
+    drawDocumentStroke(source)
+    const stroke = source.strokeRecording.getStrokes()[0]
+    if (!stroke)
+      throw new Error('missing recorded stroke')
+
+    const target = await createFixture()
+    await target.strokeRecording.replayStrokeTimed(stroke, {
+      recordHistory: false,
+      speed: 1000,
+    })
+
+    expect(readActiveLayerPixels(target)).toEqual(readActiveLayerPixels(source))
+    expect(target.history.canUndo()).toBe(false)
+  })
 })
 
 function drawDocumentStroke(painter: Painter): void {

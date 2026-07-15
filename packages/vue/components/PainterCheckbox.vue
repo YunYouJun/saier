@@ -40,7 +40,7 @@ const indicatorClass = computed(() => ({
   grid-template-columns: 18px minmax(0, 1fr);
   align-items: center;
   gap: 7px;
-  color: rgb(255 255 255 / 84%);
+  color: var(--saier-color-text, white);
   cursor: pointer;
   font-size: 12px;
   user-select: none;
@@ -61,16 +61,16 @@ const indicatorClass = computed(() => ({
   width: 18px;
   height: 18px;
   place-items: center;
-  border: 1px solid rgb(255 255 255 / 18%);
+  border: 1px solid var(--saier-color-border-strong, rgb(255 255 255 / 22%));
   border-radius: 5px;
-  background: rgb(0 0 0 / 30%);
-  color: white;
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 22%);
+  background: var(--saier-color-control-track, rgb(0 0 0 / 30%));
+  color: var(--saier-color-text, white);
+  box-shadow: inset 0 0 0 1px var(--saier-color-swatch-inset, rgb(0 0 0 / 22%));
 }
 
 .painter-checkbox__indicator.is-checked {
-  border-color: rgb(96 165 250 / 70%);
-  background: linear-gradient(135deg, #60a5fa, #2563eb);
+  border-color: var(--saier-color-accent-border, rgb(96 165 250 / 70%));
+  background: linear-gradient(135deg, var(--saier-color-accent-hover, #60a5fa), var(--saier-color-accent, #2563eb));
 }
 
 .painter-checkbox__check {
@@ -95,10 +95,10 @@ const indicatorClass = computed(() => ({
 }
 
 .painter-checkbox__input:focus-visible + .painter-checkbox__indicator {
-  border-color: rgb(147 197 253);
+  border-color: var(--saier-color-focus, rgb(147 197 253));
   box-shadow:
-    inset 0 0 0 1px rgb(0 0 0 / 22%),
-    0 0 0 3px rgb(96 165 250 / 26%);
+    inset 0 0 0 1px var(--saier-color-swatch-inset, rgb(0 0 0 / 22%)),
+    0 0 0 3px var(--saier-color-accent-soft, rgb(96 165 250 / 26%));
 }
 
 .painter-checkbox[data-disabled] {

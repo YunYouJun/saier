@@ -1,0 +1,133 @@
+:root {
+  --saier-color-workspace: #51545a;
+  --saier-color-canvas-surround: #51545a;
+  --saier-color-canvas-paper: #fff;
+  --saier-color-canvas-error-paper: rgb(255 255 255 / 52%);
+  --saier-color-canvas-ink: #14141a;
+  --saier-color-checker-light: #f1f2f4;
+  --saier-color-checker-dark: #d5d7dc;
+  --saier-color-brush-preview-background: #1c1d21;
+  --saier-color-brush-preview-foreground: rgb(255 255 255 / 82%);
+  --saier-color-swatch-outline: rgb(255 255 255 / 86%);
+  --saier-color-swatch-inset: rgb(0 0 0 / 46%);
+}
+
+:root,
+.light,
+[data-saier-theme='light'] {
+  color-scheme: light;
+  --saier-color-app-background: #e4e6e9;
+  --saier-color-chrome: rgb(249 250 252 / 97%);
+  --saier-color-panel: rgb(244 246 249 / 97%);
+  --saier-color-panel-raised: rgb(255 255 255 / 98%);
+  --saier-color-field: rgb(255 255 255 / 90%);
+  --saier-color-surface: rgb(25 31 43 / 6%);
+  --saier-color-surface-hover: rgb(25 31 43 / 10%);
+  --saier-color-surface-active: rgb(37 99 235 / 12%);
+  --saier-color-surface-strong: rgb(25 31 43 / 16%);
+  --saier-color-border: rgb(25 31 43 / 14%);
+  --saier-color-border-strong: rgb(25 31 43 / 24%);
+  --saier-color-text: #20242b;
+  --saier-color-text-muted: rgb(32 36 43 / 70%);
+  --saier-color-text-subtle: rgb(32 36 43 / 52%);
+  --saier-color-text-disabled: rgb(32 36 43 / 32%);
+  --saier-color-control-track: rgb(25 31 43 / 16%);
+  --saier-color-control-thumb: #fff;
+  --saier-color-accent: #2563eb;
+  --saier-color-accent-hover: #1d4ed8;
+  --saier-color-accent-soft: rgb(37 99 235 / 12%);
+  --saier-color-accent-strong: rgb(37 99 235 / 22%);
+  --saier-color-accent-border: rgb(37 99 235 / 44%);
+  --saier-color-accent-text: #1d4ed8;
+  --saier-color-focus: rgb(37 99 235 / 72%);
+  --saier-color-danger: #dc2626;
+  --saier-color-danger-soft: rgb(220 38 38 / 10%);
+  --saier-color-danger-border: rgb(220 38 38 / 32%);
+  --saier-color-danger-text: #b91c1c;
+  --saier-color-warning: #b45309;
+  --saier-color-warning-soft: rgb(180 83 9 / 10%);
+  --saier-color-warning-border: rgb(180 83 9 / 30%);
+  --saier-color-warning-text: #92400e;
+  --saier-color-success: #047857;
+  --saier-color-success-soft: rgb(4 120 87 / 10%);
+  --saier-color-success-border: rgb(4 120 87 / 30%);
+  --saier-color-success-text: #047857;
+  --saier-color-info: #0369a1;
+  --saier-color-info-soft: rgb(3 105 161 / 9%);
+  --saier-color-info-border: rgb(3 105 161 / 28%);
+  --saier-color-info-text: #0369a1;
+  --saier-color-scrim: rgb(15 23 42 / 34%);
+  --saier-shadow-panel: 0 16px 44px rgb(15 23 42 / 16%);
+  --saier-shadow-dialog: 0 24px 70px rgb(15 23 42 / 22%);
+  --saier-shadow-menu: 0 18px 50px rgb(15 23 42 / 18%);
+  --saier-shadow-control: 0 4px 12px rgb(15 23 42 / 20%);
+}
+
+.dark,
+[data-saier-theme='dark'] {
+  color-scheme: dark;
+  --saier-color-app-background: #202124;
+  --saier-color-chrome: rgb(15 16 18 / 96%);
+  --saier-color-panel: rgb(18 18 22 / 94%);
+  --saier-color-panel-raised: rgb(28 28 31 / 98%);
+  --saier-color-field: rgb(255 255 255 / 7%);
+  --saier-color-surface: rgb(255 255 255 / 6%);
+  --saier-color-surface-hover: rgb(255 255 255 / 10%);
+  --saier-color-surface-active: rgb(96 165 250 / 18%);
+  --saier-color-surface-strong: rgb(255 255 255 / 16%);
+  --saier-color-border: rgb(255 255 255 / 12%);
+  --saier-color-border-strong: rgb(255 255 255 / 22%);
+  --saier-color-text: #fff;
+  --saier-color-text-muted: rgb(255 255 255 / 76%);
+  --saier-color-text-subtle: rgb(255 255 255 / 54%);
+  --saier-color-text-disabled: rgb(255 255 255 / 28%);
+  --saier-color-control-track: rgb(0 0 0 / 30%);
+  --saier-color-control-thumb: #1f232a;
+  --saier-color-accent: #60a5fa;
+  --saier-color-accent-hover: #93c5fd;
+  --saier-color-accent-soft: rgb(96 165 250 / 15%);
+  --saier-color-accent-strong: rgb(96 165 250 / 24%);
+  --saier-color-accent-border: rgb(96 165 250 / 55%);
+  --saier-color-accent-text: #bfdbfe;
+  --saier-color-focus: rgb(147 197 253 / 72%);
+  --saier-color-danger: #f87171;
+  --saier-color-danger-soft: rgb(255 96 96 / 16%);
+  --saier-color-danger-border: rgb(255 128 128 / 40%);
+  --saier-color-danger-text: #ffd5d5;
+  --saier-color-warning: #fbbf24;
+  --saier-color-warning-soft: rgb(251 191 36 / 14%);
+  --saier-color-warning-border: rgb(251 191 36 / 38%);
+  --saier-color-warning-text: #fcd34d;
+  --saier-color-success: #34d399;
+  --saier-color-success-soft: rgb(52 211 153 / 14%);
+  --saier-color-success-border: rgb(52 211 153 / 40%);
+  --saier-color-success-text: #6ee7b7;
+  --saier-color-info: #7dd3fc;
+  --saier-color-info-soft: rgb(125 211 252 / 10%);
+  --saier-color-info-border: rgb(125 211 252 / 34%);
+  --saier-color-info-text: #bae6fd;
+  --saier-color-scrim: rgb(0 0 0 / 42%);
+  --saier-shadow-panel: 0 16px 44px rgb(0 0 0 / 28%);
+  --saier-shadow-dialog: 0 24px 70px rgb(0 0 0 / 42%);
+  --saier-shadow-menu: 0 18px 50px rgb(0 0 0 / 36%);
+  --saier-shadow-control: 0 4px 12px rgb(0 0 0 / 38%);
+}
+
+html,
+body,
+#__nuxt {
+  background: var(--saier-color-app-background);
+  color: var(--saier-color-text);
+}
+
+body {
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body {
+    transition: none;
+  }
+}

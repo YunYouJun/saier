@@ -65,25 +65,25 @@ const emit = defineEmits<{
   grid-template-columns: 24px minmax(0, 1fr) 28px;
   align-items: start;
   gap: 8px;
-  border: 1px solid rgb(255 255 255 / 13%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 8px;
-  background: rgb(18 18 22 / 94%);
-  box-shadow: 0 18px 48px rgb(0 0 0 / 30%);
-  color: white;
+  background: var(--saier-color-panel);
+  box-shadow: var(--saier-shadow-panel);
+  color: var(--saier-color-text);
   padding: 10px;
   pointer-events: auto;
 }
 
 .site-notice--error {
-  border-color: rgb(248 113 113 / 42%);
+  border-color: var(--saier-color-danger-border);
 }
 
 .site-notice--warning {
-  border-color: rgb(251 191 36 / 38%);
+  border-color: var(--saier-color-warning-border);
 }
 
 .site-notice--info {
-  border-color: rgb(96 165 250 / 38%);
+  border-color: var(--saier-color-info-border);
 }
 
 .site-notice__icon {
@@ -95,15 +95,15 @@ const emit = defineEmits<{
 }
 
 .site-notice--error .site-notice__icon {
-  color: #fca5a5;
+  color: var(--saier-color-danger-text);
 }
 
 .site-notice--warning .site-notice__icon {
-  color: #fcd34d;
+  color: var(--saier-color-warning-text);
 }
 
 .site-notice--info .site-notice__icon {
-  color: #93c5fd;
+  color: var(--saier-color-info-text);
 }
 
 .site-notice__copy {
@@ -116,7 +116,7 @@ const emit = defineEmits<{
 
 .site-notice__copy strong {
   overflow: hidden;
-  color: white;
+  color: var(--saier-color-text);
   font-size: 13px;
   font-weight: 700;
   text-overflow: ellipsis;
@@ -124,7 +124,7 @@ const emit = defineEmits<{
 }
 
 .site-notice__copy span {
-  color: rgb(255 255 255 / 68%);
+  color: var(--saier-color-text-muted);
 }
 
 .site-notice__close {
@@ -132,19 +132,19 @@ const emit = defineEmits<{
   width: 28px;
   height: 28px;
   place-items: center;
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 6px;
-  background: rgb(255 255 255 / 6%);
-  color: rgb(255 255 255 / 72%);
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text-muted);
 }
 
 .site-notice__close:hover {
-  background: rgb(255 255 255 / 12%);
-  color: white;
+  background: var(--saier-color-surface-hover);
+  color: var(--saier-color-text);
 }
 
 .site-notice__close:focus-visible {
-  outline: 2px solid rgb(147 197 253 / 72%);
+  outline: 2px solid var(--saier-color-focus);
   outline-offset: 1px;
 }
 

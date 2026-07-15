@@ -14,7 +14,8 @@ export const pwa: ModuleOptions = {
     name: appName,
     short_name: appName,
     description: appDescription,
-    theme_color: '#ffffff',
+    background_color: '#51545a',
+    theme_color: '#51545a',
     icons: [
       {
         src: 'pwa-192x192.png',
@@ -36,10 +37,10 @@ export const pwa: ModuleOptions = {
   },
   workbox: {
     globIgnores: [
-      '**/activity-pictionary.*.js',
-      '**/activity-pictionary.*.css',
-      '**/PictionaryActivityPlugin.*.js',
-      '**/PictionaryActivityPlugin.*.css',
+      '**/activity-*.*.js',
+      '**/activity-*.*.css',
+      '**/*ActivityPlugin.*.js',
+      '**/*ActivityPlugin.*.css',
     ],
     globPatterns: ['**/*.{js,css,html,txt,png,ico,svg}'],
     navigateFallbackDenylist: [/^\/api\//],

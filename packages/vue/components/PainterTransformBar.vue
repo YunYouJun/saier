@@ -179,11 +179,11 @@ function displayNumber(value: number): string {
 .painter-transform {
   width: min(344px, calc(100vw - 16px));
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 10px;
-  background: rgb(18 18 22 / 94%);
-  box-shadow: 0 10px 30px rgb(0 0 0 / 28%);
-  color: white;
+  background: var(--saier-color-panel, rgb(18 18 22 / 94%));
+  box-shadow: var(--saier-shadow-panel, 0 10px 30px rgb(0 0 0 / 28%));
+  color: var(--saier-color-text, white);
   font-size: 12px;
 }
 
@@ -197,7 +197,7 @@ function displayNumber(value: number): string {
 }
 
 .painter-transform__header {
-  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  border-bottom: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
 }
 
 .painter-transform__title {
@@ -218,20 +218,20 @@ function displayNumber(value: number): string {
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: rgb(255 255 255 / 72%);
+  color: var(--saier-color-text-muted, rgb(255 255 255 / 76%));
   cursor: pointer;
 }
 
 .painter-transform__icon:hover,
 .painter-transform__lock:hover,
 .painter-transform__lock.is-active {
-  background: rgb(255 255 255 / 10%);
-  color: white;
+  background: var(--saier-color-surface-hover, rgb(255 255 255 / 10%));
+  color: var(--saier-color-text, white);
 }
 
 .painter-transform__icon--danger:hover {
-  background: rgb(239 68 68 / 18%);
-  color: rgb(252 165 165);
+  background: var(--saier-color-danger-soft, rgb(239 68 68 / 18%));
+  color: var(--saier-color-danger-text, rgb(252 165 165));
 }
 
 .painter-transform__fields {
@@ -247,10 +247,10 @@ function displayNumber(value: number): string {
   align-items: center;
   min-width: 0;
   height: 32px;
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 7px;
-  background: rgb(255 255 255 / 5%);
-  color: rgb(255 255 255 / 56%);
+  background: var(--saier-color-surface, rgb(255 255 255 / 6%));
+  color: var(--saier-color-text-subtle, rgb(255 255 255 / 54%));
 }
 
 .painter-transform__field input {
@@ -259,14 +259,14 @@ function displayNumber(value: number): string {
   border: 0;
   outline: 0;
   background: transparent;
-  color: white;
+  color: var(--saier-color-text, white);
   font: inherit;
   font-variant-numeric: tabular-nums;
 }
 
 .painter-transform__field:focus-within {
-  border-color: #6f8de3;
-  box-shadow: 0 0 0 2px rgb(111 141 227 / 22%);
+  border-color: var(--saier-color-accent-border, #6f8de3);
+  box-shadow: 0 0 0 2px var(--saier-color-accent-soft, rgb(111 141 227 / 22%));
 }
 
 .painter-transform__field > span {
@@ -279,22 +279,22 @@ function displayNumber(value: number): string {
 
 .painter-transform__footer {
   justify-content: flex-end;
-  border-top: 1px solid rgb(255 255 255 / 8%);
+  border-top: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
 }
 
 .painter-transform__button {
   min-height: 32px;
   padding: 0 12px;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 7px;
-  background: rgb(255 255 255 / 6%);
-  color: white;
+  background: var(--saier-color-surface, rgb(255 255 255 / 6%));
+  color: var(--saier-color-text, white);
   cursor: pointer;
 }
 
 .painter-transform__button--primary {
-  border-color: #5877ca;
-  background: #3d5caa;
+  border-color: var(--saier-color-accent-border, #5877ca);
+  background: var(--saier-color-accent, #3d5caa);
 }
 
 @media (pointer: coarse) {

@@ -121,7 +121,7 @@ watch(
   place-items: center;
   overflow: auto;
   padding: 14px;
-  background: rgb(0 0 0 / 42%);
+  background: var(--saier-color-scrim);
 }
 
 .site-shortcuts__panel {
@@ -132,11 +132,11 @@ watch(
   max-height: min(720px, calc(100vh - 28px));
   min-height: 0;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 13%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 8px;
-  background: rgb(20 20 22 / 96%);
-  box-shadow: 0 24px 70px rgb(0 0 0 / 42%);
-  color: white;
+  background: var(--saier-color-panel-raised);
+  box-shadow: var(--saier-shadow-dialog);
+  color: var(--saier-color-text);
   padding: 12px;
 }
 
@@ -160,10 +160,10 @@ watch(
 
 .site-shortcuts__icon,
 .site-shortcuts__button {
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 6px;
-  background: rgb(255 255 255 / 7%);
-  color: white;
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text);
 }
 
 .site-shortcuts__icon {
@@ -184,7 +184,7 @@ watch(
   min-width: 0;
   flex: 1 1 auto;
   gap: 5px;
-  color: rgb(255 255 255 / 60%);
+  color: var(--saier-color-text-muted);
   font-size: 12px;
 }
 
@@ -194,10 +194,10 @@ watch(
   height: 34px;
   align-items: center;
   gap: 7px;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 6px;
-  background: rgb(255 255 255 / 8%);
-  color: rgb(255 255 255 / 52%);
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text-subtle);
   padding: 0 9px;
 }
 
@@ -206,18 +206,18 @@ watch(
   min-width: 0;
   border: 0;
   background: transparent;
-  color: white;
+  color: var(--saier-color-text);
   font-size: 13px;
   outline: none;
 }
 
 .site-shortcuts__input::placeholder {
-  color: rgb(255 255 255 / 34%);
+  color: var(--saier-color-text-disabled);
 }
 
 .site-shortcuts__search-box:focus-within {
-  border-color: rgb(96 165 250 / 70%);
-  box-shadow: 0 0 0 2px rgb(96 165 250 / 16%);
+  border-color: var(--saier-color-accent-border);
+  box-shadow: 0 0 0 2px var(--saier-color-accent-soft);
 }
 
 .site-shortcuts__button {
@@ -234,7 +234,7 @@ watch(
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  border: 1px solid rgb(255 255 255 / 10%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 7px;
 }
 
@@ -244,8 +244,8 @@ watch(
   min-height: 34px;
   align-items: center;
   gap: 12px;
-  border-top: 1px solid rgb(255 255 255 / 8%);
-  color: rgb(255 255 255 / 76%);
+  border-top: 1px solid var(--saier-color-border);
+  color: var(--saier-color-text-muted);
   font-size: 13px;
   padding: 7px 10px;
 }
@@ -259,8 +259,8 @@ watch(
   z-index: 1;
   top: 0;
   min-height: 30px;
-  background: rgb(28 28 31 / 98%);
-  color: rgb(255 255 255 / 46%);
+  background: var(--saier-color-panel-raised);
+  color: var(--saier-color-text-subtle);
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -275,16 +275,16 @@ watch(
 }
 
 .site-shortcuts__command {
-  color: rgb(255 255 255 / 88%);
+  color: var(--saier-color-text);
 }
 
 .site-shortcuts__key {
   justify-self: start;
   min-width: 0;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--saier-color-border);
   border-radius: 6px;
-  background: rgb(255 255 255 / 7%);
-  color: rgb(255 255 255 / 82%);
+  background: var(--saier-color-surface);
+  color: var(--saier-color-text);
   font-family: inherit;
   font-size: 12px;
   line-height: 1;
@@ -293,7 +293,7 @@ watch(
 
 .site-shortcuts__empty {
   padding: 18px 10px;
-  color: rgb(255 255 255 / 48%);
+  color: var(--saier-color-text-subtle);
   font-size: 13px;
   text-align: center;
 }

@@ -1,5 +1,5 @@
 import type { PictionaryPhase, PictionaryPlayerStatus } from '@saier/collaboration'
-import type { ComputedRef } from 'vue'
+import type { ComputedRef, ShallowRef } from 'vue'
 import type { SiteLocale } from '~/composables/useSiteI18n'
 import { computed } from 'vue'
 import { useSiteI18n } from '~/composables/useSiteI18n'
@@ -61,6 +61,7 @@ export interface PictionaryMessages {
     cycles: string
     drawer: string
     drawerChoosing: string
+    drawingTools: string
     finalScore: string
     guess: string
     guessPlaceholder: string
@@ -149,7 +150,7 @@ const PICTIONARY_MESSAGES = {
     room: {
       answer: 'Answer',
       brushColor: 'Brush color',
-      brushSize: 'Size {size}',
+      brushSize: 'Brush size',
       canvasSyncing: 'Syncing canvas',
       choosePrompt: 'Choose a prompt to start drawing',
       chooseThree: 'Choose one',
@@ -159,6 +160,7 @@ const PICTIONARY_MESSAGES = {
       cycles: 'Rounds',
       drawer: 'Drawer: {drawer}',
       drawerChoosing: 'The drawer is choosing a prompt',
+      drawingTools: 'Drawing tools',
       finalScore: 'Final score',
       guess: 'Guess',
       guessPlaceholder: 'Enter your guess...',
@@ -249,7 +251,7 @@ const PICTIONARY_MESSAGES = {
     room: {
       answer: '答案',
       brushColor: '笔刷颜色',
-      brushSize: '粗细 {size}',
+      brushSize: '笔刷粗细',
       canvasSyncing: '画布同步中',
       choosePrompt: '选一个题目开始画',
       chooseThree: '三选一',
@@ -259,6 +261,7 @@ const PICTIONARY_MESSAGES = {
       cycles: '轮数',
       drawer: '画手：{drawer}',
       drawerChoosing: '画手正在选题',
+      drawingTools: '绘制工具',
       finalScore: '最终得分',
       guess: '猜',
       guessPlaceholder: '输入你的答案…',
@@ -296,9 +299,10 @@ const PICTIONARY_MESSAGES = {
   },
 } satisfies Record<SiteLocale, PictionaryMessages>
 
-export function usePictionaryI18n(): { text: ComputedRef<PictionaryMessages> } {
+export function usePictionaryI18n(): { locale: ShallowRef<SiteLocale>, text: ComputedRef<PictionaryMessages> } {
   const { locale } = useSiteI18n()
   return {
+    locale,
     text: computed(() => PICTIONARY_MESSAGES[locale.value]),
   }
 }

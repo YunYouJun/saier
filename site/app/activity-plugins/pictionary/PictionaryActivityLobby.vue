@@ -11,7 +11,7 @@ import { usePictionaryI18n } from './i18n'
 
 const router = useRouter()
 const activities = useYunlefunRoomActivities()
-const { text } = usePictionaryI18n()
+const { locale, text } = usePictionaryI18n()
 const title = shallowRef(text.value.lobby.defaultRoomName)
 const customWords = shallowRef('')
 const joinTarget = shallowRef('')
@@ -34,6 +34,7 @@ async function createGame(): Promise<void> {
     await activities.activatePictionary({
       commandId: crypto.randomUUID(),
       config: { customBank: Boolean(words) },
+      locale: locale.value,
       roomId: created.session.room.id,
       words,
     })

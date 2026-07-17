@@ -111,6 +111,7 @@ export function useYunlefunRoomActivities() {
   async function activatePictionary(input: {
     commandId: string
     config?: Record<string, unknown>
+    locale?: 'en' | 'zh'
     roomId: string
     words?: string[]
   }): Promise<ActivityActivationResult> {

@@ -98,6 +98,9 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
         <div class="site-mobile-painter__account">
           <slot name="account" />
         </div>
+        <div class="site-mobile-painter__theme">
+          <slot name="theme" />
+        </div>
         <details class="site-mobile-painter__locale-menu">
           <summary class="site-mobile-painter__locale" :aria-label="languageLabel">
             <span class="site-mobile-painter__locale-label">{{ languageLabel }}</span>
@@ -345,7 +348,13 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   min-width: 0;
 }
 
-.site-mobile-painter__account:empty {
+.site-mobile-painter__theme {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.site-mobile-painter__account:empty,
+.site-mobile-painter__theme:empty {
   display: none;
 }
 

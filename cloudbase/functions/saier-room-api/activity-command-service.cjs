@@ -2,9 +2,9 @@ const { Buffer } = require('node:buffer')
 const process = require('node:process')
 const {
   RULES_VERSION,
-  DEFAULT_WORD_BANK,
   activityError,
   createPictionarySession,
+  getDefaultWordBank,
   normalizeAnswer,
   reducePictionaryCommand,
   validateWordBank,
@@ -38,6 +38,7 @@ async function activatePictionary(input, userId, services) {
   const receivedAt = services.now()
   const payloadHash = sha256(stableStringify({
     config: objectValue(input.config) ?? {},
+    locale: normalizeWordBankLocale(input.locale),
     words: input.words,
   }))
   const commandRecordId = activationCommandId(roomId, userId, commandId)
@@ -61,7 +62,8 @@ async function activatePictionary(input, userId, services) {
       integerValue(room.activityEpoch) ?? 0,
       integerValue(room.activeActivity?.activityEpoch) ?? 0,
     ) + 1
-    const words = validateWordBank(input.words ?? DEFAULT_WORD_BANK)
+    const wordBankLocale = normalizeWordBankLocale(input.locale)
+    const words = validateWordBank(input.words ?? getDefaultWordBank(wordBankLocale))
     const created = createPictionarySession({
       activityEpoch,
       config: {
@@ -73,7 +75,7 @@ async function activatePictionary(input, userId, services) {
       serverUnicodeVersion: process.versions.unicode ?? 'unknown',
       sessionId,
       wordBankHash: sha256(stableStringify(words)),
-      wordBankVersion: input.words ? 'custom.v1' : 'builtin.en.v1',
+      wordBankVersion: input.words ? 'custom.v1' : `builtin.${wordBankLocale}.v1`,
       words,
     })
     const activeActivity = {
@@ -148,6 +150,10 @@ async function activatePictionary(input, userId, services) {
     })
     return commandResult
   })
+}
+
+function normalizeWordBankLocale(locale) {
+  return locale === 'zh' ? 'zh' : 'en'
 }
 
 async function submitCommand(input, userId, services, systemCommand = false) {

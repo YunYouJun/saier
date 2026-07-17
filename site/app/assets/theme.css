@@ -1,6 +1,4 @@
 :root {
-  --saier-color-workspace: #51545a;
-  --saier-color-canvas-surround: #51545a;
   --saier-color-canvas-paper: #fff;
   --saier-color-canvas-error-paper: rgb(255 255 255 / 52%);
   --saier-color-canvas-ink: #14141a;
@@ -17,6 +15,8 @@
 [data-saier-theme='light'] {
   color-scheme: light;
   --saier-color-app-background: #e4e6e9;
+  --saier-color-workspace: #d8dce2;
+  --saier-color-canvas-surround: #d8dce2;
   --saier-color-chrome: rgb(249 250 252 / 97%);
   --saier-color-panel: rgb(244 246 249 / 97%);
   --saier-color-panel-raised: rgb(255 255 255 / 98%);
@@ -67,6 +67,8 @@
 [data-saier-theme='dark'] {
   color-scheme: dark;
   --saier-color-app-background: #202124;
+  --saier-color-workspace: #51545a;
+  --saier-color-canvas-surround: #51545a;
   --saier-color-chrome: rgb(15 16 18 / 96%);
   --saier-color-panel: rgb(18 18 22 / 94%);
   --saier-color-panel-raised: rgb(28 28 31 / 98%);

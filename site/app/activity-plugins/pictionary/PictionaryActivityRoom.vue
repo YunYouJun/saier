@@ -5,11 +5,12 @@ import type { Painter } from 'saier'
 import type { PictionaryTool } from './i18n'
 import { createPainter, PainterEraser } from 'saier'
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
-import { SiteActivityButton, SiteActivityPanel } from '~/components/activity'
+import { SiteActivityButton } from '~/components/activity'
 import { useActivityRealtimeShadow } from '~/composables/useActivityRealtimeShadow'
 import { useYunlefunAuth } from '~/composables/useYunlefunAuth'
 import { useYunlefunRoomActivities } from '~/composables/useYunlefunRoomActivities'
 import { createSiteActivityHref } from '~/utils/activityPluginRoutes'
+import PictionaryDrawingPanel from './PictionaryDrawingPanel.vue'
 import PictionaryRoomLobby from './PictionaryRoomLobby.vue'
 import PictionaryRoomToolbar from './PictionaryRoomToolbar.vue'
 import PictionaryScoreboard from './PictionaryScoreboard.vue'
@@ -103,12 +104,10 @@ const answer = computed(() => revealReady.value ? currentPrivateProjection.value
 const transportLabel = computed(() => activities.features.realtimeCommittedEvents
   ? formatPictionaryMessage(text.value.room.realtimeTransport, { state: realtime.state.value })
   : text.value.room.pollingTransport)
+const roomTitle = computed(() => activities.roomSession.value?.room.title?.trim() || text.value.room.title)
 const drawerLabel = computed(() => state.value?.round
   ? formatPictionaryMessage(text.value.room.drawer, { drawer: state.value.round.drawerId })
   : '')
-const brushSizeLabel = computed(() => formatPictionaryMessage(text.value.room.brushSize, {
-  size: selectedBrushSize.value,
-}))
 const winnerLabel = computed(() => formatPictionaryMessage(text.value.room.winner, {
   player: players.value[0]?.userId ?? '—',
 }))
@@ -378,11 +377,6 @@ function applyPainterTool(): void {
   painter.brush.setColor(Number.parseInt(selectedColor.value.slice(1), 16))
 }
 
-function selectTool(tool: PictionaryTool): void {
-  selectedTool.value = tool
-  selectedBrushSize.value = tool === 'marker' ? 22 : tool === 'eraser' ? 20 : 8
-}
-
 async function applyCanvasOperations(operations: Array<ActivityCanvasOperation<SaierStrokeCommit>>): Promise<void> {
   if (!painter)
     return
@@ -593,14 +587,11 @@ function requireRoundState() {
   return current
 }
 
-function toolLabel(tool: PictionaryTool): string {
-  return text.value.tools[tool]
-}
 </script>
 
 <template>
   <main class="pictionary-room site-activity-surface">
-    <PictionaryRoomToolbar :transport-label="transportLabel" @invite="copyInvite" />
+    <PictionaryRoomToolbar :room-title="roomTitle" :transport-label="transportLabel" @invite="copyInvite" />
 
     <section v-if="fatalError && !state" class="pictionary-room__fatal" role="alert">
       <span class="pictionary-room__fatal-icon i-ph-warning-circle" aria-hidden="true" />
@@ -677,33 +668,6 @@ function toolLabel(tool: PictionaryTool): string {
             </div>
           </div>
 
-          <SiteActivityPanel v-if="canDraw" class="pictionary-drawing-tools" tag="div">
-            <SiteActivityButton
-              v-for="tool in ['pen', 'marker', 'eraser'] as const"
-              :key="tool"
-              :active="selectedTool === tool"
-              selectable
-              size="compact"
-              @click="selectTool(tool)"
-            >
-              {{ toolLabel(tool) }}
-            </SiteActivityButton>
-            <input
-              v-if="selectedTool !== 'eraser'"
-              v-model="selectedColor"
-              class="pictionary-drawing-tools__color"
-              type="color"
-              :aria-label="text.room.brushColor"
-            >
-            <label class="pictionary-drawing-size">
-              <span>{{ brushSizeLabel }}</span>
-              <input v-model.number="selectedBrushSize" type="range" min="1" max="128" step="1" :aria-label="brushSizeLabel">
-            </label>
-            <SiteActivityButton v-if="isDrawer" size="compact" @click="takeController">
-              {{ text.room.takeControl }}
-            </SiteActivityButton>
-          </SiteActivityPanel>
-
           <form
             v-if="state?.phase === 'drawing' && !isDrawer && currentPlayer?.status === 'active'"
             class="pictionary-guess-bar"
@@ -719,13 +683,23 @@ function toolLabel(tool: PictionaryTool): string {
           </p>
         </div>
 
-        <PictionaryScoreboard
-          :current-user-id="currentUserId"
-          :is-host="isHost"
-          :players="players"
-          :warning="fatalError"
-          @toggle-mute="setPlayerMuted($event.userId, $event.muted)"
-        />
+        <div class="pictionary-room__sidebar">
+          <PictionaryDrawingPanel
+            v-if="canDraw"
+            v-model:color="selectedColor"
+            v-model:size="selectedBrushSize"
+            v-model:tool="selectedTool"
+            :can-take-control="isDrawer"
+            @take-control="takeController"
+          />
+          <PictionaryScoreboard
+            :current-user-id="currentUserId"
+            :is-host="isHost"
+            :players="players"
+            :warning="fatalError"
+            @toggle-mute="setPlayerMuted($event.userId, $event.muted)"
+          />
+        </div>
       </section>
     </template>
   </main>
@@ -770,6 +744,14 @@ function toolLabel(tool: PictionaryTool): string {
   grid-template-columns: minmax(0, 1fr) 290px;
   gap: 12px;
   padding-block: 12px 24px;
+}
+
+.pictionary-room__sidebar {
+  display: flex;
+  align-self: start;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 54px;
 }
 
 .pictionary-round-strip {
@@ -886,49 +868,10 @@ function toolLabel(tool: PictionaryTool): string {
   color: #1d4ed8;
 }
 
-.pictionary-drawing-tools,
 .pictionary-guess-bar {
   display: flex;
   gap: 8px;
   margin-top: 8px;
-}
-
-.pictionary-drawing-tools {
-  align-items: center;
-  padding: 6px;
-  overflow-x: auto;
-}
-
-.pictionary-drawing-tools__color {
-  box-sizing: border-box;
-  width: 36px;
-  height: 32px;
-  flex: 0 0 auto;
-  padding: 3px;
-  border: 1px solid var(--saier-color-border);
-  border-radius: 7px;
-  background: var(--saier-color-field);
-}
-
-.pictionary-drawing-tools__color:focus-visible {
-  outline: 2px solid var(--saier-color-focus);
-  outline-offset: 1px;
-}
-
-.pictionary-drawing-size {
-  display: grid;
-  min-width: 150px;
-  align-content: center;
-  gap: 2px;
-  padding-inline: 8px;
-  color: var(--saier-color-text-subtle);
-  font-size: 10px;
-  font-weight: 650;
-}
-
-.pictionary-drawing-size input {
-  width: 100%;
-  accent-color: var(--saier-color-accent);
 }
 
 .pictionary-guess-bar .site-activity-control {
@@ -959,8 +902,8 @@ function toolLabel(tool: PictionaryTool): string {
     background: var(--saier-color-app-background);
   }
 
-  .pictionary-drawing-tools .site-activity-button {
-    flex: 0 0 auto;
+  .pictionary-room__sidebar {
+    padding-top: 0;
   }
 
   .pictionary-guess-bar {

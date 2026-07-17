@@ -1,8 +1,10 @@
-# saier
+# 云绘 Saier
 
 [![NPM](https://img.shields.io/npm/v/saier.svg?style=flat-square)](https://www.npmjs.com/package/saier)
 
-🎨 An elegant online painting runtime powered by PixiJS, with a Pixi-agnostic raster engine underneath.
+**云绘**是云乐坊旗下的在线绘画工作台，英文名与开源项目名仍为 **Saier**。
+
+🎨 An elegant online painting runtime powered by PixiJS, with a Pixi-agnostic raster engine underneath. The npm package names, APIs, repository and file formats remain unchanged.
 
 Use `saier` for the default painter runtime, `@saier/core` for the headless raster engine, `@saier/pixi` for PixiJS backends, and `@saier/vue` for reusable Vue controls.
 

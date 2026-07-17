@@ -1,6 +1,8 @@
-# What is saier?
+# What is 云绘 / Saier?
 
-`saier` is an **elegant online painting runtime** built on
+**云绘**是云乐坊旗下在线绘画产品的中文名，英文名与开源项目名仍为 **Saier**。这次命名不改变 `saier` npm 包、`@saier/*` scope、API 或已有文件格式。
+
+Saier is an **elegant online painting runtime** built on
 [PixiJS](https://pixijs.com/). It provides the building blocks of a drawing application — a
 pannable / zoomable board, pressure-aware brush and eraser, image import with transform
 handles, selection, and undo / redo.

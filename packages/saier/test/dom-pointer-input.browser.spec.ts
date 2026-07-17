@@ -147,6 +147,36 @@ describe('dom pointer input adapter', () => {
     expect(painter.history.undoStack).toHaveLength(1)
   })
 
+  it('maps pointer coordinates through the canvas CSS scale', async () => {
+    const painter = await createFixture()
+    const beginDocumentStroke = vi.spyOn(painter.brush, 'beginDocumentStroke')
+    const canvas = painter.app.canvas
+    painter.useTool('brush')
+
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+      bottom: 82,
+      height: 32,
+      left: 100,
+      right: 132,
+      top: 50,
+      width: 32,
+      x: 100,
+      y: 50,
+      toJSON: () => ({}),
+    })
+
+    dispatchPointer(painter, 'pointerdown', {
+      clientX: 116,
+      clientY: 66,
+      timeStamp: 0,
+    })
+
+    expect(beginDocumentStroke).toHaveBeenCalledWith(
+      expect.objectContaining({ x: 32, y: 32 }),
+      1,
+    )
+  })
+
   it('zooms the viewport from wheel gestures by default', async () => {
     const painter = await createFixture({ diagnostics: false })
     const board = painter.board.container

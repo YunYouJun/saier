@@ -2,12 +2,12 @@
 layout: home
 
 hero:
-  name: "saier"
-  text: "优雅的在线画板"
-  tagline: 一个体验优雅的在线绘画运行时 —— 融合 SAI / Procreate / Krita 之长，把画意手感搬到 web（PixiJS 显示 + 可脱离 Pixi 的 raster 引擎）
+  name: "云绘"
+  text: "Saier · 优雅的在线画板"
+  tagline: 云乐坊旗下的在线绘画工作台 —— 融合 SAI / Procreate / Krita 之长，把画意手感搬到 web（PixiJS 显示 + 可脱离 Pixi 的 raster 引擎）
   image:
     src: /logo.svg
-    alt: saier
+    alt: 云绘 Saier
   actions:
     - theme: brand
       text: Get Started
@@ -36,6 +36,8 @@ features:
 
 ## Quick Start
 
+**云绘**是产品的中文名，英文名与开源项目名仍为 **Saier**。`saier` 与 `@saier/*` 包名、API 及文件格式标识保持不变。
+
 ```bash
 pnpm add saier
 ```
@@ -54,7 +56,7 @@ painter.useTool('brush')
 
 ## Status
 
-saier is under active architectural evolution — from a PixiJS brush demo into a
+Saier is under active architectural evolution — from a PixiJS brush demo into a
 **elegant, multi-inspiration web painting runtime** (synthesizing SAI / Procreate / Krita). The full plan lives in the [Design](/design/) section,
 written to be executed phase-by-phase by humans or coding agents.
 

@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import type { SitePainterMenuCommand, SitePainterTool } from '~/types/painter-app'
 import PainterSlider from '@saier/vue/components/PainterSlider.vue'
+import PainterToolSwitcher from '@saier/vue/components/PainterToolSwitcher.vue'
 import {
   ToolbarButton,
   ToolbarRoot,
   ToolbarSeparator,
-  ToolbarToggleGroup,
-  ToolbarToggleItem,
 } from 'reka-ui'
 import { computed } from 'vue'
 
@@ -97,6 +96,12 @@ const toolItems: { value: SitePainterTool, labelKey: 'brush' | 'eraser' | 'pan' 
   { value: 'selection', labelKey: 'selection', icon: 'i-ph-selection' },
 ]
 
+const toolOptions = computed(() => toolItems.map(tool => ({
+  icon: tool.icon,
+  label: props.labels[tool.labelKey],
+  value: tool.value,
+})))
+
 function onToolChange(value: unknown): void {
   if (isSitePainterTool(value))
     emit('command', `tool:${value}`)
@@ -164,23 +169,13 @@ function normalizeStabilizerStrength(strength: number): number {
 
     <ToolbarSeparator class="site-toolbar__separator" />
 
-    <ToolbarToggleGroup
-      class="site-toolbar__tools"
-      type="single"
+    <PainterToolSwitcher
       :disabled="disabled"
+      :label="labels.tools"
       :model-value="activeTool"
+      :tools="toolOptions"
       @update:model-value="onToolChange"
-    >
-      <ToolbarToggleItem
-        v-for="tool in toolItems"
-        :key="tool.value"
-        class="site-toolbar__button site-toolbar__tool"
-        :title="labels[tool.labelKey]"
-        :value="tool.value"
-      >
-        <span :class="tool.icon" />
-      </ToolbarToggleItem>
-    </ToolbarToggleGroup>
+    />
 
     <ToolbarSeparator class="site-toolbar__separator" />
 
@@ -254,12 +249,6 @@ function normalizeStabilizerStrength(strength: number): number {
   display: none;
 }
 
-.site-toolbar__tools {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-}
-
 :global(.site-toolbar__button) {
   display: inline-grid;
   width: 30px;
@@ -285,8 +274,7 @@ function normalizeStabilizerStrength(strength: number): number {
   box-shadow: 0 0 0 2px var(--saier-color-accent-soft);
 }
 
-:global(.site-toolbar__button[data-state='on']),
-:global(.site-toolbar__tool[data-state='on']) {
+:global(.site-toolbar__button[data-state='on']) {
   border-color: var(--saier-color-accent-border);
   background: var(--saier-color-accent-soft);
   color: var(--saier-color-text);

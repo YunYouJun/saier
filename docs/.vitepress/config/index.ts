@@ -6,7 +6,7 @@ import { groupIconMdPlugin } from 'vitepress-plugin-group-icons'
 import { version } from '../../../package.json'
 
 const GUIDES: DefaultTheme.NavItemWithLink[] = [
-  { text: 'What is saier?', link: '/guide/what-is' },
+  { text: 'What is 云绘 / Saier?', link: '/guide/what-is' },
   { text: 'Getting Started', link: '/guide/getting-started' },
   { text: 'Custom Brushes', link: '/guide/custom-brushes' },
   { text: 'Stroke Recording', link: '/guide/stroke-recording' },
@@ -101,8 +101,8 @@ const vpConfig = getVitepressConfig({
 export default defineConfig({
   ...vpConfig,
 
-  title: 'saier',
-  description: 'saier — an elegant online painting runtime (PixiJS-powered)',
+  title: '云绘 Saier',
+  description: '云绘（Saier）—— 云乐坊旗下的在线绘画工作台',
   lang: 'zh-CN',
   markdown: {
     codeTransformers: [
@@ -170,8 +170,8 @@ export default defineConfig({
   head: [
     ['link', { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' }],
     ['meta', { name: 'author', content: 'YunYouJun' }],
-    ['meta', { property: 'og:title', content: 'saier' }],
-    ['meta', { property: 'og:description', content: 'saier — an elegant online painting runtime (PixiJS-powered)' }],
+    ['meta', { property: 'og:title', content: '云绘 Saier' }],
+    ['meta', { property: 'og:description', content: '云绘（Saier）—— 云乐坊旗下的在线绘画工作台' }],
     ['meta', { name: 'viewport', content: 'width=device-width, initial-scale=1.0, viewport-fit=cover' }],
   ],
 })

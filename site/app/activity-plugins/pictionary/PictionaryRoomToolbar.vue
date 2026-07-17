@@ -3,6 +3,7 @@ import { SiteActivityButton, SiteActivityToolbar } from '~/components/activity'
 import { usePictionaryI18n } from './i18n'
 
 defineProps<{
+  roomTitle: string
   transportLabel: string
 }>()
 
@@ -17,7 +18,7 @@ const { text } = usePictionaryI18n()
   <SiteActivityToolbar
     class="pictionary-room-toolbar"
     icon="i-ph-game-controller"
-    :title="text.room.title"
+    :title="roomTitle"
   >
     <template #status>
       <span class="pictionary-room-toolbar__live-dot" aria-hidden="true" />

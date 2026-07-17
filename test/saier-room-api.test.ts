@@ -340,7 +340,7 @@ describe('saier-room-api handler', () => {
     })
     const session = created.session as {
       inviteToken: string
-      room: { id: string, roomMetadataRevision: number }
+      room: { id: string, roomMetadataRevision: number, title: string }
       shareUrl: string
     }
 
@@ -348,6 +348,7 @@ describe('saier-room-api handler', () => {
       room: {
         id: 'sr_1',
         roomMetadataRevision: 0,
+        title: 'Friday Pictionary',
       },
       shareUrl: 'https://saier.yunle.fun/games/pictionary/sr_1?invite=rt_1',
     })
@@ -779,6 +780,30 @@ describe('saier-room-api handler', () => {
 })
 
 describe('saier room activity authority', () => {
+  it('uses the Chinese built-in word bank for Chinese room creators', async () => {
+    const { handler, repo } = createHarness()
+    const created = await handler({
+      action: 'createActivityRoom',
+      title: '周末画画',
+      visibility: 'link',
+    })
+    const roomId = String((created.session?.room as { id: string }).id)
+
+    await handler({
+      action: 'activatePictionary',
+      commandId: 'activate-zh',
+      locale: 'zh',
+      roomId,
+    })
+
+    expect(repo.inspectActivityRecords().secrets).toEqual([
+      expect.objectContaining({
+        remainingWords: expect.arrayContaining(['苹果', '熊猫', '自行车', '机器人']),
+        wordBankVersion: 'builtin.zh.v1',
+      }),
+    ])
+  })
+
   it('atomically activates an activity and rejects command id payload reuse', async () => {
     const { handler, repo } = createHarness()
     const { finalized } = await createAndFinalizeRoom(handler)

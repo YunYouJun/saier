@@ -1,2 +1,3 @@
-export const appName = 'Saier'
-export const appDescription = 'Saier is an elegant online painting runtime powered by PixiJS.'
+export const appName = '云绘 Saier'
+export const appShortName = '云绘'
+export const appDescription = '云绘（Saier）是云乐坊旗下的在线绘画工作台。'

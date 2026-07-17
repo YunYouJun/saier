@@ -147,6 +147,7 @@ async function createPreviewPainter(
     backend: 'tiled',
     boardSize: { width: project.width, height: project.height },
     input: { pointerSource: 'pixi' },
+    pixiOptions: { backgroundAlpha: 0 },
     size: {
       width: Math.max(1, Math.round(bounds.width)),
       height: Math.max(1, Math.round(bounds.height)),

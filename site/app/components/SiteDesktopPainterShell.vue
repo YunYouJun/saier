@@ -83,6 +83,9 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
             <slot name="account" />
           </div>
           <span class="site-painter__status">{{ statusLabel }}</span>
+          <div class="site-painter__theme">
+            <slot name="theme" />
+          </div>
           <details class="site-painter__locale-menu">
             <summary class="site-painter__locale" :aria-label="languageLabel">
               <span class="site-painter__locale-label">{{ languageLabel }}</span>
@@ -300,7 +303,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   min-width: 0;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   padding: 6px 12px 2px;
 }
 
@@ -385,7 +388,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   min-width: 0;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
 }
 
 .site-painter__account {
@@ -393,7 +396,13 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   min-width: 0;
 }
 
-.site-painter__account:empty {
+.site-painter__theme {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.site-painter__account:empty,
+.site-painter__theme:empty {
   display: none;
 }
 

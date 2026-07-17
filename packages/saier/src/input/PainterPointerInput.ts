@@ -263,11 +263,11 @@ export class PainterPointerInput {
   }
 
   private toDocument(clientX: number, clientY: number): { x: number, y: number } {
-    const rect = this.canvas.getBoundingClientRect()
+    const point = this.toCanvasPoint(clientX, clientY)
     const board = this.painter.board.container
     return {
-      x: (clientX - rect.left - board.position.x) / board.scale.x + this.painter.surface.width / 2,
-      y: (clientY - rect.top - board.position.y) / board.scale.y + this.painter.surface.height / 2,
+      x: (point.x - board.position.x) / board.scale.x + this.painter.surface.width / 2,
+      y: (point.y - board.position.y) / board.scale.y + this.painter.surface.height / 2,
     }
   }
 
@@ -277,12 +277,22 @@ export class PainterPointerInput {
     clientX: number
     clientY: number
   } {
-    const rect = this.canvas.getBoundingClientRect()
+    const point = this.toCanvasPoint(event.clientX, event.clientY)
     return {
       pointerId: event.pointerId,
       pointerType: event.pointerType,
-      clientX: event.clientX - rect.left,
-      clientY: event.clientY - rect.top,
+      clientX: point.x,
+      clientY: point.y,
+    }
+  }
+
+  private toCanvasPoint(clientX: number, clientY: number): { x: number, y: number } {
+    const rect = this.canvas.getBoundingClientRect()
+    const scaleX = rect.width > 0 ? this.painter.app.screen.width / rect.width : 1
+    const scaleY = rect.height > 0 ? this.painter.app.screen.height / rect.height : 1
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY,
     }
   }
 

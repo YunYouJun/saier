@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { createApp, h, nextTick, shallowRef } from 'vue'
 import { useSiteI18n } from '~/composables/useSiteI18n'
 import PictionaryCreateRoomCard from './PictionaryCreateRoomCard.vue'
+import PictionaryDrawingPanel from './PictionaryDrawingPanel.vue'
 import PictionaryJoinRoomCard from './PictionaryJoinRoomCard.vue'
 import PictionaryRoomLobby from './PictionaryRoomLobby.vue'
 import PictionaryRoomToolbar from './PictionaryRoomToolbar.vue'
@@ -69,6 +70,12 @@ describe('pictionary editor UI', () => {
     expect(el.querySelector('[aria-describedby="pictionary-create-error"]')).not.toBeNull()
     expect(el.querySelector('[aria-describedby="pictionary-join-error"]')).not.toBeNull()
 
+    const roomName = el.querySelector<HTMLInputElement>('input[maxlength="96"]')!
+    roomName.value = 'Friday sketch club'
+    roomName.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    expect(title.value).toBe('Friday sketch club')
+
     el.className = 'light'
     expect(getComputedStyle(primaryButton).backgroundColor).toBe('rgba(37, 99, 235, 0.12)')
 
@@ -88,10 +95,14 @@ describe('pictionary editor UI', () => {
     ]
     const cycles = shallowRef<1 | 2 | 3 | 4 | 5>(2)
     const duration = shallowRef<60_000 | 90_000 | 120_000>(90_000)
+    const drawingTool = shallowRef<'eraser' | 'marker' | 'pen'>('pen')
+    const drawingColor = shallowRef('#202020')
+    const drawingSize = shallowRef(8)
     let inviteCount = 0
     let startCount = 0
     const el = mount(() => h('main', { class: 'site-activity-surface' }, [
       h(PictionaryRoomToolbar, {
+        roomTitle: '周末画画房',
         transportLabel: '实时链路 · open',
         onInvite: () => inviteCount++,
       }),
@@ -115,6 +126,17 @@ describe('pictionary editor UI', () => {
         players,
         warning: '',
       }),
+      h(PictionaryDrawingPanel, {
+        ...{
+          canTakeControl: true,
+          color: drawingColor.value,
+          size: drawingSize.value,
+          tool: drawingTool.value,
+        },
+        'onUpdate:color': (value: string) => drawingColor.value = value,
+        'onUpdate:size': (value: number) => drawingSize.value = value,
+        'onUpdate:tool': (value: 'eraser' | 'marker' | 'pen') => drawingTool.value = value,
+      }),
     ]))
 
     const buttons = [...el.querySelectorAll<HTMLButtonElement>('button')]
@@ -122,9 +144,16 @@ describe('pictionary editor UI', () => {
     buttons.find(button => button.textContent?.includes('开始游戏'))?.click()
     expect(inviteCount).toBe(1)
     expect(startCount).toBe(1)
+    expect(el.textContent).toContain('周末画画房')
     expect(el.textContent).toContain('房主')
     expect(el.textContent).toContain('计分板')
+    expect(el.textContent).toContain('绘制工具')
     expect(el.textContent).not.toContain('退出')
+
+    buttons.find(button => button.textContent?.includes('马克笔'))?.click()
+    await nextTick()
+    expect(drawingTool.value).toBe('marker')
+    expect(drawingSize.value).toBe(22)
 
     setLocale('en')
     await nextTick()

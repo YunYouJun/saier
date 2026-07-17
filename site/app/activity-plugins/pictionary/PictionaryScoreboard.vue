@@ -51,7 +51,7 @@ const { text } = usePictionaryI18n()
 <style scoped>
 .pictionary-scoreboard {
   align-self: start;
-  margin-top: 54px;
+  width: 100%;
   padding: 12px;
 }
 
@@ -108,7 +108,6 @@ const { text } = usePictionaryI18n()
 @media (max-width: 860px) {
   .pictionary-scoreboard {
     order: 2;
-    margin-top: 0;
   }
 }
 </style>

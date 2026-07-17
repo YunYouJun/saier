@@ -188,6 +188,7 @@ const {
   viewport,
 } = usePainter({
   debug: import.meta.env.DEV,
+  pixiOptions: { backgroundAlpha: 0 },
 })
 const {
   activityActive,
@@ -2283,6 +2284,17 @@ installSiteCloudRoomE2eBridge()
         :loading="yunlefunAccountLoading"
         settings-href="https://yunle.fun/settings"
         @login="loginWithYunlefun"
+      />
+    </template>
+
+    <template #theme>
+      <SiteThemeSwitcher
+        :appearance-label="text.menu.appearance"
+        :dark-label="text.menu.themeDark"
+        :light-label="text.menu.themeLight"
+        :preference="themePreference"
+        :system-label="text.menu.themeSystem"
+        @set-theme-preference="setThemePreference"
       />
     </template>
 

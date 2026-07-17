@@ -130,7 +130,7 @@ describe('site desktop painter shell panels', () => {
     expect(getComputedStyle(el.querySelector<HTMLElement>('.site-painter__panel-stage')!).display).toBe('none')
   })
 
-  it('themes application chrome without changing the neutral canvas surround', async () => {
+  it('themes both application chrome and the canvas surround', async () => {
     const dark = mountShell('document', 'dark')
     const light = mountShell('document', 'light')
     await nextTick()
@@ -143,6 +143,6 @@ describe('site desktop painter shell panels', () => {
     expect(getComputedStyle(darkShell).backgroundColor).not.toBe(getComputedStyle(lightShell).backgroundColor)
     expect(getComputedStyle(darkShell).color).not.toBe(getComputedStyle(lightShell).color)
     expect(getComputedStyle(darkCanvas).backgroundColor).toBe('rgb(81, 84, 90)')
-    expect(getComputedStyle(lightCanvas).backgroundColor).toBe('rgb(81, 84, 90)')
+    expect(getComputedStyle(lightCanvas).backgroundColor).toBe('rgb(216, 220, 226)')
   })
 })

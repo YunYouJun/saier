@@ -17,7 +17,7 @@ title: Decisions (ADR)
 | D5  | backend 可替换   | `SurfaceBackend` 接口从 P1 就抽象出来                                                   | 无（这是不返工的关键）                                                  |
 | D6  | 输入采集         | Pixi federated event 够用；**另留 DOM `getCoalescedEvents()` 接入点**给极致采样         | 无                                                                      |
 | D7  | UI 分层          | **面板→Vue/DOM；overlay→pixi；输入+状态→core(headless controller)**                     | UI 状态的事实来源禁止搬进框架响应式                                     |
-| D8  | 品牌 / 包分层    | ✅ **已落地**：品牌 = `saier`；scope 统一 `@saier/*`；可复用 UI 拆包、`site` 只消费     | 旧 npm `pixi-painter` deprecated alias 仍属首次 republish 的发布期工作  |
+| D8  | 品牌 / 包分层    | ✅ **已落地**：中文产品名 = 云绘，英文 / 开源品牌 = `saier`；scope 统一 `@saier/*`      | 旧 npm `pixi-painter` deprecated alias 仍属首次 republish 的发布期工作  |
 | D9  | 蒙版语义         | **图层蒙版按灰度亮度（luminance）显隐；剪贴（clip）按下层 alpha**                       | 纯 alpha 蒙版与主流软件相反、无法表达灰阶柔边                           |
 | D10 | 取色读回路径     | ✅ **已定**：`SurfaceSampler.sampleRegion` 注入笔刷、CPU tile 原生实现、逐 dab 交错采   | 纯协调器交错为备选（业界均逐 dab 串行）                                 |
 | D11 | 混色后端         | ✅ **已定（方案 A）**：**tile 升为默认绘画后端**；CPU tile = 像素真相、GPU 仅显示       | GPU 混色须自研 renderer（见[末尾](#何时才值得彻底脱离-pixi纯原生重写)） |
@@ -116,15 +116,15 @@ export function usePainter(painter: Painter) {
 - **展示 / 应用**：`site`（落地 + 交互 demo，**只消费** `@saier/vue`，不自己定义面板）、`examples/*`（最小集成片段）、`docs`（VitePress 书面文档）。
 - 原则：**可复用 UI = 包**；`site` 只组装与展示。一个开箱即用的整装编辑器 = `saier`（umbrella，re-export core + pixi + 默认装配）。
 
-**命名（已决定）**：品牌 = **`saier`**（赛尔，独立开源品牌，与 PaintTool SAI 无关，取刀锋 / 笔锋意象）。scope 统一 `@saier/*`：
+**命名（已决定）**：中文产品名 = **云绘**，归属云乐坊品牌；英文名与开源品牌继续使用 **Saier / `saier`**。此命名只调整中文用户界面与对外表达，不改变 npm 包、`@saier/*` scope、API、存储 key 或文件格式标识。
 
-| 包             | 角色                                                       | 状态                                                            |
-| -------------- | ---------------------------------------------------------- | --------------------------------------------------------------- |
-| `saier`        | 品牌 / umbrella 整装包（re-export core + pixi + 默认装配） | **已由 `pixi-painter` 迁移**；过渡期仅保留旧 npm alias 发布策略 |
-| `@saier/core`  | 引擎，**无 Pixi**                                          | P1 新建                                                         |
-| `@saier/pixi`  | Pixi 后端（与未来 `@saier/canvas` / `webgpu` 并列）        | P1 新建                                                         |
-| `@saier/vue`   | Vue UI 面板                                                | **已由 `@pixi-painter/controls` 迁移**                          |
-| `@saier/shodo` | 书法引擎                                                   | **已改名**（原 `plugin-shado` 拼写错）                          |
+| 包             | 角色                                                                  | 状态                                                            |
+| -------------- | --------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `saier`        | 英文 / 开源品牌与 umbrella 整装包（re-export core + pixi + 默认装配） | **已由 `pixi-painter` 迁移**；过渡期仅保留旧 npm alias 发布策略 |
+| `@saier/core`  | 引擎，**无 Pixi**                                                     | P1 新建                                                         |
+| `@saier/pixi`  | Pixi 后端（与未来 `@saier/canvas` / `webgpu` 并列）                   | P1 新建                                                         |
+| `@saier/vue`   | Vue UI 面板                                                           | **已由 `@pixi-painter/controls` 迁移**                          |
+| `@saier/shodo` | 书法引擎                                                              | **已改名**（原 `plugin-shado` 拼写错）                          |
 
 目录约定 `packages/{core,pixi,vue,shodo,saier}`（dir 与包名后缀一致）。**品牌张力已消解**：核心刻意与 Pixi 无关，而 `saier` 本就不含 pixi，名实相符。
 

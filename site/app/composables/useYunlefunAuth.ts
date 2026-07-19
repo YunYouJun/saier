@@ -1,6 +1,8 @@
-import type { SsoFailureReason, SsoMode, SsoSetSessionAuth } from '@yunlefun/sso'
+import type { SsoFailureReason, SsoMode } from '@yunlefun/sso'
+import type { SsoSetSessionAuth } from '@yunlefun/sso/legacy'
 import { computed, readonly } from 'vue'
 import { useRuntimeConfig, useState } from '#imports'
+import { withYunlefunInteractiveLoginPopup } from '../utils/yunlefunSso'
 
 export type YunlefunAuthStatus = 'idle' | 'checking' | 'signed-in' | 'signed-out' | 'signing-in' | 'error'
 
@@ -194,12 +196,16 @@ export function useYunlefunAuth() {
     lastError.value = null
 
     try {
-      const { isInYunleApp, signInWithSso } = await import('@yunlefun/sso')
+      const { isInYunleApp, signInWithSso } = await import('@yunlefun/sso/legacy')
       inNativeApp.value = isInYunleApp()
-      const result = await signInWithSso(auth, {
+      const requestSso = () => signInWithSso(auth, {
+        allowHttpLocalhost: import.meta.dev,
         mode,
         ...(ssoOrigin.value ? { ssoOrigin: ssoOrigin.value } : {}),
       })
+      const result = mode === 'interactive' && !inNativeApp.value
+        ? await withYunlefunInteractiveLoginPopup(ssoOrigin.value, requestSso)
+        : await requestSso()
 
       if (result.ok) {
         await refresh()

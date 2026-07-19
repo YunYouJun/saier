@@ -82,7 +82,7 @@ export default defineNuxtConfig({
     optimizeDeps: {
       include: [
         '@cloudbase/js-sdk',
-        '@yunlefun/sso',
+        '@yunlefun/sso/legacy',
         'axios',
         'consola',
         'reka-ui',

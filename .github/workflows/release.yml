@@ -13,22 +13,22 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          run_install: true
+        uses: pnpm/action-setup@v6
 
-      # after pnpm
       - name: Use Node.js LTS
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v6
         with:
           node-version: 'lts/*'
           registry-url: https://registry.npmjs.org/
           cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       # https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
       - run: cd packages/saier && npm publish

@@ -58,6 +58,7 @@ function updateSelection(value: unknown): void {
 .painter-tool-switcher {
   display: inline-flex;
   min-width: 0;
+  flex: 0 0 auto;
   align-items: center;
   gap: 3px;
 }

@@ -12,6 +12,7 @@ import type { SaierProjectDraftFile } from '~/utils/projectDraft'
 import { usePainter } from '@saier/vue/composables/usePainter'
 import { computed, onBeforeUnmount, onMounted, reactive, shallowRef, useTemplateRef, watch } from 'vue'
 import { useRouter } from '#imports'
+import { version as siteVersion } from '../../package.json'
 import { isSiteActivityPluginType } from '~/activity-plugins/registry'
 import SiteDesktopPainterShell from '~/components/SiteDesktopPainterShell.vue'
 import SiteMobilePainterShell from '~/components/SiteMobilePainterShell.vue'
@@ -28,6 +29,7 @@ import { useSitePainterShellMode } from '~/composables/useSitePainterShellMode'
 import { useSitePainterShortcuts } from '~/composables/useSitePainterShortcuts'
 import { useSitePlatformAdapter } from '~/composables/useSitePlatformAdapter'
 import { useSiteTheme } from '~/composables/useSiteTheme'
+import { syncPainterWorkspaceTheme } from '~/composables/usePainterWorkspaceTheme'
 import { useStrokeReplayPreview } from '~/composables/useStrokeReplayPreview'
 import { useYunlefunBrushLibrary } from '~/composables/useYunlefunBrushLibrary'
 import { useYunlefunCloudFiles } from '~/composables/useYunlefunCloudFiles'
@@ -130,11 +132,13 @@ const {
 } = useSiteI18n()
 const {
   preference: themePreference,
+  resolvedTheme,
   setThemePreference,
 } = useSiteTheme()
 const platformAdapter = useSitePlatformAdapter()
 
 const exportPreview = shallowRef<string>()
+const aboutDialogOpen = shallowRef(false)
 const cloudRoomDialogOpen = shallowRef(false)
 const cloudSyncDialogOpen = shallowRef(false)
 const lastFilterCommand = shallowRef<SitePainterFilterCommand>()
@@ -187,8 +191,13 @@ const {
   state,
   viewport,
 } = usePainter({
+  afterInit: initializedPainter => syncPainterWorkspaceTheme(initializedPainter, resolvedTheme.value),
   debug: import.meta.env.DEV,
   pixiOptions: { backgroundAlpha: 0 },
+})
+watch(resolvedTheme, (theme) => {
+  if (painter.value)
+    syncPainterWorkspaceTheme(painter.value, theme)
 })
 const {
   activityActive,
@@ -345,7 +354,8 @@ const projectDraftRecoveryMeta = computed(() => {
 })
 const unsavedChangesDialogOpen = computed(() => Boolean(unsavedChangesConfirmRequest.value))
 const shortcutsDisabled = computed(() =>
-  cloudSyncDialogOpen.value
+  aboutDialogOpen.value
+  || cloudSyncDialogOpen.value
   || cloudRoomDialogOpen.value
   || keyboardShortcutsDialogOpen.value
   || newCanvasDialogOpen.value
@@ -895,6 +905,14 @@ function openKeyboardShortcutsDialog(): void {
 
 function closeKeyboardShortcutsDialog(): void {
   keyboardShortcutsDialogOpen.value = false
+}
+
+function openAboutDialog(): void {
+  aboutDialogOpen.value = true
+}
+
+function closeAboutDialog(): void {
+  aboutDialogOpen.value = false
 }
 
 function resetKeyboardShortcuts(): void {
@@ -2321,6 +2339,7 @@ installSiteCloudRoomE2eBridge()
         :shortcuts="menuShortcutLabels"
         :theme-preference="themePreference"
         @command="handleMenuCommand"
+        @open-about="openAboutDialog"
         @open-activity="openActivity"
         @set-active-layer-visible="setActiveLayerVisible"
         @set-color-section-visible="setColorSectionVisible"
@@ -2331,7 +2350,12 @@ installSiteCloudRoomE2eBridge()
     </template>
 
     <template #toolbar>
-      <div class="site-painter-toolbar-stack">
+      <div
+        class="site-painter-toolbar-stack"
+        :aria-label="toolbarLabels.tools"
+        role="region"
+        tabindex="0"
+      >
         <SitePainterToolbar
           :active-tool="activeTool"
           :can-redo="state?.history.canRedo ?? false"
@@ -2523,6 +2547,14 @@ installSiteCloudRoomE2eBridge()
     @reset-defaults="resetKeyboardShortcuts"
   />
 
+  <SiteAboutDialog
+    :app-name="text.appName"
+    :labels="text.about"
+    :open="aboutDialogOpen"
+    :version="siteVersion"
+    @close="closeAboutDialog"
+  />
+
   <SiteCloudRoomDialog
     :default-title="cloudRoomDefaultTitle"
     :error-message="cloudRoomErrorMessage"
@@ -2572,15 +2604,30 @@ installSiteCloudRoomE2eBridge()
 <style scoped>
 .site-painter-toolbar-stack {
   display: flex;
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
   align-items: center;
   gap: 8px;
   overflow-x: auto;
-  scrollbar-width: none;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  scrollbar-color: var(--saier-color-border-strong) transparent;
+  scrollbar-width: thin;
 }
 
 .site-painter-toolbar-stack::-webkit-scrollbar {
-  display: none;
+  height: 4px;
+}
+
+.site-painter-toolbar-stack::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--saier-color-border-strong);
+}
+
+.site-painter-toolbar-stack:focus-visible {
+  outline: 2px solid var(--saier-color-focus);
+  outline-offset: -2px;
 }
 
 .site-stroke-replay-blocker {

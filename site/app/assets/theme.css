@@ -67,8 +67,8 @@
 [data-saier-theme='dark'] {
   color-scheme: dark;
   --saier-color-app-background: #202124;
-  --saier-color-workspace: #51545a;
-  --saier-color-canvas-surround: #51545a;
+  --saier-color-workspace: #282a2e;
+  --saier-color-canvas-surround: #282a2e;
   --saier-color-chrome: rgb(15 16 18 / 96%);
   --saier-color-panel: rgb(18 18 22 / 94%);
   --saier-color-panel-raised: rgb(28 28 31 / 98%);

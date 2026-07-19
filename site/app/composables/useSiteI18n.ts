@@ -56,6 +56,15 @@ interface SiteMessages {
     signedIn: string
     signingIn: string
   }
+  about: {
+    close: string
+    copyright: string
+    description: string
+    license: string
+    sourceCode: string
+    title: string
+    version: string
+  }
   activities: {
     close: string
     loadFailed: string
@@ -179,7 +188,10 @@ interface SiteMessages {
     themeSystem: string
     themeLight: string
     themeDark: string
-    others: string
+    help: string
+    helpManual: string
+    issueFeedback: string
+    aboutSaier: string
     keyboardShortcuts: string
     filter: string
     repeatFilter: string
@@ -416,6 +428,15 @@ const messages: Record<SiteLocale, SiteMessages> = {
     exportPreview: 'Export preview',
     closePreview: 'Close preview',
     loading: 'Loading painter...',
+    about: {
+      close: 'Close',
+      copyright: 'Copyright © 2023–present YunYouJun',
+      description: 'An elegant online painting workspace powered by PixiJS.',
+      license: 'Open source under the MPL-2.0 license.',
+      sourceCode: 'View source code',
+      title: 'About Saier',
+      version: 'Version',
+    },
     notices: {
       close: 'Dismiss',
       projectDraftClearFailed: 'Could not discard the local draft.',
@@ -568,7 +589,10 @@ const messages: Record<SiteLocale, SiteMessages> = {
       themeSystem: 'Follow system',
       themeLight: 'Light',
       themeDark: 'Dark',
-      others: 'Others',
+      help: 'Help',
+      helpManual: 'Help manual',
+      issueFeedback: 'Report an issue',
+      aboutSaier: 'About Saier...',
       keyboardShortcuts: 'Keyboard Shortcuts...',
       filter: 'Filter',
       repeatFilter: 'Repeat filter',
@@ -880,6 +904,15 @@ const messages: Record<SiteLocale, SiteMessages> = {
     exportPreview: '导出预览',
     closePreview: '关闭预览',
     loading: '画板加载中...',
+    about: {
+      close: '关闭',
+      copyright: 'Copyright © 2023–至今 YunYouJun',
+      description: '由 PixiJS 驱动的优雅在线绘画工作台。',
+      license: '基于 MPL-2.0 许可协议开源。',
+      sourceCode: '查看源代码',
+      title: '关于 Saier',
+      version: '版本',
+    },
     notices: {
       close: '关闭',
       projectDraftClearFailed: '无法丢弃本地草稿。',
@@ -1032,7 +1065,10 @@ const messages: Record<SiteLocale, SiteMessages> = {
       themeSystem: '跟随系统',
       themeLight: '亮色',
       themeDark: '暗色',
-      others: '其他',
+      help: '帮助',
+      helpManual: '帮助手册',
+      issueFeedback: '问题反馈（Issue）',
+      aboutSaier: '关于 Saier...',
       keyboardShortcuts: '快捷键设置...',
       filter: '滤镜',
       repeatFilter: '上次滤镜',

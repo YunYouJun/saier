@@ -45,6 +45,7 @@ const emit = defineEmits<{
 const normalizedCount = computed(() => Math.max(0, Math.floor(props.count)))
 const normalizedPosition = computed(() => clampInteger(props.position, 0, normalizedCount.value))
 const canStepForward = computed(() => !props.disabled && normalizedPosition.value < normalizedCount.value)
+const hasReplayControls = computed(() => normalizedCount.value > 0 || props.previewing)
 
 const positionModel = computed({
   get(): number {
@@ -99,104 +100,102 @@ function clampSpeed(value: number): number {
     >
       <span class="i-ph-upload-simple" />
     </ToolbarButton>
-    <span v-if="normalizedCount === 0" class="site-stroke-replay__hint" :title="labels.emptyHint">
+    <span v-if="!hasReplayControls" class="site-stroke-replay__hint" :title="labels.emptyHint">
       <span class="i-ph-info" />
       {{ labels.emptyHint }}
     </span>
-    <ToolbarButton
-      class="site-stroke-replay__button"
-      :disabled="disabled || normalizedCount <= 0"
-      :title="labels.exportLog"
-      @click="emit('command', 'recording:export-log')"
-    >
-      <span class="i-ph-download-simple" />
-    </ToolbarButton>
 
-    <ToolbarSeparator class="site-stroke-replay__separator" />
+    <template v-if="hasReplayControls">
+      <ToolbarButton
+        class="site-stroke-replay__button"
+        :disabled="disabled || normalizedCount <= 0"
+        :title="labels.exportLog"
+        @click="emit('command', 'recording:export-log')"
+      >
+        <span class="i-ph-download-simple" />
+      </ToolbarButton>
 
-    <ToolbarButton
-      class="site-stroke-replay__button"
-      :disabled="disabled || normalizedPosition <= 0"
-      :title="labels.reset"
-      @click="emit('command', 'recording:seek-start')"
-    >
-      <span class="i-ph-skip-back" />
-    </ToolbarButton>
-    <ToolbarButton
-      class="site-stroke-replay__button"
-      :disabled="disabled || (!playing && !canStepForward)"
-      :title="playing ? labels.pause : labels.play"
-      @click="playPause"
-    >
-      <span :class="playing ? 'i-ph-pause' : 'i-ph-play'" />
-    </ToolbarButton>
-    <ToolbarButton
-      class="site-stroke-replay__button"
-      :disabled="!canStepForward"
-      :title="labels.step"
-      @click="emit('command', 'recording:step-forward')"
-    >
-      <span class="i-ph-skip-forward" />
-    </ToolbarButton>
-    <ToolbarButton
-      class="site-stroke-replay__button"
-      :disabled="!previewing"
-      :title="labels.closePreview"
-      @click="emit('command', 'recording:close-preview')"
-    >
-      <span class="i-ph-x" />
-    </ToolbarButton>
-    <span v-if="previewing" class="site-stroke-replay__hint" :title="labels.previewActive">
-      <span class="i-ph-info" />
-      {{ labels.previewActive }}
-    </span>
+      <ToolbarSeparator class="site-stroke-replay__separator" />
 
-    <ToolbarSeparator class="site-stroke-replay__separator" />
+      <ToolbarButton
+        class="site-stroke-replay__button"
+        :disabled="disabled || normalizedPosition <= 0"
+        :title="labels.reset"
+        @click="emit('command', 'recording:seek-start')"
+      >
+        <span class="i-ph-skip-back" />
+      </ToolbarButton>
+      <ToolbarButton
+        class="site-stroke-replay__button"
+        :disabled="disabled || (!playing && !canStepForward)"
+        :title="playing ? labels.pause : labels.play"
+        @click="playPause"
+      >
+        <span :class="playing ? 'i-ph-pause' : 'i-ph-play'" />
+      </ToolbarButton>
+      <ToolbarButton
+        class="site-stroke-replay__button"
+        :disabled="!canStepForward"
+        :title="labels.step"
+        @click="emit('command', 'recording:step-forward')"
+      >
+        <span class="i-ph-skip-forward" />
+      </ToolbarButton>
+      <ToolbarButton
+        class="site-stroke-replay__button"
+        :disabled="!previewing"
+        :title="labels.closePreview"
+        @click="emit('command', 'recording:close-preview')"
+      >
+        <span class="i-ph-x" />
+      </ToolbarButton>
+      <span v-if="previewing" class="site-stroke-replay__hint" :title="labels.previewActive">
+        <span class="i-ph-info" />
+        {{ labels.previewActive }}
+      </span>
 
-    <PainterSlider
-      v-model="positionModel"
-      class="site-stroke-replay__position"
-      :disabled="disabled || normalizedCount <= 0"
-      :format-value="formatPosition"
-      icon="i-ph-timeline"
-      :label="labels.position"
-      :max="normalizedCount"
-      :min="0"
-      :step="1"
-      variant="compact"
-    />
-    <PainterSlider
-      v-model="speedModel"
-      class="site-stroke-replay__speed"
-      :disabled="disabled"
-      :format-value="formatSpeed"
-      icon="i-ph-gauge"
-      :label="labels.speed"
-      :max="4"
-      :min="0.25"
-      :step="0.25"
-      variant="compact"
-    />
+      <ToolbarSeparator class="site-stroke-replay__separator" />
+
+      <PainterSlider
+        v-model="positionModel"
+        class="site-stroke-replay__position"
+        :disabled="disabled || normalizedCount <= 0"
+        :format-value="formatPosition"
+        icon="i-ph-timeline"
+        :label="labels.position"
+        :max="normalizedCount"
+        :min="0"
+        :step="1"
+        variant="compact"
+      />
+      <PainterSlider
+        v-model="speedModel"
+        class="site-stroke-replay__speed"
+        :disabled="disabled"
+        :format-value="formatSpeed"
+        icon="i-ph-gauge"
+        :label="labels.speed"
+        :max="4"
+        :min="0.25"
+        :step="0.25"
+        variant="compact"
+      />
+    </template>
   </ToolbarRoot>
 </template>
 
 <style scoped>
 .site-stroke-replay {
   display: inline-flex;
-  max-width: 100%;
+  max-width: none;
   height: 36px;
+  flex: 0 0 auto;
   align-items: center;
   gap: 3px;
-  overflow-x: auto;
   padding: 3px;
   border: 1px solid var(--saier-color-border);
   border-radius: 7px;
   background: var(--saier-color-surface);
-  scrollbar-width: none;
-}
-
-.site-stroke-replay::-webkit-scrollbar {
-  display: none;
 }
 
 :global(.site-stroke-replay__button) {
@@ -263,9 +262,15 @@ function clampSpeed(value: number): number {
   white-space: nowrap;
 }
 
-@media (width < 760px) {
+@media (width < 1280px) {
   .site-stroke-replay__hint {
-    max-width: 150px;
+    width: 28px;
+    padding-inline: 7px;
+    font-size: 0;
+  }
+
+  .site-stroke-replay__hint > span {
+    font-size: 11px;
   }
 }
 </style>

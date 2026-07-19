@@ -44,7 +44,10 @@ interface SitePainterMenubarLabels {
   themeSystem: string
   themeLight: string
   themeDark: string
-  others: string
+  help: string
+  helpManual: string
+  issueFeedback: string
+  aboutSaier: string
   keyboardShortcuts: string
   filter: string
   repeatFilter: string
@@ -105,6 +108,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   command: [command: SitePainterMenuCommand]
+  openAbout: []
   openActivity: [pluginId: string]
   setColorSectionVisible: [sectionId: SitePainterColorSectionId, visible: boolean]
   setActiveLayerVisible: [visible: boolean]
@@ -514,23 +518,6 @@ function shortcutLabel(command: SitePainterCommand): string {
       </MenubarPortal>
     </MenubarMenu>
 
-    <MenubarMenu value="others">
-      <MenubarTrigger class="site-menubar__trigger">
-        {{ labels.others }}
-      </MenubarTrigger>
-      <MenubarPortal>
-        <MenubarContent class="site-menubar__content" align="start" :side-offset="7">
-          <MenubarItem class="site-menubar__item" @select="emit('command', 'app:keyboard-shortcuts')">
-            <span class="site-menubar__item-main">
-              <span class="i-ph-keyboard" />
-              <span>{{ labels.keyboardShortcuts }}</span>
-            </span>
-            <span v-if="shortcutLabel('app:keyboard-shortcuts')" class="site-menubar__shortcut">{{ shortcutLabel('app:keyboard-shortcuts') }}</span>
-          </MenubarItem>
-        </MenubarContent>
-      </MenubarPortal>
-    </MenubarMenu>
-
     <MenubarMenu value="tools">
       <MenubarTrigger class="site-menubar__trigger">
         {{ labels.tools }}
@@ -615,6 +602,57 @@ function shortcutLabel(command: SitePainterCommand): string {
             <span class="site-menubar__item-main">
               <span class="i-ph-trash" />
               <span>{{ labels.removeActiveLayer }}</span>
+            </span>
+          </MenubarItem>
+        </MenubarContent>
+      </MenubarPortal>
+    </MenubarMenu>
+
+    <MenubarMenu value="help">
+      <MenubarTrigger class="site-menubar__trigger">
+        {{ labels.help }}
+      </MenubarTrigger>
+      <MenubarPortal>
+        <MenubarContent class="site-menubar__content" align="start" :side-offset="7">
+          <MenubarItem class="site-menubar__item" @select="emit('command', 'app:keyboard-shortcuts')">
+            <span class="site-menubar__item-main">
+              <span class="i-ph-keyboard" />
+              <span>{{ labels.keyboardShortcuts }}</span>
+            </span>
+            <span v-if="shortcutLabel('app:keyboard-shortcuts')" class="site-menubar__shortcut">{{ shortcutLabel('app:keyboard-shortcuts') }}</span>
+          </MenubarItem>
+          <MenubarSeparator class="site-menubar__separator" />
+          <MenubarItem class="site-menubar__item" as-child>
+            <a
+              href="https://saier-docs.pages.dev/guide/getting-started"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              <span class="site-menubar__item-main">
+                <span class="i-ph-book-open-text" />
+                <span>{{ labels.helpManual }}</span>
+              </span>
+              <span class="i-ph-arrow-square-out site-menubar__external" aria-hidden="true" />
+            </a>
+          </MenubarItem>
+          <MenubarItem class="site-menubar__item" as-child>
+            <a
+              href="https://github.com/YunYouJun/saier/issues/new/choose"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              <span class="site-menubar__item-main">
+                <span class="i-ph-chat-circle-dots" />
+                <span>{{ labels.issueFeedback }}</span>
+              </span>
+              <span class="i-ph-arrow-square-out site-menubar__external" aria-hidden="true" />
+            </a>
+          </MenubarItem>
+          <MenubarSeparator class="site-menubar__separator" />
+          <MenubarItem class="site-menubar__item" @select="emit('openAbout')">
+            <span class="site-menubar__item-main">
+              <span class="i-ph-info" />
+              <span>{{ labels.aboutSaier }}</span>
             </span>
           </MenubarItem>
         </MenubarContent>
@@ -720,6 +758,12 @@ function shortcutLabel(command: SitePainterCommand): string {
   flex: 0 0 auto;
   color: var(--saier-color-text-subtle);
   font-size: 12px;
+}
+
+:global(.site-menubar__external) {
+  flex: 0 0 auto;
+  color: var(--saier-color-text-subtle);
+  font-size: 13px;
 }
 
 :global(.site-menubar__indicator-slot) {

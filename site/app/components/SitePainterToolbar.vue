@@ -233,20 +233,15 @@ function normalizeStabilizerStrength(strength: number): number {
 <style scoped>
 .site-toolbar {
   display: inline-flex;
-  max-width: 100%;
+  max-width: none;
   height: 36px;
+  flex: 0 0 auto;
   align-items: center;
   gap: 3px;
-  overflow-x: auto;
   padding: 3px;
   border: 1px solid var(--saier-color-border);
   border-radius: 7px;
   background: var(--saier-color-surface);
-  scrollbar-width: none;
-}
-
-.site-toolbar::-webkit-scrollbar {
-  display: none;
 }
 
 :global(.site-toolbar__button) {

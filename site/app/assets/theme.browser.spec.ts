@@ -35,7 +35,7 @@ describe('site theme tokens', () => {
     const dark = createThemeProbe('dark', token)
     const light = createThemeProbe('light', token)
 
-    expect(getComputedStyle(dark).backgroundColor).toBe('rgb(81, 84, 90)')
+    expect(getComputedStyle(dark).backgroundColor).toBe('rgb(40, 42, 46)')
     expect(getComputedStyle(light).backgroundColor).toBe('rgb(216, 220, 226)')
   })
 })

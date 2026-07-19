@@ -142,7 +142,7 @@ describe('site desktop painter shell panels', () => {
 
     expect(getComputedStyle(darkShell).backgroundColor).not.toBe(getComputedStyle(lightShell).backgroundColor)
     expect(getComputedStyle(darkShell).color).not.toBe(getComputedStyle(lightShell).color)
-    expect(getComputedStyle(darkCanvas).backgroundColor).toBe('rgb(81, 84, 90)')
+    expect(getComputedStyle(darkCanvas).backgroundColor).toBe('rgb(40, 42, 46)')
     expect(getComputedStyle(lightCanvas).backgroundColor).toBe('rgb(216, 220, 226)')
   })
 })

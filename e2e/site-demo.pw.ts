@@ -39,10 +39,51 @@ test('site demo boots the Pixi v8 painter without throwing', async ({ page }) =>
     return {
       canvasBackground: canvas ? getComputedStyle(canvas).backgroundColor : null,
       rendererBackgroundAlpha: app?.renderer?.background?.alpha,
+      rendererBackgroundColor: app?.renderer?.background?.color?.toHex?.(),
     }
   })
-  expect(appearance.rendererBackgroundAlpha).toBe(0)
+  expect(appearance.rendererBackgroundAlpha).toBe(1)
+  expect(appearance.rendererBackgroundColor).toBe('#d8dce2')
   expect(appearance.canvasBackground).toBe('rgb(216, 220, 226)')
+
+  const toolbarLayout = await page.evaluate(() => {
+    const toolSwitcher = document.querySelector<HTMLElement>('.painter-tool-switcher')
+    const stabilizer = document.querySelector<HTMLElement>('.site-toolbar__stabilizer')
+    const primaryToolbar = document.querySelector<HTMLElement>('.site-toolbar')
+    const replayToolbar = document.querySelector<HTMLElement>('.site-stroke-replay')
+    if (!toolSwitcher || !stabilizer || !primaryToolbar || !replayToolbar)
+      return null
+
+    return {
+      primaryRight: primaryToolbar.getBoundingClientRect().right,
+      replayLeft: replayToolbar.getBoundingClientRect().left,
+      stabilizerLeft: stabilizer.getBoundingClientRect().left,
+      toolSwitcherRight: toolSwitcher.getBoundingClientRect().right,
+    }
+  })
+  expect(toolbarLayout).not.toBeNull()
+  expect(toolbarLayout!.toolSwitcherRight).toBeLessThanOrEqual(toolbarLayout!.stabilizerLeft)
+  expect(toolbarLayout!.primaryRight).toBeLessThanOrEqual(toolbarLayout!.replayLeft)
+
+  const initialViewport = page.viewportSize()!
+  await page.setViewportSize({ width: 900, height: initialViewport.height })
+  const compactToolbarLayout = await page.evaluate(() => {
+    const toolbar = document.querySelector<HTMLElement>('.site-painter-toolbar-stack')
+    const finalGroup = toolbar?.lastElementChild as HTMLElement | null
+    if (!toolbar || !finalGroup)
+      return null
+
+    toolbar.scrollLeft = toolbar.scrollWidth
+    return {
+      finalGroupRight: finalGroup.getBoundingClientRect().right,
+      scrollable: toolbar.scrollWidth > toolbar.clientWidth,
+      toolbarRight: toolbar.getBoundingClientRect().right,
+    }
+  })
+  expect(compactToolbarLayout).not.toBeNull()
+  expect(compactToolbarLayout!.scrollable).toBe(true)
+  expect(compactToolbarLayout!.finalGroupRight).toBeLessThanOrEqual(compactToolbarLayout!.toolbarRight + 1)
+  await page.setViewportSize(initialViewport)
 
   const themeTrigger = page.locator('.site-theme-switcher__trigger')
   await expect(themeTrigger).toBeVisible()
@@ -56,9 +97,18 @@ test('site demo boots the Pixi v8 painter without throwing', async ({ page }) =>
   await expect(page.locator('html')).toHaveClass(/dark/)
   await expect(themeTrigger).toHaveAttribute('aria-label', /Dark$/)
   await expect.poll(() => page.evaluate(() => {
+    const app = (globalThis as any).__PIXI_APP__
     const canvas = document.querySelector<HTMLCanvasElement>('.site-painter__canvas-host canvas')
-    return canvas ? getComputedStyle(canvas).backgroundColor : null
-  })).toBe('rgb(81, 84, 90)')
+    return {
+      canvasBackground: canvas ? getComputedStyle(canvas).backgroundColor : null,
+      rendererBackgroundAlpha: app?.renderer?.background?.alpha,
+      rendererBackgroundColor: app?.renderer?.background?.color?.toHex?.(),
+    }
+  })).toEqual({
+    canvasBackground: 'rgb(40, 42, 46)',
+    rendererBackgroundAlpha: 1,
+    rendererBackgroundColor: '#282a2e',
+  })
 
   const bootThrows = pageErrors.filter(m =>
     /resolution|renderer|background|reading '|app\.init/i.test(m),

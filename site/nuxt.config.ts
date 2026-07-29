@@ -54,7 +54,10 @@ export default defineNuxtConfig({
       saierCloudFileMaxBytes: Number(process.env.NUXT_PUBLIC_SAIER_CLOUD_FILE_MAX_BYTES || 200 * 1024 * 1024),
       saierCloudRoomApiFunctionName: process.env.NUXT_PUBLIC_SAIER_CLOUD_ROOM_API_FUNCTION_NAME || 'saier-room-api',
       yunlefunCloudbaseEnv: process.env.NUXT_PUBLIC_YUNLEFUN_CLOUDBASE_ENV || 'yunlefun-8g7ybcxc7345c490',
+      yunlefunSsoClientId: process.env.NUXT_PUBLIC_YUNLEFUN_SSO_CLIENT_ID || 'saier-web',
+      yunlefunSsoExchangeUrl: process.env.NUXT_PUBLIC_YUNLEFUN_SSO_EXCHANGE_URL || 'https://api.yunle.fun/sso-ticket',
       yunlefunSsoOrigin: process.env.NUXT_PUBLIC_YUNLEFUN_SSO_ORIGIN || 'https://www.yunle.fun',
+      yunlefunSsoRedirectUri: process.env.NUXT_PUBLIC_YUNLEFUN_SSO_REDIRECT_URI || 'https://saier.yunle.fun/',
     },
   },
 
@@ -82,7 +85,8 @@ export default defineNuxtConfig({
     optimizeDeps: {
       include: [
         '@cloudbase/js-sdk',
-        '@yunlefun/sso/legacy',
+        '@yunlefun/sso',
+        '@yunlefun/sso/browser',
         'axios',
         'consola',
         'reka-ui',

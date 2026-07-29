@@ -1,0 +1,10 @@
+{
+	admin 127.0.0.1:2032
+	auto_https disable_redirects
+	skip_install_trust
+}
+
+https://saier.yunle.localhost:3452 {
+	tls internal
+	reverse_proxy {$YUNLE_SAIER_UPSTREAM:127.0.0.1:8080}
+}

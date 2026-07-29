@@ -87,6 +87,17 @@ YunLeFun 新增专用 `user-storage-api`，承接通用 shared storage 动作；
 - 笔刷库保存后上传；清除 `saier:brush-library:*` 本地缓存并刷新后可从云端拉回；删除并同步空库后，清缓存刷新不再出现。
 - 项目文件列表未显示 `kind: 'brush-library'` 文件；smoke 后项目列表和自定义笔刷均清理为空。
 
+2026-07-29 登录协议迁移：
+
+- Web Consumer 使用 `@yunlefun/sso@0.6.0` 的 v3 顶层 redirect、nonce 和 S256 PKCE；
+  不再使用 legacy iframe、popup 或跨 origin session 采用。
+- Apps 宿主只返回绑定 `saier-web`、`https://saier.yunle.fun/` 和
+  `identity:bootstrap` 的一次性授权码，不传递宿主 token/session。
+- Saier 采用授权码后建立自己的 CloudBase 会话，继续以统一 UID 调用
+  `user-storage-api`、`saier-room-api` 和 CloudBase storage。
+- 本地 SSO 使用精确登记的 `https://saier.yunle.localhost:3452/`；普通
+  `http://localhost:8080` 仍只用于不需要统一登录的开发。
+
 ## Out of scope
 
 - 真实 `MyPaintBrushEngineWasm`。

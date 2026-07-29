@@ -28,6 +28,8 @@
     "dev:electron": "pnpm -C apps/electron run dev",
     "dev:mobile": "pnpm -C apps/mobile run dev",
     "dev:site": "pnpm -C site run dev",
+    "dev:site:sso": "node scripts/dev-site-sso.mjs",
+    "dev:site:sso:trust": "caddy trust --address 127.0.0.1:2032",
     "dev:vue": "pnpm -C examples/vue run dev",
     "docs:dev": "pnpm -C docs run docs:dev",
     "docs:build": "pnpm -C docs run docs:build",

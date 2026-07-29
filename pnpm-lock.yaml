@@ -387,8 +387,8 @@ importers:
         specifier: workspace:*
         version: link:../packages/collaboration
       '@yunlefun/sso':
-        specifier: ^0.4.0
-        version: 0.4.0
+        specifier: 0.6.0
+        version: 0.6.0
       reka-ui:
         specifier: ^2.10.1
         version: 2.10.1(vue@3.5.39(typescript@5.9.3))
@@ -4009,8 +4009,8 @@ packages:
   '@xtuc/long@4.2.2':
     resolution: {integrity: sha512-NuHqBY1PB/D8xU6s/thBgOAiAP7HOYDQ32+BFZILJ8ivkUkAHQnWfn6WhL79Owj1qmUnoN/YPhktdIoucipkAQ==}
 
-  '@yunlefun/sso@0.4.0':
-    resolution: {integrity: sha512-taj6FdLWcAXMPqWWrV8hrY+rze9YcbKnmhb1+bHl4vyVVQPtCxVXvtC1uzQ6FbsB5pVRk/tKqO5RUiKxemkQqw==}
+  '@yunlefun/sso@0.6.0':
+    resolution: {integrity: sha512-zLr4eb53ti9fhjRCnPlOWVA32L/KxtoLVSeTK39yrv19bvcAvGEwWO4Yr5m2rqpvzyNO+Fc3C06CNQ8srOa9mw==}
 
   '@yunyoujun/docs@0.1.14':
     resolution: {integrity: sha512-SbSRB0QKLVzXDU6kkumAtEcLskPXD4GhWefYhbSokFiyD1sjB2Rogy6bymDvWmzD28T8UwmaekerXVBUBC1lpA==}
@@ -5832,6 +5832,9 @@ packages:
   jiti@2.7.0:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
     hasBin: true
+
+  jose@6.2.4:
+    resolution: {integrity: sha512-N8acGzVsQy6M/fjFcxtysNc4Q379TcM5dM/qKkNtsHFji88yANnXTr7BLeP75iPnFwBfQzM/jg2BZ9+HZrHCZA==}
 
   js-binary-schema-parser@2.0.3:
     resolution: {integrity: sha512-xezGJmOb4lk/M1ZZLTR/jaBHQ4gG/lqQnJqdIv4721DMggsa1bDVlHXNeHYogaIEHD9vCRv0fcL4hMA+Coarkg==}
@@ -13001,7 +13004,9 @@ snapshots:
 
   '@xtuc/long@4.2.2': {}
 
-  '@yunlefun/sso@0.4.0': {}
+  '@yunlefun/sso@0.6.0':
+    dependencies:
+      jose: 6.2.4
 
   '@yunyoujun/docs@0.1.14(vite@7.3.6(@types/node@26.0.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.101.0)(terser@5.48.0)(yaml@2.9.0))':
     dependencies:
@@ -15056,6 +15061,8 @@ snapshots:
   jiti@1.21.7: {}
 
   jiti@2.7.0: {}
+
+  jose@6.2.4: {}
 
   js-binary-schema-parser@2.0.3: {}
 

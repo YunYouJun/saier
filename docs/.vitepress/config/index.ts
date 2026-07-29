@@ -8,6 +8,7 @@ import { version } from '../../../package.json'
 const GUIDES: DefaultTheme.NavItemWithLink[] = [
   { text: 'What is 云绘 / Saier?', link: '/guide/what-is' },
   { text: 'Getting Started', link: '/guide/getting-started' },
+  { text: 'Local SSO Development', link: '/guide/local-sso-development' },
   { text: 'Custom Brushes', link: '/guide/custom-brushes' },
   { text: 'Stroke Recording', link: '/guide/stroke-recording' },
 ]

@@ -48,6 +48,7 @@ import {
   readProjectDraft,
   writeProjectDraft,
 } from '~/utils/projectDraft'
+import { persistProjectDraftBeforeNavigation } from '~/utils/projectDraftNavigation'
 
 interface UnsavedChangesConfirmRequest {
   resolve: (confirmed: boolean) => void
@@ -615,11 +616,11 @@ async function handleMenuCommand(command: SitePainterMenuCommand): Promise<void>
 }
 
 async function loginWithYunlefun(): Promise<void> {
-  await signInWithYunlefun('interactive')
+  await signInWithYunlefunPreservingDraft()
 }
 
 async function loginWithYunlefunForCloudSync(): Promise<void> {
-  const ok = await signInWithYunlefun('interactive')
+  const ok = await signInWithYunlefunPreservingDraft()
   if (ok) {
     await refreshCloudFiles()
     await syncBrushLibraryForCurrentAccount()
@@ -627,9 +628,19 @@ async function loginWithYunlefunForCloudSync(): Promise<void> {
 }
 
 async function loginWithYunlefunForCloudRoom(): Promise<void> {
-  const ok = await signInWithYunlefun('interactive')
+  const ok = await signInWithYunlefunPreservingDraft()
   if (ok && pendingCloudRoomLink.value)
     await joinCloudRoom(pendingCloudRoomLink.value)
+}
+
+async function signInWithYunlefunPreservingDraft(): Promise<boolean> {
+  return signInWithYunlefun('interactive', {
+    beforeRedirect: async () => {
+      const current = painter.value
+      if (current)
+        await saveProjectDraftBeforeNavigation(current)
+    },
+  })
 }
 
 async function detectCloudRoomLink(): Promise<void> {
@@ -1474,9 +1485,27 @@ async function saveProjectDraftNow(current: Painter): Promise<void> {
     await writeCurrentProjectDraft(current)
   }
   catch (error) {
-    console.error('Failed to write Saier local project draft.', error)
-    showSiteNotice('error', text.value.notices.projectDraftSaveFailed, errorMessage(error))
+    reportProjectDraftSaveFailure(error)
   }
+}
+
+async function saveProjectDraftBeforeNavigation(current: Painter): Promise<void> {
+  if (!import.meta.client)
+    return
+
+  const activeDocument = current.getDocuments().find(document => document.active)
+  if (!activeDocument?.dirty)
+    return
+
+  await persistProjectDraftBeforeNavigation(
+    () => writeCurrentProjectDraft(current),
+    reportProjectDraftSaveFailure,
+  )
+}
+
+function reportProjectDraftSaveFailure(error: unknown): void {
+  console.error('Failed to write Saier local project draft.', error)
+  showSiteNotice('error', text.value.notices.projectDraftSaveFailed, errorMessage(error))
 }
 
 async function writeCurrentProjectDraft(current: Painter): Promise<void> {

@@ -1,0 +1,18 @@
+{
+  "envId": "yunlefun-8g7ybcxc7345c490",
+  "functionRoot": "cloudbase/functions",
+  "functions": [
+    {
+      "name": "saier-room-api",
+      "handler": "index.main",
+      "runtime": "Nodejs18.15",
+      "timeout": 30,
+      "memorySize": 256,
+      "installDependency": true,
+      "ignore": [
+        "node_modules/**",
+        "test/**"
+      ]
+    }
+  ]
+}

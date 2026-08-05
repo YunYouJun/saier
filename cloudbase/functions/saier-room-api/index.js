@@ -11,6 +11,7 @@ const {
   getCloudbaseCallerUid,
 } = require('./cloudbase-runtime.cjs')
 const { createSaierRoomApiHandler } = require('./handler.cjs')
+const { createPlayPictionaryTicketService } = require('./play-pictionary-ticket.cjs')
 
 const ACTIVITY_DEADLINE_TRIGGER = 'saier-activity-deadlines'
 
@@ -44,6 +45,11 @@ const handler = createSaierRoomApiHandler({
   envId: process.env.SAIER_REALTIME_ENV_ID ?? process.env.TCB_ENV,
   getCurrentUserId,
   realtimeTokenSecret: process.env.SAIER_REALTIME_TOKEN_SECRET,
+  playPictionaryTickets: createPlayPictionaryTicketService({
+    apiBaseUrl: process.env.PLAY_GAME_SERVER_API_URL,
+    realtimeUrl: process.env.PLAY_GAME_SERVER_REALTIME_URL,
+    token: process.env.SAIER_PICTIONARY_REALTIME_TOKEN,
+  }),
   repo,
   shareOrigin: process.env.SAIER_ROOM_SHARE_ORIGIN,
   storage: createCloudbaseSnapshotStorage(app),

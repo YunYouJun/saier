@@ -11,6 +11,7 @@ import type { YunlefunCloudRoomSession } from './useYunlefunCloudRooms'
 import { readonly } from 'vue'
 import { useRuntimeConfig, useState } from '#imports'
 import { normalizeYunlefunCloudErrorMessage } from '../utils/yunlefunCloudErrors'
+import { usePictionaryPlayTransport } from './usePictionaryPlayTransport'
 import { useYunlefunAuth } from './useYunlefunAuth'
 
 const DEFAULT_ROOM_API_FUNCTION_NAME = 'saier-room-api'
@@ -69,6 +70,7 @@ interface RoomActivityRuntimeConfig {
     saierCloudRoomApiFunctionName?: string
     saierFeatures?: {
       pictionary?: boolean
+      pictionaryPlayNative?: boolean
       realtimeCommittedEvents?: boolean
       realtimePreview?: boolean
       redisDeadlineAcceleration?: boolean
@@ -87,6 +89,20 @@ export function useYunlefunRoomActivities() {
   const lastError = useState<string>('yunlefun:room-activity:error', () => '')
   const busy = useState<boolean>('yunlefun:room-activity:busy', () => false)
   const roomApiFunctionName = config.public.saierCloudRoomApiFunctionName ?? DEFAULT_ROOM_API_FUNCTION_NAME
+  const playNative = config.public.saierFeatures?.pictionaryPlayNative ?? false
+  const playTransport = usePictionaryPlayTransport({
+    onProjection(projection) {
+      const current = privateProjection.value
+      if (!current
+        || current.sessionId !== projection.sessionId
+        || projection.privateProjectionRevision >= current.privateProjectionRevision) {
+        privateProjection.value = projection
+      }
+    },
+    onState(state) {
+      publicState.value = state
+    },
+  })
 
   async function createRoom(title: string): Promise<ActivityRoomCreationResult> {
     return run(async () => {
@@ -129,6 +145,12 @@ export function useYunlefunRoomActivities() {
   }
 
   async function submitCommand<T>(command: PictionaryActivityCommand<T>): Promise<ActivityCommandResult> {
+    if (playNative) {
+      return run(async () => {
+        await ensurePlayTransport(command)
+        return await playTransport.submit(command as PictionaryActivityCommand<Record<string, unknown>>) as ActivityCommandResult
+      })
+    }
     return run(() => callRoomApi('submitActivityCommand', { ...command }) as Promise<ActivityCommandResult>)
   }
 
@@ -136,6 +158,17 @@ export function useYunlefunRoomActivities() {
     activity: Pick<ActiveActivity, 'activityEpoch' | 'sessionId'>,
     cursor: ResumeCursor,
   ): Promise<ResumeResponse<Record<string, unknown>, unknown, PictionaryPublicState>> {
+    if (playNative) {
+      return run(async () => {
+        await ensurePlayTransport(activity)
+        const result = await playTransport.resume(cursor) as ResumeResponse<Record<string, unknown>, unknown, PictionaryPublicState>
+        if (result.kind === 'SNAPSHOT_REQUIRED')
+          publicState.value = result.snapshot.state
+        else if (result.kind === 'DELTA')
+          publicState.value = result.state
+        return result
+      })
+    }
     return run(async () => {
       const result = await callRoomApi('resumeActivity', {
         activityEpoch: activity.activityEpoch,
@@ -151,6 +184,19 @@ export function useYunlefunRoomActivities() {
   }
 
   async function getPrivateProjection(activity: Pick<ActiveActivity, 'activityEpoch' | 'sessionId'>): Promise<ActivityPrivateProjection> {
+    if (playNative) {
+      return run(async () => {
+        await ensurePlayTransport(activity)
+        const result = await playTransport.getPrivateProjection() as ActivityPrivateProjection
+        const current = privateProjection.value
+        if (!current
+          || current.sessionId !== result.sessionId
+          || result.privateProjectionRevision >= current.privateProjectionRevision) {
+          privateProjection.value = result
+        }
+        return result
+      })
+    }
     return run(async () => {
       const result = await callRoomApi('getActivityPrivateProjection', {
         activityEpoch: activity.activityEpoch,
@@ -187,6 +233,27 @@ export function useYunlefunRoomActivities() {
     return response.result
   }
 
+  async function ensurePlayTransport(
+    activity: Pick<ActiveActivity, 'activityEpoch' | 'sessionId'>,
+  ): Promise<void> {
+    if (playTransport.isConnected(activity.sessionId))
+      return
+    const roomId = roomSession.value?.room.id
+    if (!roomId)
+      throw new Error('room_unavailable')
+    const credentials = await callRoomApi('createPictionaryPlayTicket', {
+      activityEpoch: activity.activityEpoch,
+      roomId,
+      sessionId: activity.sessionId,
+    }) as {
+      realtimeUrl: string
+      roomType: 'pictionary_room'
+      sessionId: string
+      ticket: string
+    }
+    await playTransport.connect(credentials)
+  }
+
   async function run<T>(operation: () => Promise<T>): Promise<T> {
     busy.value = true
     lastError.value = ''
@@ -203,6 +270,7 @@ export function useYunlefunRoomActivities() {
   }
 
   function dispose(): void {
+    void playTransport.disconnect()
     roomSession.value = null
     activeActivity.value = null
     publicState.value = null
@@ -220,8 +288,9 @@ export function useYunlefunRoomActivities() {
     dispose,
     features: Object.freeze({
       pictionary: config.public.saierFeatures?.pictionary ?? false,
-      realtimeCommittedEvents: config.public.saierFeatures?.realtimeCommittedEvents ?? false,
-      realtimePreview: config.public.saierFeatures?.realtimePreview ?? false,
+      pictionaryPlayNative: playNative,
+      realtimeCommittedEvents: !playNative && (config.public.saierFeatures?.realtimeCommittedEvents ?? false),
+      realtimePreview: !playNative && (config.public.saierFeatures?.realtimePreview ?? false),
       redisDeadlineAcceleration: config.public.saierFeatures?.redisDeadlineAcceleration ?? false,
     }),
     getPrivateProjection,

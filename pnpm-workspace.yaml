@@ -48,5 +48,7 @@ allowBuilds:
   '@swc/core': true
   core-js-pure: false
   esbuild: true
+  # Optional native msgpack accelerator; the browser transport uses the audited JS fallback.
+  msgpackr-extract: false
   simple-git-hooks: false
   vue-demi: true

@@ -12,6 +12,10 @@ interface RoomApiTestOptions {
   getCurrentUserId: () => Promise<string> | string
   hash: (value: string) => string
   now: () => number
+  playPictionaryTickets?: {
+    configured: boolean
+    issue: (input: Record<string, unknown>) => Promise<Record<string, unknown>>
+  }
   randomId: (prefix: string) => string
   realtimeTokenSecret?: string
   repo: MemoryRoomRepository
@@ -258,11 +262,25 @@ function createHarness(initialUserId = 'owner') {
   const counters = new Map<string, number>()
   const repo = new MemoryRoomRepository()
   const storageUploads: Array<{ reservationId: string, text: string }> = []
+  const issuedPlayTickets: Array<Record<string, unknown>> = []
   const handler = createSaierRoomApiHandler({
     envId: 'test-env',
     getCurrentUserId: () => currentUserId,
     hash: value => `hash:${value}`,
     now: () => currentTime++,
+    playPictionaryTickets: {
+      configured: true,
+      async issue(input: Record<string, unknown>) {
+        issuedPlayTickets.push(structuredClone(input))
+        return {
+          expiresAt: 61_000,
+          realtimeUrl: 'wss://api.play.yunle.fun/',
+          roomType: 'pictionary_room',
+          sessionId: String((input.publicState as { sessionId: string }).sessionId),
+          ticket: 'play-ticket-1',
+        }
+      },
+    },
     randomId(prefix: string) {
       const next = (counters.get(prefix) ?? 0) + 1
       counters.set(prefix, next)
@@ -298,6 +316,7 @@ function createHarness(initialUserId = 'owner') {
 
   return {
     handler,
+    issuedPlayTickets,
     repo,
     setUser(userId: string) {
       currentUserId = userId
@@ -780,6 +799,33 @@ describe('saier-room-api handler', () => {
 })
 
 describe('saier room activity authority', () => {
+  it('issues a Play ticket from the trusted backend without exposing the service credential', async () => {
+    const game = await createTwoPlayerActivity()
+    const response = await game.handler({
+      action: 'createPictionaryPlayTicket',
+      activityEpoch: game.activityEpoch,
+      roomId: game.roomId,
+      sessionId: game.sessionId,
+    })
+
+    expect(response).toMatchObject({
+      realtimeUrl: 'wss://api.play.yunle.fun/',
+      roomType: 'pictionary_room',
+      sessionId: game.sessionId,
+      ticket: 'play-ticket-1',
+    })
+    expect(game.issuedPlayTickets).toHaveLength(1)
+    expect(game.issuedPlayTickets[0]).toMatchObject({
+      publicState: {
+        sessionId: game.sessionId,
+        activityEpoch: game.activityEpoch,
+      },
+      user: { userId: 'owner' },
+    })
+    expect((game.issuedPlayTickets[0]!.publicState as Record<string, unknown>)).not.toHaveProperty('roomId')
+    expect((game.issuedPlayTickets[0]!.secretState as Record<string, unknown>)).not.toHaveProperty('roomId')
+  })
+
   it('uses the Chinese built-in word bank for Chinese room creators', async () => {
     const { handler, repo } = createHarness()
     const created = await handler({

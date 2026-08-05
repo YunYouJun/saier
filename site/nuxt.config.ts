@@ -46,6 +46,7 @@ export default defineNuxtConfig({
     public: {
       saierFeatures: {
         pictionary: process.env.NUXT_PUBLIC_SAIER_FEATURE_PICTIONARY !== 'false',
+        pictionaryPlayNative: process.env.NUXT_PUBLIC_SAIER_FEATURE_PICTIONARY_PLAY_NATIVE === 'true',
         realtimeCommittedEvents: process.env.NUXT_PUBLIC_SAIER_FEATURE_REALTIME_COMMITTED_EVENTS === 'true',
         realtimePreview: process.env.NUXT_PUBLIC_SAIER_FEATURE_REALTIME_PREVIEW === 'true',
         redisDeadlineAcceleration: process.env.NUXT_PUBLIC_SAIER_FEATURE_REDIS_DEADLINE_ACCELERATION === 'true',

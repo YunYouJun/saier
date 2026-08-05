@@ -21,6 +21,7 @@
     "@capacitor/share": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
     "@cloudbase/js-sdk": "^3.6.2",
+    "@colyseus/sdk": "^0.17.43",
     "@saier/collaboration": "workspace:*",
     "@yunlefun/sso": "0.6.0",
     "reka-ui": "^2.10.1"

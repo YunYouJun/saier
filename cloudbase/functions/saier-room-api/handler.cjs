@@ -61,6 +61,7 @@ function createSaierRoomApiHandler(options) {
       realtimeTokenSecret: stringValue(options.realtimeTokenSecret),
       userId,
       activityService,
+      playPictionaryTickets: options.playPictionaryTickets,
     }
 
     switch (action) {
@@ -104,6 +105,8 @@ function createSaierRoomApiHandler(options) {
         return services.activityService.getPrivateProjection(event, userId)
       case 'createActivityRealtimeToken':
         return createActivityRealtimeToken(event, services)
+      case 'createPictionaryPlayTicket':
+        return createPictionaryPlayTicket(event, services)
       default:
         throw roomError('backend_unavailable', `Unsupported room action: ${action}`)
     }
@@ -687,6 +690,49 @@ async function createActivityRealtimeToken(event, services) {
     expiresAt: expiresAt * 1000,
     token: signHs256Jwt(claims, services.realtimeTokenSecret),
   }
+}
+
+async function createPictionaryPlayTicket(event, services) {
+  if (!services.playPictionaryTickets?.configured)
+    throw roomError('backend_unavailable', 'Play Pictionary transport is not configured.')
+  const roomId = requireString(event.roomId, 'roomId')
+  const sessionId = requireString(event.sessionId, 'sessionId')
+  const activityEpoch = requireInteger(event.activityEpoch, 'activityEpoch')
+  const room = await requireReadableRoom(services.repo, roomId, services.userId)
+  if (room.activeActivity?.type !== 'pictionary'
+    || room.activeActivity.sessionId !== sessionId
+    || room.activeActivity.activityEpoch !== activityEpoch) {
+    throw roomError('forbidden', 'Pictionary session is no longer active.')
+  }
+  const [member, session, secret] = await Promise.all([
+    requireMember(services.repo, roomId, services.userId),
+    services.repo.getActivitySession(sessionId),
+    services.repo.getActivitySecret(sessionId),
+  ])
+  if (!session || !secret || session.activityEpoch !== activityEpoch)
+    throw roomError('room_not_found', 'Pictionary session is unavailable.')
+  return services.playPictionaryTickets.issue({
+    publicState: sanitizePictionaryPublicState(session),
+    secretState: sanitizePictionarySecretState(secret),
+    user: {
+      displayName: stringValue(member.displayName) ?? services.userId,
+      userId: services.userId,
+    },
+  })
+}
+
+function sanitizePictionaryPublicState(session) {
+  const value = structuredClone(session)
+  for (const field of ['_id', 'roomId', 'deadlineAt', 'deleteAfter', 'retainedEventSeq'])
+    delete value[field]
+  return value
+}
+
+function sanitizePictionarySecretState(secret) {
+  const value = structuredClone(secret)
+  for (const field of ['_id', 'roomId', 'sessionId', 'activityEpoch', 'deleteAfter'])
+    delete value[field]
+  return value
 }
 
 function signHs256Jwt(claims, secret) {

@@ -32,33 +32,33 @@ test.describe('Pictionary with real YunLeFun test accounts', () => {
       const inviteUrl = await createPictionaryRoom(ownerPage, roomTitle)
 
       await viewerPage.goto(inviteUrl)
-      await expect(viewerPage.locator('.room-lobby')).toBeVisible({ timeout: 90_000 })
-      await expect(ownerPage.locator('.player-list li')).toHaveCount(2, { timeout: 90_000 })
-      await expect(viewerPage.locator('.player-list li')).toHaveCount(2, { timeout: 90_000 })
+      await expect(viewerPage.locator('.pictionary-room-lobby')).toBeVisible({ timeout: 90_000 })
+      await expect(ownerPage.locator('.pictionary-player-list li')).toHaveCount(2, { timeout: 90_000 })
+      await expect(viewerPage.locator('.pictionary-player-list li')).toHaveCount(2, { timeout: 90_000 })
 
-      await ownerPage.locator('.lobby-settings select').first().selectOption('1')
-      const startGame = ownerPage.getByRole('button', { name: '开始游戏' })
+      await ownerPage.locator('.pictionary-lobby-settings select').first().selectOption('1')
+      const startGame = ownerPage.getByRole('button', { name: /开始游戏|Start game/u })
       await expect(startGame).toBeEnabled({ timeout: 30_000 })
       await startGame.click()
 
       for (let turn = 0; turn < 2; turn += 1) {
         const { answer, drawer, guesser } = await chooseCurrentWord(ownerPage, viewerPage)
-        await expect(guesser.locator('.guess-bar input')).toBeVisible({ timeout: 30_000 })
+        await expect(guesser.locator('.pictionary-guess-bar input')).toBeVisible({ timeout: 30_000 })
 
         if (turn === 0)
           await drawAndVerifyThickStroke(drawer, guesser)
 
-        await guesser.locator('.guess-bar input').fill(answer)
-        await guesser.locator('.guess-bar').getByRole('button', { name: '猜' }).click()
-        await expect(guesser.locator('.live-guess')).toContainText('猜对了！', { timeout: 30_000 })
-        await expect(drawer.locator('.canvas-overlay.is-reveal h2')).toHaveText(answer, { timeout: 30_000 })
-        await expect(guesser.locator('.canvas-overlay.is-reveal h2')).toHaveText(answer, { timeout: 30_000 })
+        await guesser.locator('.pictionary-guess-bar input').fill(answer)
+        await guesser.locator('.pictionary-guess-bar').getByRole('button', { name: /猜|Guess/u }).click()
+        await expect(guesser.locator('.pictionary-live-guess')).toContainText(/猜对了！|Correct!/u, { timeout: 30_000 })
+        await expect(drawer.locator('.pictionary-canvas-overlay.is-reveal h2')).toHaveText(answer, { timeout: 30_000 })
+        await expect(guesser.locator('.pictionary-canvas-overlay.is-reveal h2')).toHaveText(answer, { timeout: 30_000 })
       }
 
-      await expect(ownerPage.getByText('FINAL SCORE')).toBeVisible({ timeout: 30_000 })
-      await expect(viewerPage.getByText('FINAL SCORE')).toBeVisible({ timeout: 30_000 })
-      await expect(ownerPage.locator('.scoreboard li')).toHaveCount(2)
-      await expect(viewerPage.locator('.scoreboard li')).toHaveCount(2)
+      await expect(ownerPage.getByText(/最终得分|Final score/u)).toBeVisible({ timeout: 30_000 })
+      await expect(viewerPage.getByText(/最终得分|Final score/u)).toBeVisible({ timeout: 30_000 })
+      await expect(ownerPage.locator('.pictionary-scoreboard li')).toHaveCount(2)
+      await expect(viewerPage.locator('.pictionary-scoreboard li')).toHaveCount(2)
 
       const screenshotPath = testInfo.outputPath('pictionary-online-complete.png')
       await ownerPage.screenshot({ fullPage: true, path: screenshotPath })
@@ -82,12 +82,12 @@ async function signedInActivityPage(
 
 async function createPictionaryRoom(page: Page, roomTitle: string): Promise<string> {
   await page.goto(`${SITE_URL}/?activity=pictionary`)
-  await expect(page.getByRole('heading', { name: '你画，我猜。' })).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole('heading', { name: /你画我猜|Pictionary/u })).toBeVisible({ timeout: 30_000 })
   const form = page.locator('.pictionary-card').first()
   await form.locator('input').fill(roomTitle)
   await form.locator('textarea').fill('苹果\n自行车\n城堡')
-  await form.getByRole('button', { name: '创建并进入 Lobby' }).click()
-  await expect(page.locator('.room-lobby')).toBeVisible({ timeout: 90_000 })
+  await form.getByRole('button', { name: /创建并进入大厅|Create and enter lobby/u }).click()
+  await expect(page.locator('.pictionary-room-lobby')).toBeVisible({ timeout: 90_000 })
   await expect(page).toHaveURL(/[?&]activityRoom=sr_[\w-]+/u)
   return page.url()
 }
@@ -112,12 +112,12 @@ async function chooseCurrentWord(ownerPage: Page, viewerPage: Page): Promise<{
     ])
     throw new Error(`${error instanceof Error ? error.message : String(error)}\n${JSON.stringify(diagnostics, null, 2)}`)
   }
-  const ownerCandidateCount = await ownerPage.locator('.candidate-list button').count()
+  const ownerCandidateCount = await ownerPage.locator('.pictionary-candidate-list button').count()
   const ownerAnswerReady = await hasReadyDrawerAnswer(ownerPage)
   const ownerIsDrawer = ownerCandidateCount > 0 || ownerAnswerReady
   const drawer = ownerIsDrawer ? ownerPage : viewerPage
   const guesser = ownerIsDrawer ? viewerPage : ownerPage
-  const candidate = drawer.locator('.candidate-list button').first()
+  const candidate = drawer.locator('.pictionary-candidate-list button').first()
   const hasCandidate = await candidate.count() > 0
   if (hasCandidate) {
     // The 10-second authoritative auto-choice may replace this button while
@@ -128,7 +128,7 @@ async function chooseCurrentWord(ownerPage: Page, viewerPage: Page): Promise<{
   await expect
     .poll(() => hasReadyDrawerAnswer(drawer), { timeout: 20_000 })
     .toBe(true)
-  const answer = ((await drawer.locator('.drawer-answer strong').textContent()) ?? '').trim()
+  const answer = ((await drawer.locator('.pictionary-drawer-answer strong').textContent()) ?? '').trim()
   expect(answer).toBeTruthy()
   return { answer, drawer, guesser }
 }
@@ -160,27 +160,30 @@ async function privateWordDomState(page: Page): Promise<{
   roomWarning: string
 }> {
   return page.evaluate(() => {
-    const drawerAnswer = document.querySelector<HTMLElement>('.drawer-answer')
+    const drawerAnswer = document.querySelector<HTMLElement>('.pictionary-drawer-answer')
     const drawerAnswerText = drawerAnswer?.querySelector('strong')?.textContent ?? ''
     return {
-      candidateCount: document.querySelectorAll('.candidate-list button').length,
+      candidateCount: document.querySelectorAll('.pictionary-candidate-list button').length,
       drawerAnswerReady: Boolean(drawerAnswer && !/正在同步/u.test(drawerAnswerText)),
       drawerAnswerVisible: Boolean(drawerAnswer),
       drawerAnswerWaiting: /正在同步/u.test(drawerAnswerText),
-      guessInputVisible: Boolean(document.querySelector('.guess-bar input')),
-      phase: document.querySelector('.round-strip .room-kicker')?.textContent?.trim() ?? '',
-      roomWarning: document.querySelector('.room-warning')?.textContent?.trim() ?? '',
+      guessInputVisible: Boolean(document.querySelector('.pictionary-guess-bar input')),
+      phase: document.querySelector('.pictionary-round-strip .site-activity-kicker')?.textContent?.trim() ?? '',
+      roomWarning: document.querySelector('.pictionary-scoreboard .site-activity-error')?.textContent?.trim() ?? '',
     }
   })
 }
 
 async function drawAndVerifyThickStroke(drawer: Page, guesser: Page): Promise<void> {
-  const size = drawer.getByRole('slider', { name: '画笔粗细' })
-  await size.fill('64')
-  await expect(drawer.locator('.drawing-size span')).toHaveText('粗细 64')
+  const size = drawer.getByRole('slider', { name: /画笔粗细|Brush size/u })
+  await size.focus()
+  await size.press('Home')
+  for (let step = 1; step < 64; step += 1)
+    await size.press('ArrowRight')
+  await expect(size).toHaveAttribute('aria-valuenow', '64')
 
-  const drawerCanvas = drawer.locator('.activity-canvas canvas').first()
-  const guesserCanvas = guesser.locator('.activity-canvas canvas').first()
+  const drawerCanvas = drawer.locator('.pictionary-canvas canvas').first()
+  const guesserCanvas = guesser.locator('.pictionary-canvas canvas').first()
   const drawerBeforeHash = await canvasScreenshotHash(drawerCanvas)
   const guesserBeforeHash = await canvasScreenshotHash(guesserCanvas)
   const box = await drawerCanvas.boundingBox()

@@ -1153,12 +1153,12 @@ function bindStrokeRecordingState(current: Painter | undefined): void {
       captureStrokeReplayBase(current)
     sync()
   }
-  current.emitter.on('stroke:commit', sync)
+  const removeStrokeCommitted = current.onStrokeCommitted(sync, { detail: 'summary' })
   current.emitter.on('documents:change', sync)
   current.emitter.on('active-document:change', syncActiveDocument)
   current.controller.on('layers:change', sync)
   removeStrokeRecordingListeners = () => {
-    current.emitter.off('stroke:commit', sync)
+    removeStrokeCommitted()
     current.emitter.off('documents:change', sync)
     current.emitter.off('active-document:change', syncActiveDocument)
     current.controller.off('layers:change', sync)

@@ -60,11 +60,17 @@ const disposeCommit = painter.onStrokeCommitted((event) => {
 const disposePreview = painter.onStrokePreview((event) => {
   // preview carries strokeId + previewSeq + one canonical document-space point
 })
+
+const disposeSummary = painter.onStrokeCommitted((event) => {
+  // lightweight: strokeNumber + tool + target + dirtyRect; no point log / patch
+}, { detail: 'summary' })
 ```
 
 主工程实例默认 `documentScope: 'room-main'`。Activity Painter 必须在创建时提供完整的 `sessionId + activityEpoch + roundId` scope；缺失 fencing 字段会立即失败。旧的 `stroke:commit` emitter 行为保留一个兼容周期，新协作代码只订阅 `stroke:committed` / `stroke:preview`。订阅都返回 disposer，activity dispose 时必须调用。
 
 Preview 是可丢弃的临时数据；commit 仍携带 canonical stroke 和 patch，且只有服务端分配的 `canvasSeq` 能进入权威恢复序列。
+
+`detail: 'summary'` 不会单独开启 canonical point capture。runtime 仅在持久录制已开启、存在 `detail: 'full'` / 旧 `stroke:commit` 订阅者，或 preview 需要当前点时采集对应数据。普通绘画的统计路径只在成功提交时递增一次文档级整数；不在 `pointermove → dab` 热路径创建 replay event，也不计算 patch hash。
 
 ## Canonical Capture Point
 

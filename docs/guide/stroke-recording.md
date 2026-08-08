@@ -26,6 +26,36 @@ Saier 的工程文件保存最终像素，笔迹日志（`saier.stroke-log.v1`�
 
 ## 运行时 API
 
+### 笔数统计与笔迹提交事件
+
+运行时按文档维护本次编辑 session 中成功提交的本地笔迹数。画笔和橡皮都会计数，取消或没有产生像素的笔迹不会计数；undo / redo 不改变这个累计值，清空画布会将它归零：
+
+```ts
+const count = painter.getStrokeCount()
+const anotherDocumentCount = painter.getStrokeCount(documentId)
+```
+
+只做统计、埋点或轻量插件通知时订阅 summary。它不会单独触发逐点录制、patch hash 或完整 commit 构造：
+
+```ts
+const dispose = painter.onStrokeCommitted((event) => {
+  console.log(event.strokeNumber, event.tool, event.dirtyRect)
+}, { detail: 'summary' })
+
+// 插件卸载时释放订阅
+dispose()
+```
+
+协作、回放或需要像素 patch 的插件使用完整事件。省略第二个参数仍默认为 `full`，以兼容已有调用方：
+
+```ts
+const dispose = painter.onStrokeCommitted(({ commit, patch }) => {
+  persistStroke(commit, patch)
+}, { detail: 'full' })
+```
+
+完整事件的 canonical point capture 是按需启用的；回调发生在 surface、文档 dirty state 和 undo history 已提交之后。插件应避免在同步回调里执行耗时计算。
+
 录制是 opt-in 的：
 
 ```ts

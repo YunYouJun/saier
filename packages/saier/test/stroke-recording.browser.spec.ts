@@ -1,5 +1,10 @@
 import type { BrushInputPoint, SaierStrokeCommit } from '@saier/core'
-import type { Painter, PainterStrokeCommittedEvent, PainterStrokeEventScope } from '../src'
+import type {
+  Painter,
+  PainterStrokeCommittedEvent,
+  PainterStrokeCommittedSummaryEvent,
+  PainterStrokeEventScope,
+} from '../src'
 import { PixiTileTextureBackend } from '@saier/pixi'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createPainter, PainterBrush, PainterEraser } from '../src'
@@ -35,6 +40,59 @@ async function createFixture(strokeEventScope?: PainterStrokeEventScope): Promis
 }
 
 describe('stroke recording runtime', () => {
+  it('counts successful local strokes per document without changing the count on undo or redo', async () => {
+    const painter = await createFixture()
+
+    expect(painter.getStrokeCount()).toBe(0)
+    drawDocumentStroke(painter)
+    expect(painter.getStrokeCount()).toBe(1)
+
+    drawDocumentEraserStroke(painter)
+    expect(painter.getStrokeCount()).toBe(2)
+
+    painter.history.undo()
+    expect(painter.getStrokeCount()).toBe(2)
+    painter.history.redo()
+    expect(painter.getStrokeCount()).toBe(2)
+
+    painter.clearCanvas()
+    expect(painter.getStrokeCount()).toBe(0)
+  })
+
+  it('does not count an eraser stroke that leaves a blank canvas unchanged', async () => {
+    const painter = await createFixture()
+
+    drawDocumentEraserStroke(painter)
+
+    expect(painter.getStrokeCount()).toBe(0)
+  })
+
+  it('offers a lightweight committed-stroke summary for counters and plugins', async () => {
+    const painter = await createFixture()
+    const events: PainterStrokeCommittedSummaryEvent[] = []
+    const dispose = painter.onStrokeCommitted(
+      event => events.push(event),
+      { detail: 'summary' },
+    )
+
+    drawDocumentStroke(painter)
+    dispose()
+    drawDocumentStroke(painter)
+
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({
+      documentScope: 'room-main',
+      documentId: painter.getActiveDocumentId(),
+      tool: 'brush',
+      paintTarget: 'layer',
+      source: 'local',
+      strokeNumber: 1,
+    })
+    expect(events[0]?.dirtyRect.width).toBeGreaterThan(0)
+    expect(events[0]).not.toHaveProperty('commit')
+    expect(events[0]).not.toHaveProperty('patch')
+  })
+
   it('keeps the persistent log opt-in while still emitting committed strokes', async () => {
     const disabled = await createFixture()
     const disabledEmitted: SaierStrokeCommit[] = []
@@ -158,6 +216,15 @@ function drawDocumentStroke(painter: Painter): void {
   painter.brush.moveDocumentStroke(pt(24, 18, 8), 1)
   painter.brush.moveDocumentStroke(pt(32, 16, 16), 1)
   painter.brush.endDocumentStroke(1)
+  painter.flushSurfaceUploads()
+}
+
+function drawDocumentEraserStroke(painter: Painter): void {
+  painter.useTool('eraser')
+  PainterEraser.size = 8
+  painter.eraser.beginDocumentStroke(pt(20, 16, 20), 2)
+  painter.eraser.moveDocumentStroke(pt(24, 16, 28), 2)
+  painter.eraser.endDocumentStroke(2)
   painter.flushSurfaceUploads()
 }
 

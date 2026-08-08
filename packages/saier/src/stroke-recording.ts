@@ -78,13 +78,24 @@ export interface ImportPainterStrokeLogOptions {
   replace?: boolean
 }
 
+interface ActivePainterStroke {
+  id: string
+  documentId: string
+  layerId: string
+  paintTarget: SaierStrokeCommit['paintTarget']
+  tool: SaierStrokeTool
+  pointCount: number
+  previewEnabled: boolean
+  shouldStore: boolean
+  startTime: number | null
+  commit: SaierStrokeCommit | null
+}
+
 export class PainterStrokeRecording {
   private enabled = false
   private readonly strokes: SaierStrokeCommit[] = []
-  private active: SaierStrokeCommit | null = null
-  private activeShouldStore = false
+  private active: ActivePainterStroke | null = null
   private strokeCounter = 0
-  private startTime: number | null = null
   private replaying = false
 
   constructor(private readonly painter: Painter) {}
@@ -124,8 +135,6 @@ export class PainterStrokeRecording {
   clear(): void {
     this.strokes.length = 0
     this.active = null
-    this.activeShouldStore = false
-    this.startTime = null
     this.strokeCounter = 0
   }
 
@@ -133,28 +142,44 @@ export class PainterStrokeRecording {
     if (this.replaying)
       return
 
-    this.startTime = null
-    this.activeShouldStore = this.enabled
+    const id = `stroke-${++this.strokeCounter}`
+    const documentId = this.painter.getActiveDocumentId()
+    const paintTarget = this.painter.paintTarget === 'mask' ? 'mask' : 'layer'
+    const captureFullCommit = this.enabled || this.hasListeners('stroke:commit') || this.hasListeners('stroke:committed')
+    const commit: SaierStrokeCommit | null = captureFullCommit
+      ? {
+          schema: SAIER_STROKE_SCHEMA,
+          id,
+          documentId,
+          layerId: options.layerId,
+          paintTarget,
+          tool: options.tool,
+          compositeMode: options.compositeMode,
+          brushEngine: {
+            id: options.brushEngineId,
+            version: BUILTIN_ENGINE_VERSION,
+          },
+          brushPresetId: options.brushPresetId,
+          brushPresetSnapshot: cloneStrokePresetSnapshot(options.brushPresetSnapshot),
+          brushContextSnapshot: {
+            ...options.brushContextSnapshot,
+            color: { ...options.brushContextSnapshot.color },
+          },
+          inputPipeline: 'resolved-v1',
+          events: [],
+        }
+      : null
     this.active = {
-      schema: SAIER_STROKE_SCHEMA,
-      id: `stroke-${++this.strokeCounter}`,
-      documentId: this.painter.getActiveDocumentId(),
+      id,
+      documentId,
       layerId: options.layerId,
-      paintTarget: this.painter.paintTarget === 'mask' ? 'mask' : 'layer',
+      paintTarget,
       tool: options.tool,
-      compositeMode: options.compositeMode,
-      brushEngine: {
-        id: options.brushEngineId,
-        version: BUILTIN_ENGINE_VERSION,
-      },
-      brushPresetId: options.brushPresetId,
-      brushPresetSnapshot: cloneStrokePresetSnapshot(options.brushPresetSnapshot),
-      brushContextSnapshot: {
-        ...options.brushContextSnapshot,
-        color: { ...options.brushContextSnapshot.color },
-      },
-      inputPipeline: 'resolved-v1',
-      events: [],
+      pointCount: 0,
+      previewEnabled: this.hasListeners('stroke:preview'),
+      shouldStore: this.enabled,
+      startTime: null,
+      commit,
     }
   }
 
@@ -162,59 +187,65 @@ export class PainterStrokeRecording {
     if (!this.active)
       return
 
-    const start = this.startTime ?? point.time
-    this.startTime = start
-    this.active.events.push({
-      kind: 'point',
-      x: point.x,
-      y: point.y,
-      t: point.time - start,
-      pressure: point.pressure,
-      ...(point.hasPressure !== undefined ? { hasPressure: point.hasPressure } : {}),
-      ...(point.pointerType !== undefined ? { pointerType: point.pointerType } : {}),
-      ...(point.tiltX !== undefined ? { tiltX: point.tiltX } : {}),
-      ...(point.tiltY !== undefined ? { tiltY: point.tiltY } : {}),
-      ...(point.twist !== undefined ? { twist: point.twist } : {}),
-    })
-    this.painter.emitStrokePreview(this.active.id, this.active.layerId, this.active.events.length, point)
+    this.active.pointCount++
+    const commit = this.active.commit
+    if (commit) {
+      const start = this.active.startTime ?? point.time
+      this.active.startTime = start
+      commit.events.push({
+        kind: 'point',
+        x: point.x,
+        y: point.y,
+        t: point.time - start,
+        pressure: point.pressure,
+        ...(point.hasPressure !== undefined ? { hasPressure: point.hasPressure } : {}),
+        ...(point.pointerType !== undefined ? { pointerType: point.pointerType } : {}),
+        ...(point.tiltX !== undefined ? { tiltX: point.tiltX } : {}),
+        ...(point.tiltY !== undefined ? { tiltY: point.tiltY } : {}),
+        ...(point.twist !== undefined ? { twist: point.twist } : {}),
+      })
+    }
+    if (this.active.previewEnabled)
+      this.painter.emitStrokePreview(this.active.id, this.active.layerId, this.active.pointCount, point)
   }
 
   recordTick(time: number): void {
-    if (!this.active || this.startTime === null)
+    if (!this.active?.commit || this.active.startTime === null)
       return
 
-    this.active.events.push({
+    this.active.commit.events.push({
       kind: 'tick',
-      t: time - this.startTime,
+      t: time - this.active.startTime,
     })
   }
 
   commitStroke(patch: StrokePatch): SaierStrokeCommit | null {
     const active = this.active
-    const shouldStore = this.activeShouldStore
     this.active = null
-    this.activeShouldStore = false
-    this.startTime = null
 
-    if (!active || isEmpty(patch.rect) || active.events.length === 0)
+    if (!active || isEmpty(patch.rect) || active.pointCount === 0)
+      return null
+    if (active.tool === 'eraser' && !patchChangesPixels(patch))
       return null
 
-    active.result = {
-      dirtyRect: { ...patch.rect },
-      ...this.createPatchHash(active.layerId, patch.rect),
+    const commit = active.commit
+    let committed: SaierStrokeCommit | null = null
+    if (commit) {
+      commit.result = {
+        dirtyRect: { ...patch.rect },
+        ...this.createPatchHash(active.layerId, patch.rect),
+      }
+      committed = cloneStrokeCommit(commit)
+      if (active.shouldStore)
+        this.strokes.push(cloneStrokeCommit(committed))
     }
-    const committed = cloneStrokeCommit(active)
-    if (shouldStore)
-      this.strokes.push(committed)
-    this.painter.emitter.emit('stroke:commit', cloneStrokeCommit(committed))
-    this.painter.emitStrokeCommitted(cloneStrokeCommit(committed), patch)
+
+    this.painter.emitStrokeCommitted(active, patch, committed)
     return committed
   }
 
   cancelActiveStroke(): void {
     this.active = null
-    this.activeShouldStore = false
-    this.startTime = null
   }
 
   importLog(log: SaierStrokeLog, options: ImportPainterStrokeLogOptions = {}): number {
@@ -333,6 +364,10 @@ export class PainterStrokeRecording {
       patches.push(this.replayStroke(operation.payload as SaierStrokeCommit, options))
     }
     return patches
+  }
+
+  private hasListeners(type: 'stroke:commit' | 'stroke:committed' | 'stroke:preview'): boolean {
+    return (this.painter.emitter.all.get(type)?.length ?? 0) > 0
   }
 
   private replayEvent(
@@ -467,6 +502,25 @@ function readSurface(surface: unknown, layerId: string): TiledSurface | undefine
     return undefined
   const getter = (surface as { getSurface?: (id: string) => TiledSurface }).getSurface
   return getter?.call(surface, layerId)
+}
+
+function patchChangesPixels(patch: StrokePatch): boolean {
+  if (Array.isArray(patch.before)) {
+    return patch.before.some(tile => !bytesEqual(tile.before, tile.after))
+  }
+  if (patch.before instanceof Uint8Array && patch.after instanceof Uint8Array)
+    return !bytesEqual(patch.before, patch.after)
+  return true
+}
+
+function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
+  if (left.length !== right.length)
+    return false
+  for (let index = 0; index < left.length; index++) {
+    if (left[index] !== right[index])
+      return false
+  }
+  return true
 }
 
 function cloneStrokePresetSnapshot(snapshot: PainterStrokePresetSnapshot): PainterStrokePresetSnapshot {

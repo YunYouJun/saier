@@ -23,7 +23,13 @@ import type {
 } from '@saier/core'
 import type { DisplayMaskCapableBackend, ViewportPoint } from '@saier/pixi'
 import type { PainterCanvas } from './canvas'
-import type { PainterStrokeCommittedEvent, PainterStrokeEventScope, PainterStrokePreviewEvent } from './event'
+import type {
+  PainterStrokeCommittedEvent,
+  PainterStrokeCommittedOptions,
+  PainterStrokeCommittedSummaryEvent,
+  PainterStrokeEventScope,
+  PainterStrokePreviewEvent,
+} from './event'
 import type { PainterInputOptions, PainterPointerSource } from './input'
 import {
   createDefaultBrushEngineRegistry,
@@ -189,6 +195,7 @@ interface PainterDocumentSession {
   width: number
   height: number
   dirty: boolean
+  strokeCount: number
   document: RasterDocument
   surface: SurfaceBackend
   undoManager: UndoManager
@@ -658,6 +665,11 @@ export class Painter {
     return this.requireActiveSession().id
   }
 
+  /** Number of successful local paint strokes committed in this document session. */
+  getStrokeCount(documentId?: string): number {
+    return this.resolveDocumentSession(documentId).strokeCount
+  }
+
   isDocumentDirty(id?: string): boolean {
     return this.resolveDocumentSession(id).dirty
   }
@@ -803,16 +815,59 @@ export class Painter {
     })
   }
 
-  onStrokeCommitted(listener: (event: PainterStrokeCommittedEvent) => void): () => void {
-    this.emitter.on('stroke:committed', listener)
-    return () => this.emitter.off('stroke:committed', listener)
+  onStrokeCommitted(
+    listener: (event: PainterStrokeCommittedSummaryEvent) => void,
+    options: { detail: 'summary' },
+  ): () => void
+
+  onStrokeCommitted(
+    listener: (event: PainterStrokeCommittedEvent) => void,
+    options?: { detail?: 'full' },
+  ): () => void
+
+  onStrokeCommitted(
+    listener: ((event: PainterStrokeCommittedEvent) => void) | ((event: PainterStrokeCommittedSummaryEvent) => void),
+    options: PainterStrokeCommittedOptions = {},
+  ): () => void {
+    if (options.detail === 'summary') {
+      const summaryListener = listener as (event: PainterStrokeCommittedSummaryEvent) => void
+      this.emitter.on('stroke:committed:summary', summaryListener)
+      return () => this.emitter.off('stroke:committed:summary', summaryListener)
+    }
+
+    const fullListener = listener as (event: PainterStrokeCommittedEvent) => void
+    this.emitter.on('stroke:committed', fullListener)
+    return () => this.emitter.off('stroke:committed', fullListener)
   }
 
-  emitStrokeCommitted(commit: SaierStrokeCommit, patch: StrokePatch): void {
+  emitStrokeCommitted(
+    stroke: Pick<SaierStrokeCommit, 'id' | 'layerId' | 'paintTarget' | 'tool'> & { documentId: string },
+    patch: StrokePatch,
+    commit: SaierStrokeCommit | null,
+  ): void {
+    const documentId = stroke.documentId
+    const session = this.resolveDocumentSession(documentId)
+    session.strokeCount++
     const scope = this.options.strokeEventScope ?? { documentScope: 'room-main' as const }
-    this.emitter.emit('stroke:committed', {
+    const summary: PainterStrokeCommittedSummaryEvent = {
       ...scope,
       surfaceId: patch.layerId,
+      strokeId: stroke.id,
+      strokeNumber: session.strokeCount,
+      documentId,
+      layerId: stroke.layerId,
+      tool: stroke.tool,
+      paintTarget: stroke.paintTarget,
+      dirtyRect: { ...patch.rect },
+      source: 'local',
+    }
+    this.emitter.emit('stroke:committed:summary', summary)
+    if (!commit)
+      return
+
+    this.emitter.emit('stroke:commit', commit)
+    this.emitter.emit('stroke:committed', {
+      ...summary,
       commit,
       patch,
     })
@@ -1568,6 +1623,7 @@ export class Painter {
       width: options.width,
       height: options.height,
       dirty: options.dirty ?? false,
+      strokeCount: 0,
       document,
       surface,
       undoManager,

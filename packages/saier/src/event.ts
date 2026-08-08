@@ -1,4 +1,11 @@
-import type { BrushInputPoint, SaierStrokeCommit, StrokePatch } from '@saier/core'
+import type {
+  BrushInputPoint,
+  DirtyRect,
+  SaierPaintTarget,
+  SaierStrokeCommit,
+  SaierStrokeTool,
+  StrokePatch,
+} from '@saier/core'
 import type { PainterAction } from './features/history'
 import type { PainterInputSnapshot } from './input'
 import type { EditableLayer } from './layers'
@@ -14,10 +21,29 @@ export interface PainterStrokeEventScope {
   roundId?: string
 }
 
-export interface PainterStrokeCommittedEvent extends PainterStrokeEventScope {
+export type PainterStrokeSource = 'local' | 'replay' | 'remote'
+
+/** Lightweight metadata emitted after a non-empty stroke is fully committed. */
+export interface PainterStrokeCommittedSummaryEvent extends PainterStrokeEventScope {
   surfaceId: string
+  strokeId: string
+  strokeNumber: number
+  documentId: string
+  layerId: string
+  tool: SaierStrokeTool
+  paintTarget: SaierPaintTarget
+  dirtyRect: Readonly<DirtyRect>
+  source: PainterStrokeSource
+}
+
+export interface PainterStrokeCommittedEvent extends PainterStrokeCommittedSummaryEvent {
   commit: Readonly<SaierStrokeCommit>
   patch: Readonly<StrokePatch>
+}
+
+export interface PainterStrokeCommittedOptions {
+  /** `summary` avoids canonical point capture and patch hashing when no full consumer exists. */
+  detail?: 'full' | 'summary'
 }
 
 export interface PainterStrokePreviewEvent extends PainterStrokeEventScope {
@@ -61,6 +87,7 @@ export function createEmitter() {
     // stroke recording
     'stroke:commit': SaierStrokeCommit
     'stroke:committed': PainterStrokeCommittedEvent
+    'stroke:committed:summary': PainterStrokeCommittedSummaryEvent
     'stroke:preview': PainterStrokePreviewEvent
 
     // document

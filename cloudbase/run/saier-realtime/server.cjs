@@ -5,7 +5,7 @@ const cloudbase = require('@cloudbase/node-sdk')
 const { createClient } = require('redis')
 const { WebSocket, WebSocketServer } = require('ws')
 const { createActivityCommandService } = require('./authority/activity-command-service.cjs')
-const { createActivityDeadlineWorker, createActivityOutboxPublisher } = require('./authority/activity-workers.cjs')
+const { createActivityOutboxPublisher } = require('./authority/activity-workers.cjs')
 const { createCloudbaseCollectionStore } = require('./authority/cloudbase-runtime.cjs')
 const {
   ConnectionQuota,
@@ -61,14 +61,6 @@ const outboxPublisher = createActivityOutboxPublisher({
   publish: notification => redis.publish('saier:activity:committed', JSON.stringify(notification)),
   repo,
 })
-const deadlineWorker = createActivityDeadlineWorker({
-  commandService,
-  deadlineIndex: {
-    add: item => redis.zAdd('saier:activity:deadlines', [{ score: item.deadlineAt, value: JSON.stringify(item) }]),
-  },
-  repo,
-})
-
 const server = http.createServer((request, response) => {
   if (request.url === '/healthz') {
     response.writeHead(200).end('ok')
@@ -452,11 +444,20 @@ const watermarkTimer = setInterval(async () => {
   }
 }, 5000)
 
+let workerRunning = false
 const workerTimer = setInterval(async () => {
-  await Promise.allSettled([
-    outboxPublisher.publishPending(100),
-    deadlineWorker.scanDue(25),
-  ])
+  if (workerRunning)
+    return
+  workerRunning = true
+  try {
+    await outboxPublisher.publishPending(100)
+  }
+  catch {
+    // The next serialized poll will retry unpublished outbox records.
+  }
+  finally {
+    workerRunning = false
+  }
 }, 1000)
 
 async function start() {
@@ -464,8 +465,6 @@ async function start() {
   await redisSubscriber.connect()
   await redisSubscriber.subscribe('saier:activity:committed', message => broadcast(JSON.parse(message), 'committed'))
   await redisSubscriber.subscribe('saier:activity:preview', message => broadcast(JSON.parse(message), 'preview'))
-  await deadlineWorker.rebuildAccelerationIndex(500)
-  await deadlineWorker.scanDue(100)
   server.listen(PORT, '0.0.0.0', () => {
     ready = true
   })

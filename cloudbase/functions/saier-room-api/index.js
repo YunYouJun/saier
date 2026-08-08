@@ -11,6 +11,10 @@ const {
   getCloudbaseCallerUid,
 } = require('./cloudbase-runtime.cjs')
 const { createSaierRoomApiHandler } = require('./handler.cjs')
+const {
+  createCloudbasePictionaryAiGenerator,
+  createPictionaryAiRemixService,
+} = require('./pictionary-ai-remix.cjs')
 const { createPlayPictionaryTicketService } = require('./play-pictionary-ticket.cjs')
 
 const ACTIVITY_DEADLINE_TRIGGER = 'saier-activity-deadlines'
@@ -35,6 +39,18 @@ const app = cloudbase.init({
 const db = app.database()
 const repo = createCloudbaseCollectionStore(db, COLLECTIONS)
 const activityService = createActivityCommandService({ repo })
+const aiRemixEnabled = process.env.SAIER_AI_PICTIONARY_ENABLED === 'true'
+const aiRemixAllowlist = new Set((process.env.SAIER_AI_PICTIONARY_ALLOWLIST ?? '')
+  .split(',')
+  .map(value => value.trim())
+  .filter(Boolean))
+const aiRemixService = createPictionaryAiRemixService({
+  commandService: activityService,
+  enabled: aiRemixEnabled,
+  imageGenerator: createCloudbasePictionaryAiGenerator({ app }),
+  isUserAllowed: userId => aiRemixAllowlist.has('*') || aiRemixAllowlist.has(userId),
+  repo,
+})
 const deadlineWorker = createActivityDeadlineWorker({
   commandService: activityService,
   repo,
@@ -42,6 +58,7 @@ const deadlineWorker = createActivityDeadlineWorker({
 
 const handler = createSaierRoomApiHandler({
   activityService,
+  aiRemixService,
   envId: process.env.SAIER_REALTIME_ENV_ID ?? process.env.TCB_ENV,
   getCurrentUserId,
   realtimeTokenSecret: process.env.SAIER_REALTIME_TOKEN_SECRET,

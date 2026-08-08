@@ -16,6 +16,7 @@ const MAX_STROKE_POINTS = 8192
 const MAX_ACTIVITY_BRUSH_SIZE = 128
 const MIN_ACTIVITY_BRUSH_SIZE = 1
 const RETENTION_MS = 24 * 60 * 60 * 1000
+const SYSTEM_COMMAND_TYPES = new Set(['completeAiRemix', 'failAiRemix', 'phaseTimeout'])
 
 function createActivityCommandService(options) {
   const now = typeof options.now === 'function' ? options.now : () => Date.now()
@@ -26,7 +27,7 @@ function createActivityCommandService(options) {
     clearEndedActivity: input => clearEndedActivity(input, { now, repo }),
     getPrivateProjection: (input, userId) => getPrivateProjection(input, userId, { repo }),
     processDueSessions: limit => processDueSessions(limit, { now, repo }),
-    resumeActivity: (input, userId) => resumeActivity(input, userId, { repo }),
+    resumeActivity: (input, userId) => resumeActivity(input, userId, { now, repo }),
     submitCommand: (input, userId) => submitCommand(input, userId, { now, repo }, false),
     submitSystemCommand: (input, userId) => submitCommand(input, userId, { now, repo }, true),
   }
@@ -177,6 +178,8 @@ async function submitCommand(input, userId, services, systemCommand = false) {
     const member = await tx.getMember(roomMemberId(session.roomId, userId))
     if (!member || (!systemCommand && member.online === false && command.type !== 'joinGame'))
       throw activityError('FORBIDDEN', 'Current room membership is required.')
+    if (!systemCommand && SYSTEM_COMMAND_TYPES.has(command.type))
+      throw activityError('FORBIDDEN', 'This activity command is reserved for the authority.')
 
     if (command.type === 'commitStroke') {
       command.payload = {
@@ -217,7 +220,7 @@ async function submitCommand(input, userId, services, systemCommand = false) {
       }
     })
     reduced.state.eventSeq = startEventSeq + publicEvents.length
-    const canvasOperation = command.type === 'commitStroke'
+    const canvasOperation = command.type === 'commitStroke' || reduced.events.some(event => event.type === 'aiRemixApplied')
       ? createCanvasOperation(command, reduced.state, receivedAt)
       : undefined
     const ended = reduced.state.status === 'finished'
@@ -301,15 +304,26 @@ async function resumeActivity(input, userId, services) {
   const sessionId = requiredString(input.sessionId, 'sessionId')
   const activityEpoch = positiveInteger(input.activityEpoch, 'activityEpoch')
   const cursor = objectValue(input.cursor) ?? {}
-  const session = await services.repo.getActivitySession(sessionId)
+  let session = await services.repo.getActivitySession(sessionId)
   if (!session || session.activityEpoch !== activityEpoch)
     return { kind: 'SESSION_ENDED', endedAt: session?.finishedAt }
-  const room = await services.repo.getRoom(session.roomId)
+  let room = await services.repo.getRoom(session.roomId)
   const member = await services.repo.getMemberByRoomAndUser(session.roomId, userId)
   if (!room || !member)
     throw activityError('FORBIDDEN', 'Current room membership is required.')
   if (!matchesPointer(room.activeActivity, { sessionId, activityEpoch }))
     return { kind: 'SESSION_ENDED', endedAt: session.finishedAt }
+
+  const receivedAt = services.now()
+  const advanced = await processDueActivitySession(session, receivedAt, services)
+  if (advanced) {
+    session = await services.repo.getActivitySession(sessionId)
+    if (!session || session.activityEpoch !== activityEpoch)
+      return { kind: 'SESSION_ENDED', endedAt: session?.finishedAt }
+    room = await services.repo.getRoom(session.roomId)
+    if (!room || !matchesPointer(room.activeActivity, { sessionId, activityEpoch }))
+      return { kind: 'SESSION_ENDED', endedAt: session.finishedAt }
+  }
 
   const watermark = createWatermark(room, session)
   const lastEventSeq = nonNegativeInteger(cursor.lastEventSeq, 'lastEventSeq')
@@ -408,37 +422,55 @@ async function processDueSessions(limit, services) {
   const due = await services.repo.listDueActivitySessions(receivedAt, Math.min(100, positiveInteger(limit ?? 25, 'limit')))
   const results = []
   for (const session of due) {
-    if (!session.round || !Number.isFinite(session.deadlineAt) || receivedAt < session.deadlineAt)
-      continue
-    try {
-      results.push(await submitCommand({
-        activityEpoch: session.activityEpoch,
-        commandId: `timeout:${session.round.roundId}:${session.phaseEpoch}:${session.deadlineAt}`,
-        payload: {},
-        phaseEpoch: session.phaseEpoch,
-        roundId: session.round.roundId,
-        sessionId: session.sessionId,
-        type: 'phaseTimeout',
-      }, session.gameHostUserId, { ...services, now: () => receivedAt }, true))
-    }
-    catch (error) {
-      if (!['COMMAND_ID_REUSED', 'DEADLINE_NOT_REACHED', 'PHASE_EPOCH_MISMATCH', 'ROUND_MISMATCH'].includes(error?.code))
-        throw error
-    }
+    const result = await processDueActivitySession(session, receivedAt, services)
+    if (result)
+      results.push(result)
   }
   return results
 }
 
+async function processDueActivitySession(session, receivedAt, services) {
+  if (session.status !== 'active' || !session.round || !Number.isFinite(session.deadlineAt) || receivedAt < session.deadlineAt)
+    return undefined
+  try {
+    return await submitCommand({
+      activityEpoch: session.activityEpoch,
+      commandId: `timeout:${session.round.roundId}:${session.phaseEpoch}:${session.deadlineAt}`,
+      payload: {},
+      phaseEpoch: session.phaseEpoch,
+      roundId: session.round.roundId,
+      sessionId: session.sessionId,
+      type: 'phaseTimeout',
+    }, session.gameHostUserId, { ...services, now: () => receivedAt }, true)
+  }
+  catch (error) {
+    if (!['COMMAND_ID_REUSED', 'DEADLINE_NOT_REACHED', 'PHASE_EPOCH_MISMATCH', 'ROUND_MISMATCH'].includes(error?.code))
+      throw error
+    return undefined
+  }
+}
+
 function createCanvasOperation(command, state, createdAt) {
   const payload = command.payload
-  const strokeId = requiredString(payload.strokeId, 'strokeId')
+  const aiRemix = command.type === 'completeAiRemix' ? state.round.aiRemix : undefined
+  const strokeId = aiRemix?.status === 'applied'
+    ? requiredString(aiRemix.requestId, 'requestId')
+    : requiredString(payload.strokeId, 'strokeId')
   return {
     activityEpoch: command.activityEpoch,
     canvasSeq: state.round.canvasSeq,
-    controllerEpoch: command.controllerEpoch,
+    controllerEpoch: command.controllerEpoch ?? state.controllerEpoch,
     createdAt,
     id: activityCanvasOperationId(command.sessionId, state.round.roundId, strokeId),
-    payload: clone(payload.commit),
+    payload: aiRemix?.status === 'applied'
+      ? {
+          effect: aiRemix.effect,
+          fileId: aiRemix.fileId,
+          rect: clone(aiRemix.rect),
+          requestId: aiRemix.requestId,
+          schema: 'saier.activity-ai-patch.v1',
+        }
+      : clone(payload.commit),
     phaseEpoch: command.phaseEpoch,
     roundId: state.round.roundId,
     sessionId: command.sessionId,
@@ -450,6 +482,8 @@ function nextAuthorityDeadline(state) {
   const deadlines = []
   if (Number.isFinite(state.round?.deadlineAt))
     deadlines.push(state.round.deadlineAt)
+  if (state.round?.aiRemix?.status === 'pending' && Number.isFinite(state.round.aiRemix.expiresAt))
+    deadlines.push(state.round.aiRemix.expiresAt)
   for (const player of Object.values(state.players ?? {})) {
     if (Number.isFinite(player.presenceDeadlineAt))
       deadlines.push(player.presenceDeadlineAt)

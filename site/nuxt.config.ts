@@ -45,6 +45,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       saierFeatures: {
+        aiPictionary: process.env.NUXT_PUBLIC_SAIER_FEATURE_AI_PICTIONARY === 'true',
         pictionary: process.env.NUXT_PUBLIC_SAIER_FEATURE_PICTIONARY !== 'false',
         pictionaryPlayNative: process.env.NUXT_PUBLIC_SAIER_FEATURE_PICTIONARY_PLAY_NATIVE === 'true',
         realtimeCommittedEvents: process.env.NUXT_PUBLIC_SAIER_FEATURE_REALTIME_COMMITTED_EVENTS === 'true',

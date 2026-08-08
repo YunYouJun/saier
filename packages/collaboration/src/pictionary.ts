@@ -5,6 +5,8 @@ export const PICTIONARY_CANVAS_HEIGHT = 768
 
 export type PictionaryPhase = 'lobby' | 'choosing' | 'drawing' | 'reveal' | 'finished'
 export type PictionaryPlayerStatus = 'active' | 'spectator' | 'left'
+export type PictionaryAiMode = 'off' | 'remix' | 'answer-aware'
+export type PictionaryAiEffect = 'polish' | 'surprise' | 'texture'
 export type PictionaryCommandType
   = | 'joinGame'
     | 'updateLobby'
@@ -12,15 +14,47 @@ export type PictionaryCommandType
     | 'chooseWord'
     | 'submitGuess'
     | 'commitStroke'
+    | 'requestAiRemix'
+    | 'completeAiRemix'
+    | 'failAiRemix'
     | 'takeController'
     | 'setPlayerMuted'
     | 'leaveGame'
     | 'endActivity'
 
 export interface PictionaryConfig {
+  aiMode: PictionaryAiMode
   cycles: 1 | 2 | 3 | 4 | 5
   drawingDurationMs: 60_000 | 90_000 | 120_000
   customBank: boolean
+}
+
+export interface PictionaryAiRect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export interface PictionaryAiRemix {
+  requestId: string
+  effect: PictionaryAiEffect
+  rect: PictionaryAiRect
+  status: 'pending' | 'applied'
+  requestedAt: number
+  expiresAt: number
+  fileId?: string
+}
+
+export interface PictionaryAiRemixBonus {
+  requestId: string
+  effect: PictionaryAiEffect
+  rect: PictionaryAiRect
+  fileId: string
+}
+
+export interface PictionaryAiCanvasPatch extends PictionaryAiRemixBonus {
+  schema: 'saier.activity-ai-patch.v1'
 }
 
 export interface PictionaryPlayer {
@@ -43,6 +77,9 @@ export interface PictionaryRound {
   startedAt?: number
   deadlineAt: number
   durationMs: number
+  aiRemix?: PictionaryAiRemix
+  aiRemixBonus?: PictionaryAiRemixBonus
+  aiRemixUsed: boolean
 }
 
 export interface PictionaryPublicState {

@@ -20,6 +20,8 @@ Reusable room primitives live in this function folder:
   authority, dedupe, public/private projection, event/outbox and resume logic.
 - `activity-workers.cjs`: retryable outbox publishing and the NoSQL-backed
   due-session scanner. Redis is an optional acceleration index only.
+- `pictionary-ai-remix.cjs`: feature-gated CloudBase image-to-image adapter,
+  fixed prompt policy, result persistence, and the Pictionary request workflow.
 
 These modules are intentionally kept inside `saier-room-api` for now so the
 function deployment package stays self-contained. If another product adopts the
@@ -52,6 +54,7 @@ requiring sibling folders from a CloudBase function.
 - `joinActivityRoom`
 - `activatePictionary`
 - `submitActivityCommand`
+- `requestActivityAiRemix`
 - `resumeActivity`
 - `getActivityPrivateProjection`
 - `createActivityRealtimeToken`
@@ -91,9 +94,30 @@ or `RESYNC_REQUIRED`. Public `eventSeq` and per-round `canvasSeq` are recovery
 cursors; `gameRevision` is not used as a guess/stroke cursor. Candidate words
 and answers never enter public events/outbox or durable command results.
 
-The due-session scanner queries `{ status: 'active', deadlineAt <= now }` and
-submits the same fenced, idempotent timeout command as the realtime worker. Add
-an index for `{ status, deadlineAt }` before production rollout.
+Every authenticated `resumeActivity` call first advances its own session when
+the authoritative deadline is due. The global due-session scanner remains a
+durability fallback for rooms whose clients disconnected: run it once per minute
+from the CloudBase timer function, never from each realtime container instance.
+It queries `{ status: 'active', deadlineAt <= now }` and submits the same fenced,
+idempotent timeout command as the request path. Add an index for
+`{ status, deadlineAt }` before production rollout.
+
+## Optional Pictionary AI remix
+
+AI remix is off unless both the browser and authority gates are enabled:
+
+- Browser: `NUXT_PUBLIC_SAIER_FEATURE_AI_PICTIONARY=true`
+- Authority breaker: `SAIER_AI_PICTIONARY_ENABLED=true`
+- Authority allowlist: `SAIER_AI_PICTIONARY_ALLOWLIST=uid-1,uid-2` (`*` is only
+  appropriate for an explicitly approved rollout)
+
+The browser sends a cropped square reference image and one fixed effect id; it
+cannot send a free-form prompt. The authority uses CloudBase
+`HY-Image-v3.0-I2I-ToB-v1.0.1`, immediately copies the expiring provider result
+to activity-scoped CloudBase storage, and persists only the resulting `fileId`
+in canvas operations. A successful canvas patch consumes the round opportunity.
+Failures and 45-second authority expiry refund it; results reaching reveal are
+stored as a non-scoring bonus instead of mutating the final canvas.
 
 ## Deployment Sketch
 
@@ -103,6 +127,10 @@ Production backend gate status (2026-07-08):
 - Function: `saier-room-api`
 - Runtime: `Nodejs18.15`
 - Environment: `SAIER_ROOM_SHARE_ORIGIN=https://saier.yunle.fun`
+- Play Pictionary bridge (server-only, disabled until the Play room gate is
+  ready): `PLAY_GAME_SERVER_API_URL`, `PLAY_GAME_SERVER_REALTIME_URL`, and
+  `SAIER_PICTIONARY_REALTIME_TOKEN`. The same token is configured only on the
+  Saier function and `play-game-server`; it is never returned to the browser.
 - Collections created: `saier_room_rooms`, `saier_room_members`,
   `saier_room_snapshot_reservations`, `saier_room_snapshots`,
   `saier_room_operations`
@@ -124,6 +152,15 @@ P13 v1 also uses `updatePresence` as a heartbeat. It updates member
 `lastSeenAt`, `online`, and optional `presence` payload, then returns the
 refreshed member list. Presence data is intentionally temporary; committed
 operations remain the only durable painting state.
+
+During the Pictionary migration, `createPictionaryPlayTicket` verifies current
+Saier room membership and the active activity pointer, then sends the legacy v1
+public/secret state to Play exactly once to establish compatible authority.
+The returned browser credential is one-time and scoped to that `sessionId`.
+`NUXT_PUBLIC_SAIER_FEATURE_PICTIONARY_PLAY_NATIVE` stays `false` until the Play
+service, collections, index, and two-account smoke have passed. Only after the
+new path is the sole producer of active games should the legacy
+`saier-activity-deadlines` timer be removed.
 
 Real-account browser verification uses two YunLeFun auth sessions from the
 `ylf_test_` fixture set documented in `docs/design/test-accounts.md` and the
@@ -154,7 +191,9 @@ manageFunctions({
     name: 'saier-room-api',
     type: 'Event',
     runtime: 'Nodejs18.15',
-    timeout: 30,
+    // CloudBase recommends 900 seconds for image generation. Keep 30 seconds
+    // when the AI remix breaker is off; raise it before enabling the feature.
+    timeout: 900,
   },
   functionRootPath: '/absolute/path/to/saier/cloudbase/functions',
 })
@@ -166,3 +205,12 @@ the `{ status, deadlineAt }` game-session index, configure
 `SAIER_REALTIME_ENV_ID` and `SAIER_REALTIME_TOKEN_SECRET`, and run the complete
 P13-07/P14 real-account and leakage suite. Deploying these external resources is
 intentionally separate from editing this repository.
+
+The AI remix source is implemented but is likewise **not enabled or deployed by
+this change**. Confirm model quota/billing, rotate any exposed management
+credentials, set the server allowlist, raise the function timeout, and run a
+real-account generation smoke before turning on either feature flag.
+Apply a storage lifecycle rule (or scheduled cleanup) to
+`room-storage/saier/*/activities/*/ai-remix/` before expanding beyond the
+allowlisted preview, so generated images do not outlive the activity retention
+policy indefinitely.

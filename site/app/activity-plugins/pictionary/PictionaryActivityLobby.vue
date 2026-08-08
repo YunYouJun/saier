@@ -5,9 +5,9 @@ import { useRouter } from '#imports'
 import { SiteActivityPageHeader, SiteActivityPanel } from '~/components/activity'
 import { useYunlefunRoomActivities } from '~/composables/useYunlefunRoomActivities'
 import { createSiteActivityLocation, parsePictionaryJoinTarget } from '~/utils/activityPluginRoutes'
+import { usePictionaryI18n } from './i18n'
 import PictionaryCreateRoomCard from './PictionaryCreateRoomCard.vue'
 import PictionaryJoinRoomCard from './PictionaryJoinRoomCard.vue'
-import { usePictionaryI18n } from './i18n'
 
 const router = useRouter()
 const activities = useYunlefunRoomActivities()
@@ -33,7 +33,10 @@ async function createGame(): Promise<void> {
       return
     await activities.activatePictionary({
       commandId: crypto.randomUUID(),
-      config: { customBank: Boolean(words) },
+      config: {
+        aiMode: activities.features.aiPictionary ? 'remix' : 'off',
+        customBank: Boolean(words),
+      },
       locale: locale.value,
       roomId: created.session.room.id,
       words,

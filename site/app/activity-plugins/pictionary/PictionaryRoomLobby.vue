@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import type { PictionaryPlayer } from '@saier/collaboration'
+import type { PictionaryAiMode, PictionaryPlayer } from '@saier/collaboration'
 import { computed } from 'vue'
 import { SiteActivityButton, SiteActivityField, SiteActivityPageHeader, SiteActivityPanel } from '~/components/activity'
 import { formatPictionaryMessage, usePictionaryI18n } from './i18n'
 
 const props = defineProps<{
   busy: boolean
+  aiEnabled: boolean
   hostId: string
   isHost: boolean
   players: readonly PictionaryPlayer[]
@@ -19,6 +20,7 @@ const emit = defineEmits<{
 
 const cycles = defineModel<1 | 2 | 3 | 4 | 5>('cycles', { required: true })
 const duration = defineModel<60_000 | 90_000 | 120_000>('duration', { required: true })
+const aiMode = defineModel<PictionaryAiMode>('aiMode', { required: true })
 const { text } = usePictionaryI18n()
 const activePlayerCount = computed(() => props.players.filter(player => player.status === 'active').length)
 const lobbyDescription = computed(() => formatPictionaryMessage(text.value.room.lobbyDescription, {
@@ -84,6 +86,20 @@ const waitingLabel = computed(() => formatPictionaryMessage(text.value.room.wait
               {{ option.label }}
             </option>
           </select>
+        </SiteActivityField>
+        <SiteActivityField v-if="aiEnabled" :label="text.room.aiMode">
+          <select v-model="aiMode" class="site-activity-control" :disabled="busy" @change="emit('settingsChange')">
+            <option value="off">
+              {{ text.room.aiModeOff }}
+            </option>
+            <option value="remix">
+              {{ text.room.aiModeRemix }}
+            </option>
+            <option value="answer-aware">
+              {{ text.room.aiModeAnswerAware }}
+            </option>
+          </select>
+          <small class="pictionary-lobby-settings__hint">{{ text.room.aiModeHint }}</small>
         </SiteActivityField>
         <SiteActivityButton
           class="pictionary-lobby-settings__start"
@@ -200,6 +216,14 @@ const waitingLabel = computed(() => formatPictionaryMessage(text.value.room.wait
 
 .pictionary-lobby-settings__start {
   grid-column: 1 / -1;
+}
+
+.pictionary-lobby-settings__hint {
+  display: block;
+  margin-top: 5px;
+  color: var(--saier-color-text-subtle);
+  font-size: 10px;
+  line-height: 1.45;
 }
 
 .pictionary-waiting-host {

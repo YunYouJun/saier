@@ -61,6 +61,7 @@ function createSaierRoomApiHandler(options) {
       realtimeTokenSecret: stringValue(options.realtimeTokenSecret),
       userId,
       activityService,
+      aiRemixService: options.aiRemixService,
       playPictionaryTickets: options.playPictionaryTickets,
     }
 
@@ -99,6 +100,10 @@ function createSaierRoomApiHandler(options) {
         return services.activityService.activatePictionary(event, userId)
       case 'submitActivityCommand':
         return services.activityService.submitCommand(event, userId)
+      case 'requestActivityAiRemix':
+        if (!services.aiRemixService)
+          throw roomError('backend_unavailable', 'AI remix service is not configured.')
+        return services.aiRemixService.request(event, userId)
       case 'resumeActivity':
         return services.activityService.resumeActivity(event, userId)
       case 'getActivityPrivateProjection':

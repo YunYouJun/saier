@@ -50,6 +50,28 @@ export interface PictionaryMessages {
   playerStatus: Record<PictionaryPlayerStatus, string>
   room: {
     answer: string
+    aiApplied: string
+    aiBonus: string
+    aiBonusHint: string
+    aiEffect: string
+    aiEffectPolish: string
+    aiEffectSurprise: string
+    aiEffectTexture: string
+    aiFailed: string
+    aiGenerate: string
+    aiMagic: string
+    aiMagicHint: string
+    aiMode: string
+    aiModeAnswerAware: string
+    aiModeHint: string
+    aiModeOff: string
+    aiModeRemix: string
+    aiPending: string
+    aiReselectRegion: string
+    aiSelectRegion: string
+    aiSelectionHint: string
+    aiSelectionTooSmall: string
+    aiUsed: string
     brushColor: string
     brushSize: string
     canvasSyncing: string
@@ -149,6 +171,28 @@ const PICTIONARY_MESSAGES = {
     },
     room: {
       answer: 'Answer',
+      aiApplied: 'AI patch added to the canvas',
+      aiBonus: 'Late AI bonus',
+      aiBonusHint: 'It arrived after the drawing window, so it did not change the canvas or score.',
+      aiEffect: 'Effect',
+      aiEffectPolish: 'Polish lines',
+      aiEffectSurprise: 'Playful remix',
+      aiEffectTexture: 'Paper texture',
+      aiFailed: 'Generation failed or expired. Your opportunity was refunded.',
+      aiGenerate: 'Generate patch',
+      aiMagic: 'AI magic area',
+      aiMagicHint: 'Select one square. Only that region can be replaced.',
+      aiMode: 'AI magic',
+      aiModeAnswerAware: 'Answer-aware',
+      aiModeHint: 'Remix hides the answer from AI. The setting locks when the game starts.',
+      aiModeOff: 'Off',
+      aiModeRemix: 'Remix · no answer',
+      aiPending: 'Generating…',
+      aiReselectRegion: 'Reselect',
+      aiSelectRegion: 'Select area',
+      aiSelectionHint: 'Choose a square on the canvas',
+      aiSelectionTooSmall: 'Select a square at least 64px wide.',
+      aiUsed: 'Used this round',
       brushColor: 'Brush color',
       brushSize: 'Brush size',
       canvasSyncing: 'Syncing canvas',
@@ -250,6 +294,28 @@ const PICTIONARY_MESSAGES = {
     },
     room: {
       answer: '答案',
+      aiApplied: 'AI 图片补丁已加入画布',
+      aiBonus: '迟到的 AI 彩蛋',
+      aiBonusHint: '结果在绘画时段后返回，因此不会修改画布或分数。',
+      aiEffect: '效果',
+      aiEffectPolish: '整理线稿',
+      aiEffectSurprise: '趣味变奏',
+      aiEffectTexture: '纸笔质感',
+      aiFailed: '生成失败或已超时，本回合机会已退还。',
+      aiGenerate: '生成局部图片',
+      aiMagic: 'AI 魔法区',
+      aiMagicHint: '框选一个正方形，只替换这个区域。',
+      aiMode: 'AI 魔法',
+      aiModeAnswerAware: '知晓答案',
+      aiModeHint: '“趣味变奏”不会把答案交给 AI；开局后设置锁定。',
+      aiModeOff: '关闭',
+      aiModeRemix: '趣味变奏 · 不知道答案',
+      aiPending: '生成中…',
+      aiReselectRegion: '重新框选',
+      aiSelectRegion: '框选区域',
+      aiSelectionHint: '在画布上框选正方形',
+      aiSelectionTooSmall: '请框选至少 64px 的正方形。',
+      aiUsed: '本回合已使用',
       brushColor: '笔刷颜色',
       brushSize: '笔刷粗细',
       canvasSyncing: '画布同步中',

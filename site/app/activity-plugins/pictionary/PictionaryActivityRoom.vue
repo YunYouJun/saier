@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import type { ActiveActivity, ActivityCanvasOperation } from '@saier/collaboration'
+import type {
+  ActiveActivity,
+  ActivityCanvasOperation,
+  PictionaryAiCanvasPatch,
+  PictionaryAiMode,
+} from '@saier/collaboration'
 import type { SaierStrokeCommit } from '@saier/core'
 import type { Painter } from 'saier'
 import type { PictionaryTool } from './i18n'
@@ -10,11 +15,13 @@ import { useActivityRealtimeShadow } from '~/composables/useActivityRealtimeShad
 import { useYunlefunAuth } from '~/composables/useYunlefunAuth'
 import { useYunlefunRoomActivities } from '~/composables/useYunlefunRoomActivities'
 import { createSiteActivityHref } from '~/utils/activityPluginRoutes'
+import { formatPictionaryMessage, usePictionaryI18n } from './i18n'
+import PictionaryAiRemixControl from './PictionaryAiRemixControl.vue'
 import PictionaryDrawingPanel from './PictionaryDrawingPanel.vue'
 import PictionaryRoomLobby from './PictionaryRoomLobby.vue'
 import PictionaryRoomToolbar from './PictionaryRoomToolbar.vue'
 import PictionaryScoreboard from './PictionaryScoreboard.vue'
-import { formatPictionaryMessage, usePictionaryI18n } from './i18n'
+import { usePictionaryAiRemix } from './usePictionaryAiRemix'
 
 const props = defineProps<{
   inviteToken?: string
@@ -51,6 +58,7 @@ const currentPrivateProjection = computed(() => {
 })
 const players = computed(() => Object.values(state.value?.players ?? {}).sort((a, b) => b.score - a.score || a.joinedAt - b.joinedAt))
 const canvasRef = useTemplateRef<HTMLCanvasElement>('canvas')
+const canvasContainerRef = useTemplateRef<HTMLDivElement>('canvasContainer')
 const previewCanvasRef = useTemplateRef<HTMLCanvasElement>('previewCanvas')
 const guess = shallowRef('')
 const liveGuess = shallowRef('')
@@ -65,6 +73,7 @@ const selectedColor = shallowRef('#202020')
 const selectedBrushSize = shallowRef(8)
 const cycles = shallowRef<1 | 2 | 3 | 4 | 5>(2)
 const duration = shallowRef<60_000 | 90_000 | 120_000>(90_000)
+const aiMode = shallowRef<PictionaryAiMode>(activities.features.aiPictionary ? 'remix' : 'off')
 let painter: Painter | undefined
 let removeStrokeListener: (() => void) | undefined
 let removeStrokePreviewListener: (() => void) | undefined
@@ -113,6 +122,35 @@ const winnerLabel = computed(() => formatPictionaryMessage(text.value.room.winne
 }))
 const revealLabel = computed(() => revealReady.value ? text.value.room.answer : text.value.room.canvasSyncing)
 const revealAnswer = computed(() => answer.value || text.value.room.syncFinalStroke)
+const aiEnabled = computed(() => activities.features.aiPictionary
+  && ['remix', 'answer-aware'].includes(state.value?.config.aiMode ?? 'off'))
+const canUseAi = computed(() => canDraw.value && aiEnabled.value)
+const {
+  applyCanvasPatch: applyAiCanvasPatch,
+  beginSelection: beginAiSelection,
+  bonusUrl: aiBonusUrl,
+  cancelSelection: cancelAiSelection,
+  detachedBonus: aiDetachedBonus,
+  effect: aiEffect,
+  finishSelection: finishAiSelection,
+  generate: generateAiRemix,
+  message: aiMessage,
+  moveSelection: moveAiSelection,
+  pending: aiPending,
+  requestBusy: aiRequestBusy,
+  selecting: aiSelecting,
+  selection: aiSelection,
+  startSelection: startAiSelection,
+  used: aiUsed,
+} = usePictionaryAiRemix({
+  activities,
+  canUse: canUseAi,
+  canvasContainerRef,
+  getPainter: () => painter,
+  requireRoundState,
+  syncAuthority,
+  text,
+})
 
 onMounted(async () => {
   try {
@@ -217,8 +255,8 @@ async function syncAuthority(): Promise<void> {
     if (result.kind === 'SESSION_ENDED' || result.kind === 'RESYNC_REQUIRED')
       return
     const operations = result.kind === 'SNAPSHOT_REQUIRED'
-      ? ((result.snapshot.canvas as { operations?: Array<ActivityCanvasOperation<SaierStrokeCommit>> }).operations ?? [])
-      : result.canvasOperations as Array<ActivityCanvasOperation<SaierStrokeCommit>>
+      ? ((result.snapshot.canvas as { operations?: Array<ActivityCanvasOperation<PictionaryCanvasPayload>> }).operations ?? [])
+      : result.canvasOperations as Array<ActivityCanvasOperation<PictionaryCanvasPayload>>
     const currentRoundId = activities.publicState.value?.round?.roundId
     if (currentRoundId && (!painter || painter.options.strokeEventScope?.roundId !== currentRoundId))
       await createActivityPainter(currentRoundId)
@@ -231,6 +269,7 @@ async function syncAuthority(): Promise<void> {
       return
     const config = activities.publicState.value?.config
     if (config) {
+      aiMode.value = config.aiMode ?? 'off'
       cycles.value = config.cycles
       duration.value = config.drawingDurationMs
     }
@@ -377,7 +416,9 @@ function applyPainterTool(): void {
   painter.brush.setColor(Number.parseInt(selectedColor.value.slice(1), 16))
 }
 
-async function applyCanvasOperations(operations: Array<ActivityCanvasOperation<SaierStrokeCommit>>): Promise<void> {
+type PictionaryCanvasPayload = SaierStrokeCommit | PictionaryAiCanvasPatch
+
+async function applyCanvasOperations(operations: Array<ActivityCanvasOperation<PictionaryCanvasPayload>>): Promise<void> {
   if (!painter)
     return
   for (const operation of [...operations].sort((a, b) => a.canvasSeq - b.canvasSeq)) {
@@ -386,7 +427,10 @@ async function applyCanvasOperations(operations: Array<ActivityCanvasOperation<S
       continue
     }
     try {
-      painter.strokeRecording.replayStroke(operation.payload, { recordHistory: false })
+      if (isAiCanvasPatch(operation.payload))
+        await applyAiCanvasPatch(operation.payload)
+      else
+        painter.strokeRecording.replayStroke(operation.payload, { recordHistory: false })
       painter.flushSurfaceUploads()
       appliedStrokeIds.add(operation.strokeId)
       appliedCanvasSeq.value = Math.max(appliedCanvasSeq.value, operation.canvasSeq)
@@ -396,6 +440,10 @@ async function applyCanvasOperations(operations: Array<ActivityCanvasOperation<S
       break
     }
   }
+}
+
+function isAiCanvasPatch(payload: PictionaryCanvasPayload): payload is PictionaryAiCanvasPatch {
+  return payload.schema === 'saier.activity-ai-patch.v1'
 }
 
 async function submitCommittedStroke(commit: Readonly<SaierStrokeCommit>): Promise<void> {
@@ -477,7 +525,7 @@ async function updateLobby(): Promise<void> {
     activityEpoch: current.activityEpoch,
     commandId: crypto.randomUUID(),
     expectedGameRevision: current.state.gameRevision,
-    payload: { cycles: cycles.value, drawingDurationMs: duration.value },
+    payload: { aiMode: aiMode.value, cycles: cycles.value, drawingDurationMs: duration.value },
     sessionId: current.sessionId,
     type: 'updateLobby',
   })
@@ -586,7 +634,6 @@ function requireRoundState() {
     throw new Error(text.value.errors.noRound)
   return current
 }
-
 </script>
 
 <template>
@@ -607,8 +654,10 @@ function requireRoundState() {
     <template v-else>
       <PictionaryRoomLobby
         v-if="state?.phase === 'lobby'"
+        v-model:ai-mode="aiMode"
         v-model:cycles="cycles"
         v-model:duration="duration"
+        :ai-enabled="activities.features.aiPictionary"
         :busy="activities.busy.value"
         :host-id="state.gameHostUserId"
         :is-host="isHost"
@@ -633,9 +682,41 @@ function requireRoundState() {
             <strong>{{ currentPrivateProjection?.answer || text.room.syncingPrompt }}</strong>
           </p>
 
-          <div class="pictionary-canvas" :class="{ 'is-readonly': !canDraw }">
+          <div ref="canvasContainer" class="pictionary-canvas" :class="{ 'is-readonly': !canDraw, 'is-selecting': aiSelecting }">
             <canvas ref="canvas" />
             <canvas ref="previewCanvas" class="pictionary-canvas__preview" width="1024" height="768" aria-hidden="true" />
+            <div
+              v-if="aiSelecting"
+              class="pictionary-ai-selector"
+              role="application"
+              :aria-label="text.room.aiSelectionHint"
+              @pointercancel="cancelAiSelection"
+              @pointerdown="startAiSelection"
+              @pointermove="moveAiSelection"
+              @pointerup="finishAiSelection"
+            >
+              <span v-if="!aiSelection" class="pictionary-ai-selector__hint">{{ text.room.aiSelectionHint }}</span>
+              <span
+                v-else
+                class="pictionary-ai-selection-box"
+                :style="{
+                  height: `${aiSelection.height / 768 * 100}%`,
+                  left: `${aiSelection.x / 1024 * 100}%`,
+                  top: `${aiSelection.y / 768 * 100}%`,
+                  width: `${aiSelection.width / 1024 * 100}%`,
+                }"
+              />
+            </div>
+            <span
+              v-else-if="aiSelection && canUseAi"
+              class="pictionary-ai-selection-box is-preview"
+              :style="{
+                height: `${aiSelection.height / 768 * 100}%`,
+                left: `${aiSelection.x / 1024 * 100}%`,
+                top: `${aiSelection.y / 768 * 100}%`,
+                width: `${aiSelection.width / 1024 * 100}%`,
+              }"
+            />
             <div v-if="state?.phase === 'choosing'" class="pictionary-canvas-overlay">
               <template v-if="isDrawer">
                 <span class="site-activity-kicker">{{ text.room.chooseThree }}</span>
@@ -658,6 +739,13 @@ function requireRoundState() {
             <div v-if="state?.phase === 'reveal'" class="pictionary-canvas-overlay is-reveal">
               <span class="site-activity-kicker">{{ revealLabel }}</span>
               <h2>{{ revealAnswer }}</h2>
+              <figure v-if="aiBonusUrl" class="pictionary-ai-bonus">
+                <img :src="aiBonusUrl" :alt="text.room.aiBonus">
+                <figcaption>
+                  <strong>{{ text.room.aiBonus }}</strong>
+                  <span>{{ text.room.aiBonusHint }}</span>
+                </figcaption>
+              </figure>
             </div>
             <div v-if="state?.phase === 'finished'" class="pictionary-canvas-overlay is-reveal">
               <span class="site-activity-kicker">{{ text.room.finalScore }}</span>
@@ -667,6 +755,14 @@ function requireRoundState() {
               </SiteActivityButton>
             </div>
           </div>
+
+          <figure v-if="aiBonusUrl && aiDetachedBonus" class="pictionary-ai-bonus is-late">
+            <img :src="aiBonusUrl" :alt="text.room.aiBonus">
+            <figcaption>
+              <strong>{{ text.room.aiBonus }}</strong>
+              <span>{{ text.room.aiBonusHint }}</span>
+            </figcaption>
+          </figure>
 
           <form
             v-if="state?.phase === 'drawing' && !isDrawer && currentPlayer?.status === 'active'"
@@ -691,6 +787,17 @@ function requireRoundState() {
             v-model:tool="selectedTool"
             :can-take-control="isDrawer"
             @take-control="takeController"
+          />
+          <PictionaryAiRemixControl
+            v-if="canUseAi"
+            v-model:effect="aiEffect"
+            :busy="aiRequestBusy"
+            :message="aiMessage"
+            :pending="aiPending"
+            :selection="aiSelection"
+            :used="aiUsed"
+            @generate="generateAiRemix"
+            @select="beginAiSelection"
           />
           <PictionaryScoreboard
             :current-user-id="currentUserId"
@@ -814,6 +921,44 @@ function requireRoundState() {
   pointer-events: none;
 }
 
+.pictionary-canvas.is-selecting canvas {
+  pointer-events: none;
+}
+
+.pictionary-ai-selector {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.pictionary-ai-selector__hint {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: rgb(32 36 43 / 82%);
+  color: #fff;
+  font-size: 11px;
+  transform: translateX(-50%);
+}
+
+.pictionary-ai-selection-box {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--saier-color-warning);
+  background: rgb(245 158 11 / 12%);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 72%) inset;
+  pointer-events: none;
+}
+
+.pictionary-ai-selection-box.is-preview {
+  z-index: 3;
+  border-style: dashed;
+}
+
 .pictionary-canvas.is-readonly canvas {
   pointer-events: none;
 }
@@ -844,6 +989,55 @@ function requireRoundState() {
 .pictionary-canvas-overlay__icon {
   color: #2563eb;
   font-size: 36px;
+}
+
+.pictionary-ai-bonus {
+  display: grid;
+  width: min(420px, 80%);
+  grid-template-columns: minmax(96px, 160px) minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid rgb(32 36 43 / 16%);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 72%);
+  text-align: left;
+}
+
+.pictionary-ai-bonus img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.pictionary-ai-bonus figcaption,
+.pictionary-ai-bonus figcaption span {
+  display: block;
+}
+
+.pictionary-ai-bonus.is-late {
+  margin-top: 8px;
+  border-color: var(--saier-color-border);
+  background: var(--saier-color-panel);
+  color: var(--saier-color-text);
+}
+
+.pictionary-ai-bonus.is-late figcaption span {
+  color: var(--saier-color-text-muted);
+}
+
+.pictionary-ai-bonus figcaption strong {
+  font-size: 13px;
+}
+
+.pictionary-ai-bonus figcaption span {
+  margin-top: 4px;
+  color: #606873;
+  font-size: 10px;
+  line-height: 1.5;
 }
 
 .pictionary-candidate-list {

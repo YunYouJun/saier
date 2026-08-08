@@ -318,6 +318,9 @@ function createHarness(initialUserId = 'owner') {
     handler,
     issuedPlayTickets,
     repo,
+    setTime(time: number) {
+      currentTime = time
+    },
     setUser(userId: string) {
       currentUserId = userId
     },
@@ -1012,6 +1015,34 @@ describe('saier room activity authority', () => {
       state: { gameRevision: expect.any(Number), sessionId: game.sessionId },
     })
     expect(JSON.stringify(delta.state)).not.toContain(answer)
+  })
+
+  it('advances an elapsed phase deadline through the existing resume request', async () => {
+    const game = await createDrawingActivity()
+    const before = await game.repo.getActivitySession(game.sessionId)
+    game.setTime(Number(before?.deadlineAt))
+
+    const resumed = await game.handler({
+      action: 'resumeActivity',
+      activityEpoch: game.activityEpoch,
+      cursor: {
+        lastCanvasSeq: 0,
+        lastEventSeq: 0,
+        roomMetadataRevision: 0,
+        roundId: game.roundId,
+      },
+      sessionId: game.sessionId,
+    })
+    const state = resumed.kind === 'SNAPSHOT_REQUIRED'
+      ? (resumed.snapshot as { state: Record<string, unknown> }).state
+      : resumed.state as Record<string, unknown>
+
+    expect(state).toMatchObject({ phase: 'reveal' })
+    expect(game.repo.inspectActivityRecords().commands).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        commandId: expect.stringMatching(/^timeout:/),
+      }),
+    ]))
   })
 
   it('rolls back reducer failures without changing projection, secret, event, or outbox', async () => {

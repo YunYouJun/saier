@@ -4,6 +4,9 @@ const ANSWER_NORMALIZATION_VERSION = 'saier.answer-normalization.v1'
 const RULES_VERSION = 1
 const CHOOSING_DURATION_MS = 10_000
 const REVEAL_DURATION_MS = 5_000
+const AI_REMIX_TIMEOUT_MS = 45_000
+const AI_REMIX_EFFECTS = new Set(['polish', 'surprise', 'texture'])
+const AI_REMIX_MODES = new Set(['off', 'remix', 'answer-aware'])
 const DEFAULT_WORD_BANKS = Object.freeze({
   en: Object.freeze([
     'apple',
@@ -106,6 +109,7 @@ function createPictionarySession(input) {
       updatedAt: now,
     },
     secretState: {
+      aiRemixExpiredRequests: {},
       candidates: undefined,
       frozenWordBankHash: requiredString(input.wordBankHash, 'wordBankHash'),
       remainingWords: words,
@@ -207,6 +211,84 @@ function reducePictionaryCommand(input) {
       })
       break
     }
+    case 'requestAiRemix': {
+      requireRoundCommand(state, command)
+      requirePhase(state, 'drawing')
+      assertBeforeDeadline(state, now)
+      requireDrawer(state, userId)
+      if (!AI_REMIX_MODES.has(state.config.aiMode) || state.config.aiMode === 'off')
+        throw activityError('AI_REMIX_DISABLED', 'AI remix is disabled for this room.')
+      if (command.controllerEpoch !== state.controllerEpoch)
+        throw activityError('CONTROLLER_EPOCH_MISMATCH', 'Drawer controller changed.')
+      if (state.round.aiRemixUsed)
+        throw activityError('AI_REMIX_ALREADY_USED', 'The AI remix was already applied this round.')
+      if (state.round.aiRemix?.status === 'pending')
+        throw activityError('AI_REMIX_PENDING', 'An AI remix is already pending.')
+      const requestId = requiredString(command.payload?.requestId, 'requestId')
+      const effect = normalizeAiRemixEffect(command.payload?.effect)
+      const rect = normalizeAiRemixRect(command.payload?.rect)
+      state.round.aiRemix = {
+        effect,
+        expiresAt: now + AI_REMIX_TIMEOUT_MS,
+        rect,
+        requestedAt: now,
+        requestId,
+        status: 'pending',
+      }
+      events.push({ effect, expiresAt: state.round.aiRemix.expiresAt, rect, requestId, type: 'aiRemixRequested' })
+      break
+    }
+    case 'completeAiRemix': {
+      requireRoundCommand(state, command)
+      requireDrawer(state, userId)
+      const requestId = requiredString(command.payload?.requestId, 'requestId')
+      const fileId = requiredString(command.payload?.fileId, 'fileId')
+      const pending = state.round.aiRemix?.status === 'pending' && state.round.aiRemix.requestId === requestId
+        ? state.round.aiRemix
+        : undefined
+      const expiredRequests = secret.aiRemixExpiredRequests[state.round.roundId] ?? []
+      const expired = expiredRequests.find(request => request.requestId === requestId)
+      if (!pending && !expired)
+        throw activityError('AI_REMIX_STALE', 'AI remix result does not match a current or expired request.')
+
+      if (pending && state.phase === 'drawing' && now < pending.expiresAt && now < state.round.deadlineAt) {
+        state.round.canvasSeq += 1
+        state.round.aiRemix = { ...pending, fileId, status: 'applied' }
+        state.round.aiRemixUsed = true
+        events.push({
+          canvasSeq: state.round.canvasSeq,
+          effect: pending.effect,
+          rect: pending.rect,
+          requestId,
+          roundId: state.round.roundId,
+          type: 'aiRemixApplied',
+        })
+      }
+      else {
+        const source = pending ?? expired
+        state.round.aiRemix = undefined
+        state.round.aiRemixBonus = {
+          effect: normalizeAiRemixEffect(source.effect),
+          fileId,
+          rect: normalizeAiRemixRect(source.rect),
+          requestId,
+        }
+        secret.aiRemixExpiredRequests[state.round.roundId] = expiredRequests
+          .filter(request => request.requestId !== requestId)
+        events.push({ requestId, roundId: state.round.roundId, type: 'aiRemixBonusReady' })
+      }
+      break
+    }
+    case 'failAiRemix': {
+      requireRoundCommand(state, command)
+      requireDrawer(state, userId)
+      const requestId = requiredString(command.payload?.requestId, 'requestId')
+      if (state.round.aiRemix?.status !== 'pending' || state.round.aiRemix.requestId !== requestId)
+        throw activityError('AI_REMIX_STALE', 'AI remix failure does not match the pending request.')
+      state.round.aiRemix = undefined
+      events.push({ requestId, roundId: state.round.roundId, type: 'aiRemixFailed' })
+      break
+    }
     case 'takeController': {
       requireRoundCommand(state, command)
       requireDrawer(state, userId)
@@ -271,6 +353,7 @@ function reducePictionaryCommand(input) {
     }
     case 'phaseTimeout': {
       requireRoundCommand(state, command)
+      const aiRemixExpired = expireAiRemix(state, secret, now, events)
       const presenceChanged = applyPresenceDeadlines(state, now, events)
       if (state.phase === 'reveal' && now >= state.round.deadlineAt) {
         advanceAfterReveal(state, secret, input, events)
@@ -284,7 +367,7 @@ function reducePictionaryCommand(input) {
         endRound(state, now, events, 'deadline')
         privateAudienceUserIds = Object.keys(state.players)
       }
-      else if (!presenceChanged) {
+      else if (!presenceChanged && !aiRemixExpired) {
         throw activityError('DEADLINE_NOT_REACHED', 'No authoritative deadline has elapsed.')
       }
       if (events.some(event => event.type === 'roundEnded'))
@@ -339,6 +422,7 @@ function startChoosing(state, secret, input, events) {
   state.phaseEpoch += 1
   state.controllerEpoch = (state.controllerEpoch ?? 0) + 1
   state.round = {
+    aiRemixUsed: false,
     canvasSeq: 0,
     deadlineAt: input.now + CHOOSING_DURATION_MS,
     drawerId,
@@ -594,10 +678,46 @@ function normalizeConfig(value = {}) {
     ? value.drawingDurationMs
     : 90_000
   return {
+    aiMode: AI_REMIX_MODES.has(value.aiMode) ? value.aiMode : 'off',
     customBank: Boolean(value.customBank),
     cycles,
     drawingDurationMs,
   }
+}
+
+function expireAiRemix(state, secret, now, events) {
+  const remix = state.round?.aiRemix
+  if (remix?.status !== 'pending' || now < remix.expiresAt)
+    return false
+  const roundId = state.round.roundId
+  const expired = secret.aiRemixExpiredRequests[roundId] ?? []
+  secret.aiRemixExpiredRequests[roundId] = [
+    ...expired.filter(request => request.requestId !== remix.requestId),
+    { effect: remix.effect, rect: remix.rect, requestId: remix.requestId },
+  ].slice(-2)
+  state.round.aiRemix = undefined
+  events.push({ requestId: remix.requestId, roundId, type: 'aiRemixExpired' })
+  return true
+}
+
+function normalizeAiRemixEffect(value) {
+  if (!AI_REMIX_EFFECTS.has(value))
+    throw activityError('INVALID_AI_REMIX', 'AI remix effect is not supported.')
+  return value
+}
+
+function normalizeAiRemixRect(value) {
+  const rect = objectValue(value)
+  const x = rect.x
+  const y = rect.y
+  const width = rect.width
+  const height = rect.height
+  if (![x, y, width, height].every(Number.isSafeInteger)
+    || x < 0 || y < 0 || width < 64 || height < 64
+    || width !== height || x + width > 1024 || y + height > 768) {
+    throw activityError('INVALID_AI_REMIX', 'AI remix selection must be a 64px-or-larger square inside the canvas.')
+  }
+  return { height, width, x, y }
 }
 
 function createPlayer(userId, joinedAt, status) {
@@ -693,6 +813,7 @@ function activityError(code, message) {
 
 module.exports = {
   ANSWER_NORMALIZATION_VERSION,
+  AI_REMIX_TIMEOUT_MS,
   CHOOSING_DURATION_MS,
   DEFAULT_WORD_BANK,
   DEFAULT_WORD_BANKS,

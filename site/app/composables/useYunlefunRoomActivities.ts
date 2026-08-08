@@ -1,6 +1,7 @@
 import type {
   ActiveActivity,
   ActivityCommand,
+  PictionaryAiEffect,
   PictionaryCommandType,
   PictionaryPublicState,
   ResumeCursor,
@@ -69,6 +70,7 @@ interface RoomActivityRuntimeConfig {
   public: {
     saierCloudRoomApiFunctionName?: string
     saierFeatures?: {
+      aiPictionary?: boolean
       pictionary?: boolean
       pictionaryPlayNative?: boolean
       realtimeCommittedEvents?: boolean
@@ -152,6 +154,36 @@ export function useYunlefunRoomActivities() {
       })
     }
     return run(() => callRoomApi('submitActivityCommand', { ...command }) as Promise<ActivityCommandResult>)
+  }
+
+  async function requestAiRemix(input: {
+    activityEpoch: number
+    commandId: string
+    controllerEpoch: number
+    effect: PictionaryAiEffect
+    phaseEpoch: number
+    rect: { height: number, width: number, x: number, y: number }
+    referenceImageDataUrl: string
+    roundId: string
+    sessionId: string
+  }): Promise<{ fileId: string, outcome: 'applied' | 'bonus', requestId: string }> {
+    return run(() => callRoomApi('requestActivityAiRemix', input) as Promise<{
+      fileId: string
+      outcome: 'applied' | 'bonus'
+      requestId: string
+    }>)
+  }
+
+  async function resolveFileUrl(fileId: string): Promise<string> {
+    const app = await auth.getCloudbaseApp()
+    if (!app?.getTempFileURL)
+      throw new Error('storage_unavailable')
+    const response = await app.getTempFileURL({ fileList: [{ fileID: fileId, maxAge: 3600 }] })
+    const item = response.fileList?.[0]
+    const url = item?.tempFileURL ?? item?.download_url ?? item?.downloadUrl ?? item?.downloadUrlEncoded
+    if (!url)
+      throw new Error(item?.message || 'download_failed')
+    return url
   }
 
   async function resumeActivity(
@@ -287,6 +319,9 @@ export function useYunlefunRoomActivities() {
     createRoom,
     dispose,
     features: Object.freeze({
+      // AI remix still writes to the legacy Saier authority. Keep it unavailable
+      // while Play owns the Pictionary session to avoid split-brain state.
+      aiPictionary: !playNative && (config.public.saierFeatures?.aiPictionary ?? false),
       pictionary: config.public.saierFeatures?.pictionary ?? false,
       pictionaryPlayNative: playNative,
       realtimeCommittedEvents: !playNative && (config.public.saierFeatures?.realtimeCommittedEvents ?? false),
@@ -299,6 +334,8 @@ export function useYunlefunRoomActivities() {
     privateProjection: readonly(privateProjection),
     publicState: readonly(publicState),
     realtimeUrl: config.public.saierRealtimeUrl ?? '',
+    requestAiRemix,
+    resolveFileUrl,
     resumeActivity,
     roomSession: readonly(roomSession),
     submitCommand,

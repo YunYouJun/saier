@@ -1,13 +1,15 @@
-import type { PictionaryPlayer } from '@saier/collaboration'
+import type { PictionaryAiMode, PictionaryPlayer } from '@saier/collaboration'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createApp, h, nextTick, shallowRef } from 'vue'
 import { useSiteI18n } from '~/composables/useSiteI18n'
+import PictionaryAiRemixControl from './PictionaryAiRemixControl.vue'
 import PictionaryCreateRoomCard from './PictionaryCreateRoomCard.vue'
 import PictionaryDrawingPanel from './PictionaryDrawingPanel.vue'
 import PictionaryJoinRoomCard from './PictionaryJoinRoomCard.vue'
 import PictionaryRoomLobby from './PictionaryRoomLobby.vue'
 import PictionaryRoomToolbar from './PictionaryRoomToolbar.vue'
 import PictionaryScoreboard from './PictionaryScoreboard.vue'
+import { createPictionaryAiSquareSelection } from './usePictionaryAiRemix'
 import '~/assets/activity.css'
 import '~/assets/theme.css'
 
@@ -95,6 +97,7 @@ describe('pictionary editor UI', () => {
     ]
     const cycles = shallowRef<1 | 2 | 3 | 4 | 5>(2)
     const duration = shallowRef<60_000 | 90_000 | 120_000>(90_000)
+    const aiMode = shallowRef<PictionaryAiMode>('remix')
     const drawingTool = shallowRef<'eraser' | 'marker' | 'pen'>('pen')
     const drawingColor = shallowRef('#202020')
     const drawingSize = shallowRef(8)
@@ -109,6 +112,8 @@ describe('pictionary editor UI', () => {
       h(PictionaryRoomLobby, {
         ...{
           busy: false,
+          aiEnabled: true,
+          aiMode: aiMode.value,
           cycles: cycles.value,
           duration: duration.value,
           hostId: 'host-user',
@@ -118,6 +123,7 @@ describe('pictionary editor UI', () => {
           players,
         },
         'onUpdate:cycles': (value: 1 | 2 | 3 | 4 | 5) => cycles.value = value,
+        'onUpdate:aiMode': (value: PictionaryAiMode) => aiMode.value = value,
         'onUpdate:duration': (value: 60_000 | 90_000 | 120_000) => duration.value = value,
       }),
       h(PictionaryScoreboard, {
@@ -159,5 +165,48 @@ describe('pictionary editor UI', () => {
     await nextTick()
     expect(el.textContent).toContain('Host')
     expect(el.textContent).toContain('Scoreboard')
+  })
+
+  it('keeps AI remix to fixed effects and a selected square', async () => {
+    setLocale('zh')
+    const effect = shallowRef<'polish' | 'surprise' | 'texture'>('polish')
+    let generateCount = 0
+    let selectCount = 0
+    const el = mount(() => h(PictionaryAiRemixControl, {
+      ...{
+        busy: false,
+        effect: effect.value,
+        message: '',
+        onGenerate: () => generateCount++,
+        onSelect: () => selectCount++,
+        pending: false,
+        selection: { height: 256, width: 256, x: 32, y: 32 },
+        used: false,
+      },
+      'onUpdate:effect': (value: 'polish' | 'surprise' | 'texture') => effect.value = value,
+    }))
+
+    expect(el.textContent).toContain('AI 魔法区')
+    expect(el.textContent).toContain('256 × 256px')
+    expect(el.querySelectorAll('option')).toHaveLength(3)
+    expect(el.querySelector('input[type="text"]')).toBeNull()
+
+    const buttons = el.querySelectorAll<HTMLButtonElement>('button')
+    buttons[0]!.click()
+    buttons[1]!.click()
+    await nextTick()
+    expect(selectCount).toBe(1)
+    expect(generateCount).toBe(1)
+  })
+
+  it('clamps AI selections to a square inside the activity canvas', () => {
+    expect(createPictionaryAiSquareSelection(
+      { x: 100, y: 100 },
+      { x: 20, y: 50 },
+    )).toEqual({ height: 80, width: 80, x: 20, y: 20 })
+    expect(createPictionaryAiSquareSelection(
+      { x: 1000, y: 740 },
+      { x: 1024, y: 768 },
+    )).toEqual({ height: 24, width: 24, x: 1000, y: 740 })
   })
 })

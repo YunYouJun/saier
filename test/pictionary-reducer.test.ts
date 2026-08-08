@@ -135,6 +135,97 @@ describe('pictionary authoritative reducer', () => {
     })
   })
 
+  it('locks the optional AI remix mode in lobby configuration', () => {
+    expect(createGame().publicState.config.aiMode).toBe('off')
+    let game = createGame({ aiMode: 'remix' })
+    expect(game.publicState.config.aiMode).toBe('remix')
+
+    game = apply(game, 'host', command('updateLobby', { aiMode: 'answer-aware' }, {
+      expectedGameRevision: 0,
+    }), 1010)
+    expect(game.publicState.config.aiMode).toBe('answer-aware')
+
+    game = apply(game, 'player-2', command('joinGame'), 1020)
+    game = apply(game, 'host', command('startGame', {}, { expectedGameRevision: 2 }), 1030)
+    expect(() => reduce(game, 'host', command('updateLobby', { aiMode: 'off' }, {
+      expectedGameRevision: game.publicState.gameRevision,
+    }), 1040)).toThrow('PHASE_MISMATCH')
+  })
+
+  it('consumes the AI remix only after its patch lands', () => {
+    let game = drawingGame({ aiMode: 'remix' })
+    const fence = {
+      controllerEpoch: game.publicState.controllerEpoch,
+      phaseEpoch: game.publicState.phaseEpoch,
+      roundId: game.publicState.round.roundId,
+    }
+    game = apply(game, 'host', command('requestAiRemix', {
+      effect: 'polish',
+      requestId: 'remix-1',
+      rect: { height: 256, width: 256, x: 64, y: 96 },
+    }, fence), 2000)
+
+    expect(game.publicState.round.aiRemix).toMatchObject({
+      requestId: 'remix-1',
+      status: 'pending',
+    })
+    expect(game.publicState.round.aiRemixUsed).toBe(false)
+
+    game = apply(game, 'host', command('completeAiRemix', {
+      fileId: 'cloud://env/remix-1.png',
+      requestId: 'remix-1',
+    }, { phaseEpoch: fence.phaseEpoch, roundId: fence.roundId }), 2500)
+
+    expect(game.publicState.round.canvasSeq).toBe(1)
+    expect(game.publicState.round.aiRemixUsed).toBe(true)
+    expect(game.publicState.round.aiRemix).toMatchObject({ status: 'applied' })
+    expect(() => reduce(game, 'host', command('requestAiRemix', {
+      effect: 'polish',
+      requestId: 'remix-2',
+      rect: { height: 256, width: 256, x: 64, y: 96 },
+    }, fence), 2600)).toThrow('AI_REMIX_ALREADY_USED')
+  })
+
+  it('refunds failed or expired AI remix work and keeps late reveal results as a bonus', () => {
+    let game = drawingGame({ aiMode: 'remix' })
+    const fence = {
+      controllerEpoch: game.publicState.controllerEpoch,
+      phaseEpoch: game.publicState.phaseEpoch,
+      roundId: game.publicState.round.roundId,
+    }
+    game = apply(game, 'host', command('requestAiRemix', {
+      effect: 'surprise',
+      requestId: 'remix-failed',
+      rect: { height: 192, width: 192, x: 32, y: 32 },
+    }, fence), 2000)
+    game = apply(game, 'host', command('failAiRemix', {
+      requestId: 'remix-failed',
+    }, { phaseEpoch: fence.phaseEpoch, roundId: fence.roundId }), 2100)
+    expect(game.publicState.round.aiRemix).toBeUndefined()
+    expect(game.publicState.round.aiRemixUsed).toBe(false)
+
+    game = apply(game, 'host', command('requestAiRemix', {
+      effect: 'texture',
+      requestId: 'remix-late',
+      rect: { height: 192, width: 192, x: 32, y: 32 },
+    }, fence), 2200)
+    game = apply(game, 'host', command('phaseTimeout', {}, {
+      phaseEpoch: fence.phaseEpoch,
+      roundId: fence.roundId,
+    }), game.publicState.round.aiRemix.expiresAt)
+    expect(game.publicState.round.aiRemix).toBeUndefined()
+    expect(game.publicState.round.aiRemixUsed).toBe(false)
+
+    const late = reduce(game, 'host', command('completeAiRemix', {
+      fileId: 'cloud://env/remix-late.png',
+      requestId: 'remix-late',
+    }, { phaseEpoch: fence.phaseEpoch, roundId: fence.roundId }), game.publicState.round.deadlineAt - 1)
+    expect(late.state.round.canvasSeq).toBe(0)
+    expect(late.state.round.aiRemixUsed).toBe(false)
+    expect(late.state.round.aiRemixBonus).toMatchObject({ requestId: 'remix-late' })
+    expect(late.events).toContainEqual(expect.objectContaining({ type: 'aiRemixBonusReady' }))
+  })
+
   it('persists disconnect grace and lets the deadline command end a drawer-less round', () => {
     let game = drawingGame()
     const fence = {
@@ -231,9 +322,10 @@ describe('pictionary authoritative reducer', () => {
   })
 })
 
-function createGame(): GamePair {
+function createGame(config: Record<string, unknown> = {}): GamePair {
   return core.createPictionarySession({
     activityEpoch: 2,
+    config,
     hostUserId: 'host',
     now: 1000,
     sessionId: 'session-1',
@@ -244,8 +336,8 @@ function createGame(): GamePair {
   })
 }
 
-function drawingGame(): GamePair {
-  let game = createGame()
+function drawingGame(config: Record<string, unknown> = {}): GamePair {
+  let game = createGame(config)
   game = apply(game, 'player-2', command('joinGame'), 1010)
   game = apply(game, 'host', command('startGame', {}, { expectedGameRevision: 1 }), 1020)
   game = apply(game, 'host', command('chooseWord', { candidateIndex: 0 }, {

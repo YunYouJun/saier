@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import type { SitePainterMenuCommand, SitePainterTool } from '~/types/painter-app'
 import PainterSlider from '@saier/vue/components/PainterSlider.vue'
+import PainterToolbar from '@saier/vue/components/PainterToolbar.vue'
+import PainterToolbarButton from '@saier/vue/components/PainterToolbarButton.vue'
 import PainterToolSwitcher from '@saier/vue/components/PainterToolSwitcher.vue'
-import {
-  ToolbarButton,
-  ToolbarRoot,
-  ToolbarSeparator,
-} from 'reka-ui'
+import { ToolbarSeparator } from 'reka-ui'
 import { computed } from 'vue'
 
 interface SitePainterToolbarLabels {
@@ -15,6 +13,7 @@ interface SitePainterToolbarLabels {
   saveProject: string
   cloudSync: string
   cloudRoom: string
+  openImage: string
   importImage: string
   exportPreview: string
   download: string
@@ -64,12 +63,13 @@ const stabilizerStrengthModel = computed({
   },
 })
 
-const fileActions: { command: SitePainterMenuCommand, labelKey: 'cloudRoom' | 'cloudSync' | 'importImage' | 'newCanvas' | 'openProject' | 'saveProject', icon: string }[] = [
+const fileActions: { command: SitePainterMenuCommand, labelKey: 'cloudRoom' | 'cloudSync' | 'openImage' | 'importImage' | 'newCanvas' | 'openProject' | 'saveProject', icon: string }[] = [
   { command: 'file:new', labelKey: 'newCanvas', icon: 'i-ph-file-plus' },
   { command: 'file:open-project', labelKey: 'openProject', icon: 'i-ph-folder-open' },
   { command: 'file:save-project', labelKey: 'saveProject', icon: 'i-ph-floppy-disk' },
   { command: 'file:cloud-sync', labelKey: 'cloudSync', icon: 'i-ph-cloud-arrow-up' },
   { command: 'file:cloud-room', labelKey: 'cloudRoom', icon: 'i-ph-broadcast' },
+  { command: 'file:open-image', labelKey: 'openImage', icon: 'i-ph-image-square' },
   { command: 'file:import-image', labelKey: 'importImage', icon: 'i-ph-image' },
 ]
 
@@ -123,8 +123,8 @@ function normalizeStabilizerStrength(strength: number): number {
 </script>
 
 <template>
-  <ToolbarRoot class="site-toolbar" :aria-label="labels.tools" loop>
-    <ToolbarButton
+  <PainterToolbar class="site-toolbar" :label="labels.tools">
+    <PainterToolbarButton
       v-for="action in fileActions"
       :key="action.command"
       class="site-toolbar__button"
@@ -133,30 +133,30 @@ function normalizeStabilizerStrength(strength: number): number {
       @click="emit('command', action.command)"
     >
       <span :class="action.icon" />
-    </ToolbarButton>
+    </PainterToolbarButton>
 
-    <ToolbarSeparator class="site-toolbar__separator" />
+    <ToolbarSeparator class="painter-toolbar__separator" />
 
-    <ToolbarButton
+    <PainterToolbarButton
       class="site-toolbar__button"
       :disabled="disabled || !canUndo"
       :title="labels.undo"
       @click="emit('command', 'edit:undo')"
     >
       <span class="i-ph-arrow-arc-left" />
-    </ToolbarButton>
-    <ToolbarButton
+    </PainterToolbarButton>
+    <PainterToolbarButton
       class="site-toolbar__button"
       :disabled="disabled || !canRedo"
       :title="labels.redo"
       @click="emit('command', 'edit:redo')"
     >
       <span class="i-ph-arrow-arc-right" />
-    </ToolbarButton>
+    </PainterToolbarButton>
 
-    <ToolbarSeparator class="site-toolbar__separator" />
+    <ToolbarSeparator class="painter-toolbar__separator" />
 
-    <ToolbarButton
+    <PainterToolbarButton
       v-for="action in viewActions"
       :key="action.command"
       class="site-toolbar__button"
@@ -165,9 +165,9 @@ function normalizeStabilizerStrength(strength: number): number {
       @click="emit('command', action.command)"
     >
       <span :class="action.icon" />
-    </ToolbarButton>
+    </PainterToolbarButton>
 
-    <ToolbarSeparator class="site-toolbar__separator" />
+    <ToolbarSeparator class="painter-toolbar__separator" />
 
     <PainterToolSwitcher
       :disabled="disabled"
@@ -177,7 +177,7 @@ function normalizeStabilizerStrength(strength: number): number {
       @update:model-value="onToolChange"
     />
 
-    <ToolbarSeparator class="site-toolbar__separator" />
+    <ToolbarSeparator class="painter-toolbar__separator" />
 
     <PainterSlider
       v-model="stabilizerStrengthModel"
@@ -192,9 +192,9 @@ function normalizeStabilizerStrength(strength: number): number {
       variant="compact"
     />
 
-    <ToolbarSeparator class="site-toolbar__separator" />
+    <ToolbarSeparator class="painter-toolbar__separator" />
 
-    <ToolbarButton
+    <PainterToolbarButton
       class="site-toolbar__button"
       :aria-pressed="recordingEnabled ? 'true' : 'false'"
       :data-state="recordingEnabled ? 'on' : undefined"
@@ -203,8 +203,8 @@ function normalizeStabilizerStrength(strength: number): number {
       @click="emit('command', 'recording:toggle')"
     >
       <span class="i-ph-record" />
-    </ToolbarButton>
-    <ToolbarButton
+    </PainterToolbarButton>
+    <PainterToolbarButton
       v-for="action in recordingActions"
       :key="action.command"
       class="site-toolbar__button"
@@ -213,11 +213,11 @@ function normalizeStabilizerStrength(strength: number): number {
       @click="emit('command', action.command)"
     >
       <span :class="action.icon" />
-    </ToolbarButton>
+    </PainterToolbarButton>
 
-    <ToolbarSeparator class="site-toolbar__separator" />
+    <ToolbarSeparator class="painter-toolbar__separator" />
 
-    <ToolbarButton
+    <PainterToolbarButton
       v-for="action in exportActions"
       :key="action.command"
       class="site-toolbar__button"
@@ -226,68 +226,11 @@ function normalizeStabilizerStrength(strength: number): number {
       @click="emit('command', action.command)"
     >
       <span :class="action.icon" />
-    </ToolbarButton>
-  </ToolbarRoot>
+    </PainterToolbarButton>
+  </PainterToolbar>
 </template>
 
 <style scoped>
-.site-toolbar {
-  display: inline-flex;
-  max-width: none;
-  height: 36px;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid var(--saier-color-border);
-  border-radius: 7px;
-  background: var(--saier-color-surface);
-}
-
-:global(.site-toolbar__button) {
-  display: inline-grid;
-  width: 30px;
-  height: 28px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid transparent;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--saier-color-text-muted);
-  font-size: 17px;
-  outline: none;
-}
-
-:global(.site-toolbar__button:hover) {
-  border-color: var(--saier-color-border);
-  background: var(--saier-color-surface-hover);
-  color: var(--saier-color-text);
-}
-
-:global(.site-toolbar__button:focus-visible) {
-  border-color: var(--saier-color-accent-border);
-  box-shadow: 0 0 0 2px var(--saier-color-accent-soft);
-}
-
-:global(.site-toolbar__button[data-state='on']) {
-  border-color: var(--saier-color-accent-border);
-  background: var(--saier-color-accent-soft);
-  color: var(--saier-color-text);
-}
-
-:global(.site-toolbar__button:disabled),
-:global(.site-toolbar__button[data-disabled]) {
-  color: var(--saier-color-text-disabled);
-  pointer-events: none;
-}
-
-.site-toolbar__separator {
-  width: 1px;
-  height: 22px;
-  margin: 0 3px;
-  background: var(--saier-color-surface-hover);
-}
-
 .site-toolbar__stabilizer {
   flex: 0 0 auto;
   --painter-slider-compact-track-size: 88px;

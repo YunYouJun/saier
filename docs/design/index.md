@@ -11,8 +11,10 @@ title: Design Overview
 > - 想知道**按什么顺序做** → 看 [Roadmap](./roadmap)。
 > - 想知道**接口契约** → 看 [Core Interfaces](./interfaces)。
 > - 想知道**关键取舍** → 看 [Decisions](./decisions)。
+> - 想知道**界面与交互如何保持一致** → 看 [UI 统一设计规范](./ui-guidelines)。
 > - 想知道**怎么验收** → 看 [Testing & Determinism](./testing)。
 > - 想知道**笔迹录制 / 回放怎么做** → 看 [Stroke Recording](./stroke-recording)。
+> - 想知道**快速水印工作台与 PSD 互通怎么做** → 看 [Watermark Workbench](./watermark-workbench)。
 > - 想知道**云端房间协作怎么做** → 看 [Cloud Rooms](./cloud-rooms)。
 > - 想知道**YunLeFun 测试账号怎么建、怎么标记、怎么清理** → 看 [YunLeFun Test Accounts](./test-accounts)。
 
@@ -104,4 +106,4 @@ packages/
 - **画布内 overlay**（笔刷光标、选区、变换手柄）→ **pixi**（Pixi，随缩放变换、逐帧重绘）。
 - **落笔输入热路径**（`pointermove → dab`）+ **状态事实来源** → **core**（headless controller）。Vue 只做薄皮镜像，不持有事实来源。
 
-下一步 → [Roadmap (P0–P14)](./roadmap)
+下一步 → [Roadmap (P0–P15)](./roadmap)

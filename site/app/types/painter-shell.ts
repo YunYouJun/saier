@@ -16,6 +16,7 @@ export interface SitePainterPanelActionLabels {
 }
 
 export interface SitePainterShellProps {
+  extensionPanels?: readonly SitePainterPanelItem[]
   appName: string
   availablePanels: SitePainterPanelId[]
   closePreviewLabel: string

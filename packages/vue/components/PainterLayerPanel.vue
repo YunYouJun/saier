@@ -2,6 +2,8 @@
 import type { BlendMode, LayerNodeMoveTarget, PainterLayerNodeState, PainterLayerState } from '@saier/core'
 import { computed } from 'vue'
 import LayerTreeRow from './LayerTreeRow.vue'
+import PainterIconButton from './PainterIconButton.vue'
+import PainterPanelHeader from './PainterPanelHeader.vue'
 
 type PainterLayerPaintTarget = 'content' | 'mask'
 
@@ -37,7 +39,8 @@ interface DisplayNode {
   lowerGroupChildCount: number
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
+  showHeader?: boolean
   activeLayerId: string | null
   layers: PainterLayerState[]
   layerTree?: PainterLayerNodeState[]
@@ -47,7 +50,7 @@ const props = defineProps<{
   labels?: Partial<Omit<PainterLayerPanelLabels, 'blendModes'>> & {
     blendModes?: Partial<Record<BlendMode, string>>
   }
-}>()
+}>(), { showHeader: true })
 
 const emit = defineEmits<{
   'add': [options?: { parentId?: string | null, index?: number }]
@@ -163,17 +166,12 @@ function dropOnRootTop(event: DragEvent): void {
 
 <template>
   <section class="painter-layer-panel">
-    <header class="painter-layer-panel__header">
-      <span class="painter-layer-panel__title">{{ text.title }}</span>
-      <div class="painter-layer-panel__header-actions">
-        <button type="button" class="painter-layer-panel__icon" :title="text.addGroup" @click="emit('addGroup')">
-          <span class="i-ph-folder-plus" />
-        </button>
-        <button type="button" class="painter-layer-panel__icon" :title="text.addLayer" @click="emit('add')">
-          <span class="i-ph-plus" />
-        </button>
-      </div>
-    </header>
+    <PainterPanelHeader v-if="showHeader !== false" :title="text.title">
+      <template #actions>
+        <PainterIconButton size="sm" :title="text.addGroup" icon="i-ph-folder-plus" @click="emit('addGroup')" />
+        <PainterIconButton size="sm" :title="text.addLayer" icon="i-ph-plus" @click="emit('add')" />
+      </template>
+    </PainterPanelHeader>
 
     <div class="painter-layer-panel__list">
       <LayerTreeRow
@@ -224,41 +222,12 @@ function dropOnRootTop(event: DragEvent): void {
 
 <style scoped>
 .painter-layer-panel {
-  width: min(336px, calc(100vw - 16px));
+  width: min(var(--saier-panel-width), calc(100vw - 16px));
   border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
-  border-radius: 8px;
+  border-radius: var(--saier-radius-panel);
   background: var(--saier-color-panel, rgb(18 18 22 / 92%));
   color: var(--saier-color-text, white);
   font-size: 12px;
-}
-
-.painter-layer-panel__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px;
-  border-bottom: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
-}
-
-.painter-layer-panel__title {
-  font-weight: 600;
-}
-
-.painter-layer-panel__header-actions {
-  display: flex;
-  gap: 4px;
-}
-
-.painter-layer-panel__icon {
-  display: inline-grid;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
-  border-radius: 6px;
-  background: var(--saier-color-surface, rgb(255 255 255 / 6%));
-  color: var(--saier-color-text, white);
 }
 
 .painter-layer-panel__list {

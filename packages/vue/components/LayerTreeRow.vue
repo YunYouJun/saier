@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import type { BlendMode, LayerNodeMoveTarget, PainterLayerNodeState } from '@saier/core'
 import { computed } from 'vue'
+import PainterIconButton from './PainterIconButton.vue'
+import '../styles/editor-form.css'
 
 type PainterLayerPaintTarget = 'content' | 'mask'
 
@@ -260,25 +262,25 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
       @dragover.prevent
       @drop.prevent.stop="dropBefore"
     >
-      <button
+      <PainterIconButton
         v-if="node.type === 'group'"
-        type="button"
+        size="sm"
         class="layer-tree-row__icon"
         :title="node.collapsed ? labels.expandGroup : labels.collapseGroup"
         @click.stop="emit('update:groupCollapsed', node.id, !node.collapsed)"
       >
         <span :class="node.collapsed ? 'i-ph-caret-right' : 'i-ph-caret-down'" />
-      </button>
+      </PainterIconButton>
       <span v-else class="layer-tree-row__spacer" />
 
-      <button
-        type="button"
+      <PainterIconButton
+        size="sm"
         class="layer-tree-row__icon"
         :title="node.visible ? labels.hideLayer : labels.showLayer"
         @click.stop="emit('update:visible', node.id, !node.visible)"
       >
         <span :class="node.visible ? 'i-ph-eye' : 'i-ph-eye-slash'" />
-      </button>
+      </PainterIconButton>
 
       <div
         class="layer-tree-row__thumb-stack"
@@ -320,13 +322,15 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
       <input
         class="layer-tree-row__name"
         :value="node.label"
+        :aria-label="node.label"
         @change="emit('update:label', node.id, valueFromEvent($event))"
         @click.stop
       >
 
-      <div v-if="isRaster && node.type === 'raster'" class="layer-tree-row__controls" @click.stop>
+      <div v-if="isRaster && node.type === 'raster'" class="layer-tree-row__controls saier-editor-form" @click.stop>
         <select
           class="layer-tree-row__blend"
+          :aria-label="`${node.label} blend mode`"
           :value="node.blendMode"
           @change="emit('update:blendMode', node.id, blendModeFromEvent($event))"
         >
@@ -337,6 +341,7 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
 
         <input
           class="layer-tree-row__opacity"
+          :aria-label="`${node.label} opacity`"
           type="range"
           min="0"
           max="1"
@@ -348,30 +353,30 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
 
       <div class="layer-tree-row__actions" @click.stop>
         <template v-if="node.type === 'group'">
-          <button type="button" class="layer-tree-row__icon" :title="labels.addLayer" @click="emit('add', { parentId: node.id })">
+          <PainterIconButton size="sm" class="layer-tree-row__icon" :title="labels.addLayer" @click="emit('add', { parentId: node.id })">
             <span class="i-ph-plus" />
-          </button>
-          <button type="button" class="layer-tree-row__icon" :title="labels.addGroup" @click="emit('addGroup', { parentId: node.id })">
+          </PainterIconButton>
+          <PainterIconButton size="sm" class="layer-tree-row__icon" :title="labels.addGroup" @click="emit('addGroup', { parentId: node.id })">
             <span class="i-ph-folder-plus" />
-          </button>
-          <button type="button" class="layer-tree-row__icon" :title="labels.ungroup" @click="emit('ungroup', node.id)">
+          </PainterIconButton>
+          <PainterIconButton size="sm" class="layer-tree-row__icon" :title="labels.ungroup" @click="emit('ungroup', node.id)">
             <span class="i-ph-folder-open" />
-          </button>
+          </PainterIconButton>
         </template>
 
         <template v-if="node.type === 'raster'">
-          <button
+          <PainterIconButton
             v-if="!node.mask"
-            type="button"
+            size="sm"
             class="layer-tree-row__icon"
             :title="labels.addMask"
             @click="addMask"
           >
             <span class="i-ph-mask-happy" />
-          </button>
+          </PainterIconButton>
           <template v-else>
-            <button
-              type="button"
+            <PainterIconButton
+              size="sm"
               class="layer-tree-row__icon"
               :class="{ 'is-on': node.mask.enabled }"
               :title="node.mask.enabled ? labels.disableMask : labels.enableMask"
@@ -379,18 +384,18 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
               @click="emit('update:maskEnabled', node.id, !node.mask.enabled)"
             >
               <span :class="node.mask.enabled ? 'i-ph-eye' : 'i-ph-eye-slash'" />
-            </button>
-            <button
-              type="button"
+            </PainterIconButton>
+            <PainterIconButton
+              size="sm"
               class="layer-tree-row__icon"
               :title="labels.removeMask"
               @click="removeMask"
             >
               <span class="i-ph-mask-sad" />
-            </button>
+            </PainterIconButton>
           </template>
-          <button
-            type="button"
+          <PainterIconButton
+            size="sm"
             class="layer-tree-row__icon"
             :class="{ 'is-on': node.lockAlpha }"
             :title="labels.lockAlpha"
@@ -398,9 +403,9 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
             @click="emit('update:lockAlpha', node.id, !node.lockAlpha)"
           >
             <span :class="node.lockAlpha ? 'i-ph-lock' : 'i-ph-lock-open'" />
-          </button>
-          <button
-            type="button"
+          </PainterIconButton>
+          <PainterIconButton
+            size="sm"
             class="layer-tree-row__icon"
             :class="{ 'is-on': node.clip }"
             :title="labels.clip"
@@ -409,54 +414,54 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
             @click="emit('update:clip', node.id, !node.clip)"
           >
             <span class="i-ph-arrow-elbow-down-left" />
-          </button>
+          </PainterIconButton>
         </template>
 
-        <button
-          type="button"
+        <PainterIconButton
+          size="sm"
           class="layer-tree-row__icon"
           :title="labels.moveIn"
           :disabled="!lowerGroupId"
           @click="moveIn"
         >
           <span class="i-ph-arrow-bend-down-right" />
-        </button>
-        <button
-          type="button"
+        </PainterIconButton>
+        <PainterIconButton
+          size="sm"
           class="layer-tree-row__icon"
           :title="labels.moveOut"
           :disabled="!parentId"
           @click="moveOut"
         >
           <span class="i-ph-arrow-bend-up-left" />
-        </button>
-        <button
-          type="button"
+        </PainterIconButton>
+        <PainterIconButton
+          size="sm"
           class="layer-tree-row__icon"
           :title="labels.moveUp"
           :disabled="index >= siblingCount - 1"
           @click="moveUp"
         >
           <span class="i-ph-arrow-up" />
-        </button>
-        <button
-          type="button"
+        </PainterIconButton>
+        <PainterIconButton
+          size="sm"
           class="layer-tree-row__icon"
           :title="labels.moveDown"
           :disabled="index <= 0"
           @click="moveDown"
         >
           <span class="i-ph-arrow-down" />
-        </button>
-        <button
-          type="button"
+        </PainterIconButton>
+        <PainterIconButton
+          size="sm"
           class="layer-tree-row__icon"
           :title="labels.removeLayer"
           :disabled="!canRemove"
           @click="emit('remove', node.id)"
         >
           <span class="i-ph-trash" />
-        </button>
+        </PainterIconButton>
       </div>
     </article>
 
@@ -504,18 +509,18 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
 <style scoped>
 .layer-tree-row {
   display: grid;
-  gap: 6px;
+  gap: var(--saier-space-1);
 }
 
 .layer-tree-row__body {
   display: grid;
-  grid-template-columns: 20px 28px 76px minmax(0, 1fr) auto;
-  gap: 6px;
+  grid-template-columns: var(--saier-icon-size) var(--saier-control-size-sm) auto minmax(0, 1fr);
+  gap: var(--saier-space-1);
   align-items: center;
-  padding: 6px;
-  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
-  border-radius: 8px;
-  background: var(--saier-color-surface, rgb(255 255 255 / 6%));
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: var(--saier-radius-control);
+  background: transparent;
 }
 
 .layer-tree-row__body.is-group {
@@ -523,7 +528,7 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
 }
 
 .layer-tree-row__body.is-active {
-  border-color: var(--saier-color-accent-border, rgb(120 170 255 / 80%));
+  border-color: transparent;
   background: var(--saier-color-accent-soft, rgb(80 120 190 / 26%));
 }
 
@@ -531,51 +536,29 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
   border-color: var(--saier-color-accent-border, rgb(120 170 255 / 40%));
 }
 
-.layer-tree-row__spacer,
-.layer-tree-row__icon {
-  display: inline-grid;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 auto;
-  place-items: center;
+.layer-tree-row__body > .layer-tree-row__icon,
+.layer-tree-row__spacer {
+  grid-row: 1 / 3;
 }
 
 .layer-tree-row__spacer {
-  width: 20px;
-}
-
-.layer-tree-row__icon {
-  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
-  border-radius: 6px;
-  background: var(--saier-color-surface, rgb(255 255 255 / 6%));
-  color: var(--saier-color-text, white);
-}
-
-.layer-tree-row__icon:disabled {
-  cursor: not-allowed;
-  opacity: 0.36;
-}
-
-.layer-tree-row__icon.is-on {
-  border-color: var(--saier-color-accent-border, rgb(120 170 255 / 80%));
-  background: var(--saier-color-accent-strong, rgb(80 120 190 / 40%));
+  width: var(--saier-icon-size);
 }
 
 .layer-tree-row__thumb-stack {
-  display: grid;
-  width: 76px;
-  grid-template-columns: repeat(2, 36px);
-  gap: 4px;
+  display: flex;
+  grid-row: 1 / 3;
+  gap: var(--saier-space-1);
 }
 
 .layer-tree-row__thumb {
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   overflow: hidden;
   place-items: center;
   border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
-  border-radius: 6px;
+  border-radius: var(--saier-radius-control);
   background:
     linear-gradient(45deg, var(--saier-color-checker-light, #f1f2f4) 25%, transparent 25%),
     linear-gradient(-45deg, var(--saier-color-checker-light, #f1f2f4) 25%, transparent 25%),
@@ -631,6 +614,9 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
 }
 
 .layer-tree-row__name {
+  grid-column: 4;
+  width: 100%;
+  height: var(--saier-control-size-sm);
   min-width: 0;
   border: 0;
   background: transparent;
@@ -639,34 +625,43 @@ function containsLayer(nodes: readonly PainterLayerNodeState[], id: string | nul
   outline: 0;
 }
 
+.layer-tree-row__name:focus-visible {
+  outline: var(--saier-focus-width) solid var(--saier-color-focus, #93c5fd);
+  outline-offset: 1px;
+}
+
 .layer-tree-row__controls {
-  display: grid;
-  width: 112px;
-  gap: 4px;
+  display: flex;
+  min-width: 0;
+  grid-column: 4;
+  gap: var(--saier-space-1);
 }
 
 .layer-tree-row__blend,
 .layer-tree-row__opacity {
   min-width: 0;
-  width: 100%;
+  width: 50%;
 }
 
 .layer-tree-row__blend {
   border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
-  border-radius: 6px;
-  background: var(--saier-color-surface, rgb(255 255 255 / 6%));
+  border-radius: var(--saier-radius-control);
+  background: var(--saier-color-field, rgb(255 255 255 / 6%));
   color: var(--saier-color-text, white);
 }
 
 .layer-tree-row__actions {
   display: flex;
   grid-column: 1 / -1;
+  border-top: 1px solid var(--saier-color-border);
+  padding-top: 2px;
   justify-content: flex-end;
-  gap: 4px;
+  flex-wrap: wrap;
+  gap: var(--saier-space-1);
 }
 
 .layer-tree-row__children {
   display: grid;
-  gap: 6px;
+  gap: var(--saier-space-1);
 }
 </style>

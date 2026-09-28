@@ -4,6 +4,7 @@ import type { Painter } from 'saier'
 import { computed, onBeforeUnmount, shallowRef, watch } from 'vue'
 import BrushPresetPicker from './BrushPresetPicker.vue'
 import PainterCheckbox from './PainterCheckbox.vue'
+import PainterDisclosure from './PainterDisclosure.vue'
 import PainterSlider from './PainterSlider.vue'
 
 type BrushPresetLabelMap = Partial<Record<BrushPresetId, string>>
@@ -23,6 +24,8 @@ interface UnavailablePresetPayload {
 }
 
 interface PainterOptionsBarLabels {
+  advanced: string
+  mixing: string
   pressure: string
   stabilizer: string
   size: string
@@ -65,6 +68,8 @@ const emit = defineEmits<{
 }>()
 
 const DEFAULT_LABELS: PainterOptionsBarLabels = {
+  advanced: 'Brush dynamics',
+  mixing: 'Color mixing',
   pressure: 'Pressure',
   stabilizer: 'Stabilizer',
   size: 'Size',
@@ -446,7 +451,7 @@ function normalizeStabilizerStrength(strength: number): number {
 </script>
 
 <template>
-  <div class="painter-options" flex="~ col" gap="2" p="2" rounded-lg>
+  <div class="painter-options">
     <BrushPresetPicker
       v-model:active-group-label="activeGroupLabel"
       :presets="presets"
@@ -477,25 +482,29 @@ function normalizeStabilizerStrength(strength: number): number {
     />
 
     <div class="painter-options__params">
+      <PainterSlider v-model="size" variant="row" :label="text.size" :min="1" :max="100" :step="1" :format-value="formatSize" />
+      <PainterSlider v-model="opacity" variant="row" :label="text.opacity" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
+      <PainterSlider v-model="stabilizerStrength" variant="row" :label="text.stabilizer" :min="0" :max="15" :step="1" :format-value="formatLevel" />
       <PainterCheckbox v-model="enablePressure" class="painter-options__pressure" :label="text.pressure" />
-      <PainterSlider v-model="stabilizerStrength" :label="text.stabilizer" :min="0" :max="15" :step="1" :format-value="formatLevel" />
-      <PainterSlider v-model="size" :label="text.size" :min="1" :max="100" :step="1" :format-value="formatSize" />
-      <PainterSlider v-model="opacity" :label="text.opacity" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
-      <PainterSlider v-model="spacing" :label="text.spacing" :min="0.05" :max="1" :step="0.01" :format-value="formatPercent" />
-      <PainterSlider v-model="hardness" :label="text.hardness" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
-      <PainterSlider v-model="flow" :label="text.flow" :min="1" :max="80" :step="1" :format-value="formatFlow" />
     </div>
 
-    <div v-if="showMixingControls" class="painter-options__params">
-      <PainterSlider v-model="smudge" :label="text.smudge" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
-      <PainterSlider v-model="persistence" :label="text.persistence" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
-      <PainterSlider v-model="colorAmount" :label="text.colorAmount" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
-      <PainterSlider v-model="density" :label="text.density" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
-      <PainterSlider v-model="dilution" :label="text.dilution" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
-      <PainterSlider v-model="wetEdge" :label="text.wetEdge" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
+    <PainterDisclosure :label="text.advanced">
+      <PainterSlider v-model="spacing" variant="row" :label="text.spacing" :min="0.05" :max="1" :step="0.01" :format-value="formatPercent" />
+      <PainterSlider v-model="hardness" variant="row" :label="text.hardness" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
+      <PainterSlider v-model="flow" variant="row" :label="text.flow" :min="1" :max="80" :step="1" :format-value="formatFlow" />
+    </PainterDisclosure>
+
+    <PainterDisclosure v-if="showMixingControls" :label="text.mixing" open>
+      <PainterSlider v-model="smudge" variant="row" :label="text.smudge" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
+      <PainterSlider v-model="persistence" variant="row" :label="text.persistence" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
+      <PainterSlider v-model="colorAmount" variant="row" :label="text.colorAmount" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
+      <PainterSlider v-model="density" variant="row" :label="text.density" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
+      <PainterSlider v-model="dilution" variant="row" :label="text.dilution" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
+      <PainterSlider v-model="wetEdge" variant="row" :label="text.wetEdge" :min="0" :max="1" :step="0.01" :format-value="formatPercent" />
       <PainterCheckbox v-model="paperEnabled" :label="text.paperTexture" />
       <PainterSlider
         v-model="paperTextureStrength"
+        variant="row"
         :disabled="!paperEnabled"
         :label="text.paperTextureStrength"
         :min="0"
@@ -503,14 +512,18 @@ function normalizeStabilizerStrength(strength: number): number {
         :step="0.01"
         :format-value="formatPercent"
       />
-    </div>
+    </PainterDisclosure>
   </div>
 </template>
 
 <style scoped lang="scss">
 .painter-options {
-  width: min(344px, calc(100vw - 16px));
-  max-height: min(720px, calc(100vh - 188px));
+  box-sizing: border-box;
+  display: grid;
+  width: min(var(--saier-panel-width), calc(100vw - 16px));
+  max-height: var(--saier-panel-max-height);
+  gap: var(--saier-space-2);
+  padding: var(--saier-panel-padding);
   overflow: auto;
   background: var(--saier-color-panel, #121216);
   color: var(--saier-color-text, white);
@@ -519,13 +532,10 @@ function normalizeStabilizerStrength(strength: number): number {
 
 .painter-options__params {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
-  gap: 8px 10px;
-  align-items: end;
+  gap: var(--saier-space-1);
 }
 
 .painter-options__pressure {
-  min-height: 34px;
-  align-self: end;
+  min-height: var(--saier-control-size);
 }
 </style>

@@ -94,14 +94,14 @@ function selectPreference(value: unknown): void {
 .site-theme-switcher__trigger {
   position: relative;
   display: inline-flex;
-  height: 32px;
+  height: var(--saier-control-size);
   min-width: 36px;
   align-items: center;
   justify-content: center;
   gap: 7px;
   border: 1px solid var(--saier-color-border);
-  border-radius: 8px;
-  background: var(--saier-color-surface);
+  border-radius: var(--saier-radius-control);
+  background: transparent;
   color: var(--saier-color-text);
   cursor: pointer;
   font-size: 14px;
@@ -149,7 +149,7 @@ function selectPreference(value: unknown): void {
   min-width: 164px;
   padding: 5px;
   border: 1px solid var(--saier-color-border);
-  border-radius: 8px;
+  border-radius: var(--saier-radius-control);
   background: var(--saier-color-panel-raised);
   box-shadow: var(--saier-shadow-menu);
   color: var(--saier-color-text);
@@ -157,7 +157,7 @@ function selectPreference(value: unknown): void {
 
 :global(.site-theme-switcher__item) {
   display: grid;
-  min-height: 44px;
+  min-height: var(--saier-control-size);
   grid-template-columns: 20px minmax(0, 1fr) 16px;
   align-items: center;
   gap: 8px;
@@ -203,7 +203,6 @@ function selectPreference(value: unknown): void {
     min-width: 32px;
     padding-inline: 0;
   }
-
 }
 
 @media (prefers-reduced-motion: reduce) {

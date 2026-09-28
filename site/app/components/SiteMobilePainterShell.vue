@@ -3,6 +3,7 @@ import type { SiteLocale } from '~/composables/useSiteI18n'
 import type { SitePainterPanelId } from '~/types/painter-app'
 import type { SitePainterPanelItem, SitePainterShellEmits, SitePainterShellProps } from '~/types/painter-shell'
 import { computed, shallowRef, watch } from 'vue'
+import Logos from './Logos.vue'
 
 const props = defineProps<SitePainterShellProps>()
 const emit = defineEmits<SitePainterShellEmits>()
@@ -19,7 +20,7 @@ const activePanelId = shallowRef<SitePainterPanelId>('options')
 const sheetOpen = shallowRef(false)
 
 const mobilePanels = computed(() =>
-  PANEL_ITEMS.filter(panel => props.availablePanels.includes(panel.id)),
+  [...PANEL_ITEMS, ...(props.extensionPanels ?? [])].filter(panel => props.availablePanels.includes(panel.id)),
 )
 const activePanel = computed(() =>
   mobilePanels.value.find(panel => panel.id === activePanelId.value) ?? mobilePanels.value[0],
@@ -38,6 +39,12 @@ watch(
   },
   { immediate: true },
 )
+
+watch(() => props.extensionPanels?.map(panel => panel.id) ?? [], (panels, previous) => {
+  const added = panels.find(id => !previous?.includes(id))
+  if (added)
+    openPanel(added)
+}, { immediate: true })
 
 function closeSheet(): void {
   sheetOpen.value = false
@@ -83,7 +90,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   <div class="site-mobile-painter" :class="{ 'is-activity': workspaceKind === 'activity' }">
     <header class="site-mobile-painter__topbar">
       <div class="site-mobile-painter__brand">
-        <span class="site-mobile-painter__logo i-ri-artboard-2-line" aria-hidden="true" />
+        <Logos class="site-mobile-painter__logo" />
         <div class="site-mobile-painter__brand-copy">
           <h1 class="site-mobile-painter__title">
             {{ appName }}
@@ -188,6 +195,14 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
         </header>
 
         <div class="site-mobile-painter__sheet-body">
+          <template v-for="panel in extensionPanels" :key="panel.id">
+            <div
+              v-if="isPanelAvailable(panel.id)" v-show="activePanel.id === panel.id"
+              :id="panelPaneId(panel.id)" class="site-mobile-painter__panel-pane" role="tabpanel" :aria-labelledby="panelTabId(panel.id)"
+            >
+              <slot :name="panel.id" />
+            </div>
+          </template>
           <div
             v-if="isPanelAvailable('options')"
             v-show="activePanel.id === 'options'"
@@ -316,6 +331,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 }
 
 .site-mobile-painter__title {
+  font-family: var(--saier-font-brand);
   overflow: hidden;
   margin: 0;
   font-size: 14px;

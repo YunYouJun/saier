@@ -7,11 +7,12 @@ const { resolvedTheme } = useSiteTheme()
 useHead(() => ({
   htmlAttrs: {
     'data-saier-theme': resolvedTheme.value,
+    'data-ylf-editor-theme': resolvedTheme.value,
   },
   meta: [
     {
       name: 'theme-color',
-      content: resolvedTheme.value === 'dark' ? '#202124' : '#e4e6e9',
+      content: resolvedTheme.value === 'dark' ? '#242426' : '#f6f6f7',
     },
   ],
   title: appName,
@@ -34,5 +35,4 @@ body,
   margin: 0;
   padding: 0;
 }
-
 </style>

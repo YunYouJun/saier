@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, useId } from 'vue'
+import '../styles/tokens.css'
 
 withDefaults(defineProps<{
   disabled?: boolean
@@ -36,13 +37,14 @@ const indicatorClass = computed(() => ({
 .painter-checkbox {
   display: inline-grid;
   min-width: 0;
-  min-height: 34px;
+  min-height: var(--saier-control-size);
   grid-template-columns: 18px minmax(0, 1fr);
   align-items: center;
-  gap: 7px;
+  gap: var(--saier-space-2);
+  text-align: left;
   color: var(--saier-color-text, white);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--saier-font-size-control);
   user-select: none;
 }
 
@@ -62,19 +64,19 @@ const indicatorClass = computed(() => ({
   height: 18px;
   place-items: center;
   border: 1px solid var(--saier-color-border-strong, rgb(255 255 255 / 22%));
-  border-radius: 5px;
+  border-radius: var(--saier-radius-control);
   background: var(--saier-color-control-track, rgb(0 0 0 / 30%));
   color: var(--saier-color-text, white);
-  box-shadow: inset 0 0 0 1px var(--saier-color-swatch-inset, rgb(0 0 0 / 22%));
 }
 
 .painter-checkbox__indicator.is-checked {
   border-color: var(--saier-color-accent-border, rgb(96 165 250 / 70%));
-  background: linear-gradient(135deg, var(--saier-color-accent-hover, #60a5fa), var(--saier-color-accent, #2563eb));
+  background: var(--saier-color-accent, #60a5fa);
+  color: var(--saier-color-on-accent, #20242b);
 }
 
 .painter-checkbox__check {
-  font-size: 12px;
+  font-size: var(--saier-font-size-control);
   opacity: 0;
   transform: scale(0.72);
   transition:

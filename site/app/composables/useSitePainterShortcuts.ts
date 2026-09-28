@@ -38,6 +38,9 @@ export function useSitePainterShortcuts(options: UseSitePainterShortcutsOptions)
       return
 
     if (toValue(options.disabled)) {
+      // Let a focused modal handle Escape before blocking canvas commands.
+      if (event.key === 'Escape' && event.target instanceof HTMLElement && event.target.closest('[role="dialog"]'))
+        return
       event.preventDefault()
       event.stopImmediatePropagation()
       return

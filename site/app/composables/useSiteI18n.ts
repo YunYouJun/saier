@@ -174,6 +174,7 @@ interface SiteMessages {
     cloudSync: string
     cloudRoom: string
     importBrush: string
+    openImage: string
     importImage: string
     exportPreview: string
     download: string
@@ -303,6 +304,8 @@ interface SiteMessages {
     redo: string
   }
   brushOptions: {
+    advanced: string
+    mixing: string
     pressure: string
     stabilizer: string
     size: string
@@ -575,9 +578,10 @@ const messages: Record<SiteLocale, SiteMessages> = {
       cloudSync: 'Cloud sync...',
       cloudRoom: 'Cloud room...',
       importBrush: 'Import brush...',
-      importImage: 'Import image',
+      openImage: 'Open image…',
+      importImage: 'Place image as layer…',
       exportPreview: 'Preview export',
-      download: 'Download PNG',
+      download: 'Export image…',
       edit: 'Edit',
       undo: 'Undo',
       redo: 'Redo',
@@ -688,12 +692,13 @@ const messages: Record<SiteLocale, SiteMessages> = {
         'brush:size-up': 'Increase brush size',
         'edit:redo': 'Redo',
         'edit:undo': 'Undo',
-        'file:download': 'Download PNG',
+        'file:download': 'Export image…',
         'file:cloud-room': 'Cloud room',
         'file:cloud-sync': 'Cloud sync',
         'file:export-preview': 'Preview export',
         'file:import-brush': 'Import brush',
-        'file:import-image': 'Import image',
+        'file:open-image': 'Open image',
+        'file:import-image': 'Place image as layer',
         'file:new': 'New canvas',
         'file:open-project': 'Open project',
         'file:save-project': 'Save project',
@@ -757,6 +762,8 @@ const messages: Record<SiteLocale, SiteMessages> = {
       redo: 'Redo',
     },
     brushOptions: {
+      advanced: 'Brush dynamics',
+      mixing: 'Color mixing',
       pressure: 'Pressure',
       stabilizer: 'Stabilizer',
       size: 'Size',
@@ -1051,9 +1058,10 @@ const messages: Record<SiteLocale, SiteMessages> = {
       cloudSync: '云同步...',
       cloudRoom: '云端房间...',
       importBrush: '导入笔刷...',
-      importImage: '导入图片',
+      openImage: '打开图片…',
+      importImage: '置入图片为图层…',
       exportPreview: '预览导出',
-      download: '下载 PNG',
+      download: '导出图片…',
       edit: '编辑',
       undo: '撤销',
       redo: '重做',
@@ -1164,12 +1172,13 @@ const messages: Record<SiteLocale, SiteMessages> = {
         'brush:size-up': '增大画笔大小',
         'edit:redo': '重做',
         'edit:undo': '撤销',
-        'file:download': '下载 PNG',
+        'file:download': '导出图片…',
         'file:cloud-room': '云端房间',
         'file:cloud-sync': '云同步',
         'file:export-preview': '预览导出',
         'file:import-brush': '导入笔刷',
-        'file:import-image': '导入图片',
+        'file:open-image': '打开图片',
+        'file:import-image': '置入图片为图层',
         'file:new': '新建画布',
         'file:open-project': '打开工程',
         'file:save-project': '保存工程',
@@ -1233,6 +1242,8 @@ const messages: Record<SiteLocale, SiteMessages> = {
       redo: '重做',
     },
     brushOptions: {
+      advanced: '画笔动态',
+      mixing: '颜色混合',
       pressure: '压感',
       stabilizer: '抖动修正',
       size: '大小',

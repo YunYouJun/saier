@@ -78,14 +78,14 @@ const loginLabel = computed(() => {
 <style scoped>
 .site-account-button {
   display: inline-flex;
-  height: 32px;
+  height: var(--saier-control-size);
   max-width: 176px;
   flex: 0 0 auto;
   align-items: center;
   gap: 7px;
   border: 1px solid var(--saier-color-border);
-  border-radius: 8px;
-  background: var(--saier-color-surface);
+  border-radius: var(--saier-radius-control);
+  background: transparent;
   color: var(--saier-color-text);
   font-size: 12px;
   line-height: 1;

@@ -121,6 +121,18 @@ describe('site desktop painter shell panels', () => {
     expect(Number.parseFloat(controls.style.left)).toBeGreaterThan(initialLeft)
   })
 
+  it('keeps bottom panels anchored when their content height changes', async () => {
+    const { el } = mountShell()
+    const panel = el.querySelector<HTMLElement>('.site-painter-panel--controls')!
+    const body = panel.querySelector<HTMLElement>('.site-painter-panel__body')!
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    const bottom = panel.getBoundingClientRect().bottom
+
+    body.style.height = '140px'
+    await expect.poll(() => panel.getBoundingClientRect().height).toBeGreaterThan(140)
+    await expect.poll(() => panel.getBoundingClientRect().bottom).toBeCloseTo(bottom, 0)
+  })
+
   it('keeps the shell and tabs while an activity owns the workspace', async () => {
     const { el } = mountShell('activity')
     await nextTick()
@@ -142,7 +154,7 @@ describe('site desktop painter shell panels', () => {
 
     expect(getComputedStyle(darkShell).backgroundColor).not.toBe(getComputedStyle(lightShell).backgroundColor)
     expect(getComputedStyle(darkShell).color).not.toBe(getComputedStyle(lightShell).color)
-    expect(getComputedStyle(darkCanvas).backgroundColor).toBe('rgb(40, 42, 46)')
-    expect(getComputedStyle(lightCanvas).backgroundColor).toBe('rgb(216, 220, 226)')
+    expect(getComputedStyle(darkCanvas).backgroundColor).toBe('rgb(32, 33, 35)')
+    expect(getComputedStyle(lightCanvas).backgroundColor).toBe('rgb(215, 215, 218)')
   })
 })

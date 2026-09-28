@@ -295,6 +295,7 @@ function displayNumber(value: number): string {
 .painter-transform__button--primary {
   border-color: var(--saier-color-accent-border, #5877ca);
   background: var(--saier-color-accent, #3d5caa);
+  color: var(--saier-color-on-accent, #fff);
 }
 
 @media (pointer: coarse) {

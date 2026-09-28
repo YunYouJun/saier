@@ -9,14 +9,17 @@ import type { SiteKeyboardShortcutRow, SiteNewCanvasRequest, SitePainterColorSec
 import type { SitePainterShellMode } from '~/types/painter-shell'
 import type { SiteActivityPluginRequest } from '~/utils/activityPluginRoutes'
 import type { SaierProjectDraftFile } from '~/utils/projectDraft'
+import PainterIconButton from '@saier/vue/components/PainterIconButton.vue'
 import { usePainter } from '@saier/vue/composables/usePainter'
 import { computed, onBeforeUnmount, onMounted, reactive, shallowRef, useTemplateRef, watch } from 'vue'
 import { useRouter } from '#imports'
-import { version as siteVersion } from '../../package.json'
 import { isSiteActivityPluginType } from '~/activity-plugins/registry'
+import SiteImageExportDialog from '~/components/image-files/SiteImageExportDialog.vue'
+import SiteImageImportDialog from '~/components/image-files/SiteImageImportDialog.vue'
 import SiteDesktopPainterShell from '~/components/SiteDesktopPainterShell.vue'
 import SiteMobilePainterShell from '~/components/SiteMobilePainterShell.vue'
 import { useBeforeUnloadGuard } from '~/composables/useBeforeUnloadGuard'
+import { syncPainterWorkspaceTheme } from '~/composables/usePainterWorkspaceTheme'
 import { useSiteActivityWorkspace } from '~/composables/useSiteActivityWorkspace'
 import {
   createCloudRoomAddLayerArgs,
@@ -29,12 +32,18 @@ import { useSitePainterShellMode } from '~/composables/useSitePainterShellMode'
 import { useSitePainterShortcuts } from '~/composables/useSitePainterShortcuts'
 import { useSitePlatformAdapter } from '~/composables/useSitePlatformAdapter'
 import { useSiteTheme } from '~/composables/useSiteTheme'
-import { syncPainterWorkspaceTheme } from '~/composables/usePainterWorkspaceTheme'
 import { useStrokeReplayPreview } from '~/composables/useStrokeReplayPreview'
+import { useToolbarScrollFade } from '~/composables/useToolbarScrollFade'
 import { useYunlefunBrushLibrary } from '~/composables/useYunlefunBrushLibrary'
 import { useYunlefunCloudFiles } from '~/composables/useYunlefunCloudFiles'
 import { parseCloudRoomLink, useYunlefunCloudRooms } from '~/composables/useYunlefunCloudRooms'
 import { SITE_PAINTER_COMMANDS } from '~/constants/painterCommands'
+import { useEditorPlugins } from '~/editor-plugins/useEditorPlugins'
+import { useWatermarkDocuments } from '~/editor-plugins/watermark/useWatermarkDocuments'
+import WatermarkEditorToolbar from '~/editor-plugins/watermark/WatermarkEditorToolbar.vue'
+import WatermarkLayerList from '~/editor-plugins/watermark/WatermarkLayerList.vue'
+import { IMAGE_FILE_MESSAGES } from '~/features/image-files/messages'
+import { useImageFiles } from '~/features/image-files/useImageFiles'
 import { createSiteActivityLocation } from '~/utils/activityPluginRoutes'
 import {
   isBrushPresetImportError,
@@ -49,6 +58,7 @@ import {
   writeProjectDraft,
 } from '~/utils/projectDraft'
 import { persistProjectDraftBeforeNavigation } from '~/utils/projectDraftNavigation'
+import { version as siteVersion } from '../../package.json'
 
 interface UnsavedChangesConfirmRequest {
   resolve: (confirmed: boolean) => void
@@ -157,12 +167,12 @@ const strokeRecordingEnabled = shallowRef(false)
 const unsavedChangesConfirmRequest = shallowRef<UnsavedChangesConfirmRequest>()
 const colorSectionVisibility = reactive<Record<SitePainterColorSectionId, boolean>>({
   palette: true,
-  rgbSliders: true,
+  rgbSliders: false,
   wheel: true,
 })
 const panelVisibility = reactive<Record<SitePainterPanelId, boolean>>({
   controls: true,
-  diagnostics: true,
+  diagnostics: false,
   layers: true,
   navigator: true,
   options: true,
@@ -170,6 +180,9 @@ const panelVisibility = reactive<Record<SitePainterPanelId, boolean>>({
 
 const PROJECT_DRAFT_SAVE_DEBOUNCE_MS = 1200
 const cloudProjectDocuments = new CloudProjectDocumentRegistry()
+
+// Dispose document extensions before usePainter tears down its renderer.
+onBeforeUnmount(disposeEditorDocuments)
 
 const {
   activeLayerId,
@@ -194,6 +207,8 @@ const {
 } = usePainter({
   afterInit: initializedPainter => syncPainterWorkspaceTheme(initializedPainter, resolvedTheme.value),
   debug: import.meta.env.DEV,
+  imageDrop: false,
+  onImageRequest: requestImage,
   pixiOptions: { backgroundAlpha: 0 },
 })
 watch(resolvedTheme, (theme) => {
@@ -212,6 +227,9 @@ const {
   documents,
   locale,
 })
+const workspaceMount = useTemplateRef<HTMLDivElement>('workspaceMount')
+const toolbarStack = useTemplateRef<HTMLDivElement>('toolbarStack')
+const canScrollToolbarRight = useToolbarScrollFade(toolbarStack)
 const strokeReplayCanvas = useTemplateRef<HTMLCanvasElement>('strokeReplayCanvas')
 const {
   captureBase: captureStrokeReplayBase,
@@ -292,12 +310,24 @@ const {
   updatePresence: updateCloudRoomPresence,
 })
 
+const editorPlugins = useEditorPlugins()
+const watermarkDocuments = useWatermarkDocuments(painter, error => showSiteNotice('error', '水印', errorMessage(error)), canInteractWithWatermark)
+const watermarkActive = watermarkDocuments.active
+const pluginMenuItems = computed(() => editorPlugins.all.map(plugin => ({ id: plugin.id, label: plugin.labels[locale.value], enabled: editorPlugins.enabled.value.includes(plugin.id) })))
+const extensionPanels = computed(() => editorPlugins.active.value.map(plugin => ({ id: plugin.panelId, icon: plugin.icon })))
+watch(editorPlugins.enabled, () => {
+  for (const plugin of editorPlugins.all)
+    panelVisibility[plugin.panelId] = editorPlugins.enabled.value.includes(plugin.id)
+})
+function toggleEditorPlugin(id: string, enabled: boolean): void {
+  editorPlugins.toggle(id, enabled)
+}
 const showDiagnostics = import.meta.env.DEV
-const availablePanels = computed<SitePainterPanelId[]>(() =>
-  showDiagnostics
-    ? ['options', 'controls', 'layers', 'navigator', 'diagnostics']
-    : ['options', 'controls', 'layers', 'navigator'],
-)
+const availablePanels = computed<SitePainterPanelId[]>(() => [
+  ...(watermarkActive.value ? ['layers' as const] : ['options' as const, 'controls' as const, 'layers' as const, 'navigator' as const]),
+  ...(showDiagnostics ? ['diagnostics' as const] : []),
+  ...extensionPanels.value.map(panel => panel.id),
+])
 const { mode: painterShellMode } = useSitePainterShellMode()
 const painterShellComponents = {
   desktop: SiteDesktopPainterShell,
@@ -324,9 +354,10 @@ const toolbarLabels = computed(() => ({
   stabilizer: text.value.brushOptions.stabilizer,
 }))
 const panelLabels = computed<Record<SitePainterPanelId, string>>(() => ({
-  controls: text.value.menu.operationPanel,
+  ...Object.fromEntries(editorPlugins.all.map(plugin => [plugin.panelId, plugin.labels[locale.value]])),
+  controls: text.value.controls.palette,
   diagnostics: text.value.menu.diagnosticsPanel,
-  layers: text.value.menu.layerPanel,
+  layers: text.value.layers.title,
   navigator: text.value.menu.navigatorPanel,
   options: text.value.menu.brushOptionsPanel,
 }))
@@ -354,8 +385,39 @@ const projectDraftRecoveryMeta = computed(() => {
   }
 })
 const unsavedChangesDialogOpen = computed(() => Boolean(unsavedChangesConfirmRequest.value))
+const imageFileLabels = computed(() => IMAGE_FILE_MESSAGES[locale.value])
+const {
+  pending: imageImportRequest,
+  busy: imageFileBusy,
+  exportOpen: imageExportOpen,
+  exportName: imageExportName,
+  exportSize: imageExportSize,
+  pick: pickImage,
+  importPending: importPendingImage,
+  cancelImport: cancelImageImport,
+  openExport: openImageExport,
+  download: downloadImage,
+} = useImageFiles({
+  painter,
+  canvas: srcCanvas,
+  platform: platformAdapter,
+  activeDocumentId: () => documents.value.find(document => document.active)?.id,
+  canImport: () => !watermarkActive.value && !watermarkDocuments.busy.value && !activityActive.value && !cloudRoomSession.value && !strokeReplayPreviewing.value,
+  canReceive: canReceiveImage,
+  onImported: () => {
+    showDocument()
+    void refreshLayerThumbnails()
+    void navigatorActions.refreshThumbnail()
+    void refreshMemory()
+  },
+  onError: reason => showSiteNotice('error', imageFileLabels.value[reason]),
+})
 const shortcutsDisabled = computed(() =>
-  aboutDialogOpen.value
+  watermarkDocuments.busy.value
+  || aboutDialogOpen.value
+  || Boolean(imageImportRequest.value)
+  || imageFileBusy.value
+  || imageExportOpen.value
   || cloudSyncDialogOpen.value
   || cloudRoomDialogOpen.value
   || keyboardShortcutsDialogOpen.value
@@ -364,6 +426,20 @@ const shortcutsDisabled = computed(() =>
   || strokeReplayPreviewing.value
   || unsavedChangesDialogOpen.value,
 )
+const pluginAvailable = computed(() => Boolean(painter.value) && !activityActive.value && !cloudRoomSession.value && !strokeReplayPreviewing.value && !shortcutsDisabled.value)
+function canInteractWithWatermark(): boolean {
+  return !activityActive.value && !shortcutsDisabled.value
+}
+function disposeEditorDocuments(): void {
+  watermarkDocuments.dispose()
+}
+function requestImage(): void {
+  if (!shortcutsDisabled.value && !watermarkActive.value)
+    void pickImage('place')
+}
+function canReceiveImage(): boolean {
+  return !shortcutsDisabled.value && !activityActive.value && !watermarkActive.value
+}
 const {
   formatCommandShortcuts,
   resetShortcuts,
@@ -494,8 +570,17 @@ onBeforeUnmount(() => {
 })
 
 async function handleMenuCommand(command: SitePainterMenuCommand): Promise<void> {
+  if (watermarkDocuments.busy.value || await watermarkDocuments.command(command))
+    return
+
   if (isCloudRoomReadOnly.value && isRoomWriteCommand(command)) {
     showCloudRoomReadOnlyNotice()
+    return
+  }
+
+  if (command === 'file:open-image' || command === 'file:import-image' || command === 'tool:image') {
+    if (!cloudRoomSession.value && !activityActive.value)
+      await pickImage(command === 'file:open-image' ? 'open' : 'place')
     return
   }
 
@@ -528,9 +613,6 @@ async function handleMenuCommand(command: SitePainterMenuCommand): Promise<void>
       break
     case 'file:cloud-room':
       openCloudRoomDialog()
-      break
-    case 'file:import-image':
-      painter.value?.useTool('image')
       break
     case 'file:import-brush':
       await importBrushPreset()
@@ -658,6 +740,9 @@ async function detectCloudRoomLink(): Promise<void> {
 }
 
 function openCloudRoomDialog(): void {
+  if (watermarkActive.value || watermarkDocuments.busy.value)
+    return
+
   cloudRoomDialogOpen.value = true
 }
 
@@ -853,6 +938,9 @@ function closePreview(): void {
 }
 
 function createNewCanvas(): void {
+  if (watermarkDocuments.busy.value)
+    return
+
   if (!ensureCloudRoomCanEdit())
     return
 
@@ -876,6 +964,9 @@ async function clearActiveCanvas(): Promise<void> {
 }
 
 function openCloudSyncDialog(): void {
+  if (watermarkActive.value || watermarkDocuments.busy.value)
+    return
+
   cloudSyncDialogOpen.value = true
   if (isYunlefunAuthenticated.value)
     void refreshCloudFiles()
@@ -941,12 +1032,8 @@ function createCanvasDocument(request: SiteNewCanvasRequest): void {
   closeNewCanvasDialog()
 }
 
-async function downloadCanvas(): Promise<void> {
-  const dataUrl = await extractBase64()
-  if (!dataUrl)
-    return
-
-  await platformAdapter.saveDataUrl(dataUrl, { suggestedName: 'saier.png' })
+function downloadCanvas(): void {
+  openImageExport()
 }
 
 async function openProject(): Promise<void> {
@@ -1509,6 +1596,9 @@ function reportProjectDraftSaveFailure(error: unknown): void {
 }
 
 async function writeCurrentProjectDraft(current: Painter): Promise<void> {
+  if (watermarkDocuments.isManaged(current.getActiveDocumentId()))
+    return
+
   const draft = createProjectDraft(current.exportProject())
   await queueProjectDraftStorage(() => writeProjectDraft(draft))
 }
@@ -1600,7 +1690,8 @@ function errorMessage(error: unknown): string | undefined {
 }
 
 async function extractBase64(): Promise<string | undefined> {
-  const dataUrl = await painter.value?.extractCanvas('base64', { mode: 'preview' })
+  painter.value?.confirmTransform()
+  const dataUrl = await painter.value?.extractCanvas('base64', { mode: 'content' })
   return typeof dataUrl === 'string' ? dataUrl : undefined
 }
 
@@ -1692,6 +1783,9 @@ function removeActiveLayer(): void {
 }
 
 function setActiveLayerVisible(visible: boolean): void {
+  if (watermarkActive.value || watermarkDocuments.busy.value)
+    return
+
   if (!ensureCloudRoomCanEdit())
     return
 
@@ -1851,6 +1945,9 @@ function setColorSectionVisible(sectionId: SitePainterColorSectionId, visible: b
 
 function setPanelVisible(panelId: SitePainterPanelId, visible: boolean): void {
   panelVisibility[panelId] = visible
+  const plugin = editorPlugins.all.find(plugin => plugin.panelId === panelId)
+  if (plugin)
+    editorPlugins.toggle(plugin.id, visible)
 }
 
 function setStabilizerStrength(strength: number): void {
@@ -1866,6 +1963,9 @@ function switchDocument(id: string): void {
 }
 
 function switchWorkspaceTab(tab: SiteWorkspaceTab): void {
+  if (watermarkDocuments.busy.value)
+    return
+
   if (tab.kind === 'activity') {
     showActivity()
     return
@@ -1874,6 +1974,9 @@ function switchWorkspaceTab(tab: SiteWorkspaceTab): void {
 }
 
 async function closeWorkspaceTab(tab: SiteWorkspaceTab): Promise<void> {
+  if (watermarkDocuments.busy.value)
+    return
+
   if (tab.kind === 'activity') {
     await closeActivity()
     return
@@ -1882,6 +1985,9 @@ async function closeWorkspaceTab(tab: SiteWorkspaceTab): Promise<void> {
 }
 
 async function openActivity(pluginId: string): Promise<void> {
+  if (watermarkDocuments.busy.value)
+    return
+
   if (!isSiteActivityPluginType(pluginId))
     return
   if (props.activityRequest?.type === pluginId) {
@@ -1973,12 +2079,17 @@ function isRoomWriteCommand(command: SitePainterCommand): boolean {
 }
 
 function canRunCommand(command: SitePainterCommand): boolean {
+  if (watermarkDocuments.busy.value || !watermarkDocuments.allows(command))
+    return false
+
   if (command === 'app:keyboard-shortcuts')
     return true
   if (!painter.value)
     return false
   if (isCloudRoomReadOnly.value && isRoomWriteCommand(command))
     return false
+  if (command === 'file:open-image' || command === 'file:import-image' || command === 'tool:image')
+    return !cloudRoomSession.value && !activityActive.value
   if (command.startsWith('tool:'))
     return true
 
@@ -2302,6 +2413,7 @@ installSiteCloudRoomE2eBridge()
     :is="painterShellComponent"
     :app-name="text.appName"
     :available-panels="availablePanels"
+    :extension-panels="extensionPanels"
     :close-preview-label="text.closePreview"
     :export-preview="exportPreview"
     :export-preview-label="text.exportPreview"
@@ -2348,25 +2460,27 @@ installSiteCloudRoomE2eBridge()
     <template #menubar>
       <SitePainterMenubar
         :activity-menu-items="activityMenuItems"
+        :editor-plugins="pluginMenuItems"
         :active-layer-visible="activeLayer?.visible ?? false"
         :active-tool="activeTool"
         :available-panels="availablePanels"
-        :can-apply-filter="canApplyFilter"
-        :can-move-layer-down="canMoveLayerDown"
-        :can-move-layer-up="canMoveLayerUp"
+        :can-apply-filter="!watermarkActive && canApplyFilter"
+        :can-move-layer-down="!watermarkActive && canMoveLayerDown"
+        :can-move-layer-up="!watermarkActive && canMoveLayerUp"
         :can-redo="state?.history.canRedo ?? false"
-        :can-remove-layer="canRemoveLayer"
+        :can-remove-layer="!watermarkActive && canRemoveLayer"
         :can-repeat-filter="Boolean(lastFilterCommand)"
         :can-undo="state?.history.canUndo ?? false"
         :color-section-visibility="colorSectionVisibility"
-        :disabled="!painter || activityActive"
-        :has-active-layer="Boolean(activeLayer)"
+        :disabled="!painter || activityActive || watermarkDocuments.busy.value"
+        :has-active-layer="!watermarkActive && Boolean(activeLayer)"
         :labels="text.menu"
         :locale="locale"
         :locale-options="localeOptions"
         :panel-visibility="panelVisibility"
         :shortcuts="menuShortcutLabels"
         :theme-preference="themePreference"
+        @toggle-editor-plugin="toggleEditorPlugin"
         @command="handleMenuCommand"
         @open-about="openAboutDialog"
         @open-activity="openActivity"
@@ -2380,12 +2494,24 @@ installSiteCloudRoomE2eBridge()
 
     <template #toolbar>
       <div
+        ref="toolbarStack"
         class="site-painter-toolbar-stack"
+        :class="{ 'can-scroll-right': canScrollToolbarRight }"
         :aria-label="toolbarLabels.tools"
         role="region"
         tabindex="0"
       >
+        <WatermarkEditorToolbar
+          v-if="watermarkActive"
+          :active-tool="activeTool"
+          :busy="watermarkDocuments.busy.value"
+          :can-undo="watermarkDocuments.state.value?.canUndo ?? false"
+          :can-redo="watermarkDocuments.state.value?.canRedo ?? false"
+          @command="handleMenuCommand"
+          @settings="toggleEditorPlugin('watermark', true)"
+        />
         <SitePainterToolbar
+          v-else
           :active-tool="activeTool"
           :can-redo="state?.history.canRedo ?? false"
           :can-replay-recording="canReplayStrokeRecording"
@@ -2399,6 +2525,7 @@ installSiteCloudRoomE2eBridge()
           @update:stabilizer-strength="setStabilizerStrength"
         />
         <SiteStrokeReplayControls
+          v-if="!watermarkActive"
           :count="strokeRecordingCount"
           :disabled="!painter"
           :labels="text.recording"
@@ -2415,7 +2542,7 @@ installSiteCloudRoomE2eBridge()
 
     <template #documents>
       <SiteWorkspaceTabs
-        :disabled="!painter"
+        :disabled="!painter || watermarkDocuments.busy.value"
         :labels="text.documents"
         :tabs="workspaceTabs"
         @new="createNewCanvas"
@@ -2425,31 +2552,7 @@ installSiteCloudRoomE2eBridge()
     </template>
 
     <template #canvas>
-      <SiteActivityWorkspaceSurface
-        :active="activityActive"
-        :request="activityRequest"
-        @exit="closeActivity"
-      >
-        <template #document>
-          <canvas ref="srcCanvas" />
-          <canvas
-            v-show="strokeReplayPreviewing"
-            ref="strokeReplayCanvas"
-            aria-hidden="true"
-            class="site-stroke-replay-canvas"
-          />
-          <div
-            v-if="strokeReplayPreviewing"
-            class="site-stroke-replay-blocker"
-            role="status"
-          >
-            <span class="site-stroke-replay-badge">
-              <span class="i-ph-play-circle" />
-              {{ text.recording.previewActive }}
-            </span>
-          </div>
-        </template>
-      </SiteActivityWorkspaceSurface>
+      <div ref="workspaceMount" class="site-main-surface-host" />
     </template>
 
     <template #options>
@@ -2483,9 +2586,22 @@ installSiteCloudRoomE2eBridge()
       />
     </template>
 
+    <template #panel-actions="{ panelId }">
+      <template v-if="painter && !watermarkActive && panelId === 'layers'">
+        <PainterIconButton size="sm" :title="text.layers.addGroup" icon="i-ph-folder-plus" @pointerdown.stop @click.stop="addGroup()" />
+        <PainterIconButton size="sm" :title="text.layers.addLayer" icon="i-ph-plus" @pointerdown.stop @click.stop="addLayer()" />
+      </template>
+      <template v-if="painter && panelId === 'navigator'">
+        <PainterIconButton size="sm" :title="text.navigator.refresh" icon="i-ph-arrows-clockwise" @pointerdown.stop @click.stop="navigatorActions.refreshThumbnail()" />
+        <PainterIconButton size="sm" :title="text.navigator.resetView" icon="i-ph-crosshair" @pointerdown.stop @click.stop="navigatorActions.reset()" />
+      </template>
+    </template>
+
     <template #layers>
+      <WatermarkLayerList v-if="watermarkActive" :host="watermarkDocuments" />
       <PainterLayerPanel
-        v-if="painter && panelVisibility.layers"
+        v-if="!watermarkActive && painter && panelVisibility.layers"
+        :show-header="painterShellMode === 'mobile'"
         :layers="layers"
         :layer-tree="layerTree"
         :active-layer-id="activeLayerId"
@@ -2517,6 +2633,7 @@ installSiteCloudRoomE2eBridge()
     <template #navigator>
       <PainterNavigator
         v-if="painter && panelVisibility.navigator"
+        :show-header="painterShellMode === 'mobile'"
         :thumbnail="navigatorThumbnail"
         :viewport="viewport"
         :labels="text.navigator"
@@ -2524,6 +2641,10 @@ installSiteCloudRoomE2eBridge()
         @refresh="navigatorActions.refreshThumbnail"
         @reset="navigatorActions.reset"
       />
+    </template>
+
+    <template v-for="plugin in editorPlugins.active.value" :key="plugin.id" #[plugin.panelId]>
+      <component :is="editorPlugins.components[plugin.id]" :painter="painter" :host="watermarkDocuments" :available="pluginAvailable" />
     </template>
 
     <template #diagnostics>
@@ -2535,6 +2656,39 @@ installSiteCloudRoomE2eBridge()
       />
     </template>
   </component>
+
+  <!-- Keep the Painter view and activity instances alive when the responsive shell changes. -->
+  <div id="saier-surface-staging" hidden />
+  <Teleport defer :to="workspaceMount ?? '#saier-surface-staging'">
+    <SiteActivityWorkspaceSurface
+      :active="activityActive"
+      :request="activityRequest"
+      @exit="closeActivity"
+    >
+      <template #document>
+        <canvas ref="srcCanvas" tabindex="0" aria-label="Saier 主画布" />
+        <div v-if="watermarkDocuments.busy.value" class="site-stroke-replay-blocker" role="status">
+          正在处理水印图层…
+        </div>
+        <canvas
+          v-show="strokeReplayPreviewing"
+          ref="strokeReplayCanvas"
+          aria-hidden="true"
+          class="site-stroke-replay-canvas"
+        />
+        <div
+          v-if="strokeReplayPreviewing"
+          class="site-stroke-replay-blocker"
+          role="status"
+        >
+          <span class="site-stroke-replay-badge">
+            <span class="i-ph-play-circle" />
+            {{ text.recording.previewActive }}
+          </span>
+        </div>
+      </template>
+    </SiteActivityWorkspaceSurface>
+  </Teleport>
 
   <SiteNoticeStack
     :close-label="text.notices.close"
@@ -2548,6 +2702,23 @@ installSiteCloudRoomE2eBridge()
     :meta="projectDraftRecoveryMeta"
     @discard="discardLocalProjectDraft"
     @restore="restoreLocalProjectDraft"
+  />
+
+  <SiteImageImportDialog
+    :request="imageImportRequest"
+    :busy="imageFileBusy"
+    :labels="imageFileLabels"
+    @close="cancelImageImport"
+    @import="importPendingImage"
+  />
+  <SiteImageExportDialog
+    :open="imageExportOpen"
+    :busy="imageFileBusy"
+    :name="imageExportName"
+    :size="imageExportSize"
+    :labels="imageFileLabels"
+    @close="imageExportOpen = false"
+    @download="downloadImage"
   />
 
   <SiteNewCanvasDialog
@@ -2631,6 +2802,13 @@ installSiteCloudRoomE2eBridge()
 </template>
 
 <style scoped>
+.site-main-surface-host {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
 .site-painter-toolbar-stack {
   display: flex;
   width: 100%;
@@ -2643,6 +2821,10 @@ installSiteCloudRoomE2eBridge()
   overscroll-behavior-inline: contain;
   scrollbar-color: var(--saier-color-border-strong) transparent;
   scrollbar-width: thin;
+}
+
+.site-painter-toolbar-stack.can-scroll-right {
+  mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
 }
 
 .site-painter-toolbar-stack::-webkit-scrollbar {

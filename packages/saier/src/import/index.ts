@@ -23,6 +23,27 @@ export interface ImportedImagePixels {
   height: number
 }
 
+/** Bounds checked before allocating the decoded pixel canvas. */
+export interface ImageImportLimits {
+  maxDimension: number
+  maxPixels: number
+}
+
+export interface ImportImagePixelsOptions extends ImportImageSpriteOptions {
+  limits?: ImageImportLimits
+  /** Explicitly allow resizing to the limits instead of rejecting the image. */
+  resizeToFit?: boolean
+  signal?: AbortSignal
+}
+
+/** The caller can offer an explicit resize without changing the current document. */
+export class ImageImportSizeError extends Error {
+  constructor(readonly width: number, readonly height: number) {
+    super(`Image exceeds import limits: ${width} × ${height}`)
+    this.name = 'ImageImportSizeError'
+  }
+}
+
 /** Import an image URL as a Pixi sprite, optionally fitting it to a document. */
 export function importImageSprite(
   src: string,
@@ -73,7 +94,7 @@ export function importImageSprite(
 /** Decode an image URL into fitted, premultiplied RGBA pixels. */
 export function importImagePixels(
   src: string,
-  options: ImportImageSpriteOptions = {},
+  options: ImportImagePixelsOptions = {},
 ): Promise<ImportedImagePixels> {
   const img = new Image()
   img.decoding = 'async'
@@ -82,7 +103,18 @@ export function importImagePixels(
     const cleanup = () => {
       img.onload = null
       img.onerror = null
+      options.signal?.removeEventListener('abort', abort)
     }
+    function abort(): void {
+      cleanup()
+      img.src = ''
+      reject(new DOMException('Image import cancelled', 'AbortError'))
+    }
+    if (options.signal?.aborted) {
+      abort()
+      return
+    }
+    options.signal?.addEventListener('abort', abort, { once: true })
     img.crossOrigin = 'anonymous'
     img.onload = () => {
       try {
@@ -91,13 +123,25 @@ export function importImagePixels(
         if (sourceWidth <= 0 || sourceHeight <= 0)
           throw new Error('Loaded image has invalid dimensions')
 
+        const limits = options.limits
+        if (limits && (!Number.isFinite(limits.maxDimension) || limits.maxDimension < 1
+          || !Number.isFinite(limits.maxPixels) || limits.maxPixels < 1)) {
+          throw new Error('Invalid image import limits')
+        }
+        const limitScale = limits
+          ? Math.min(1, limits.maxDimension / sourceWidth, limits.maxDimension / sourceHeight, Math.sqrt(limits.maxPixels / (sourceWidth * sourceHeight)))
+          : 1
+        if (limitScale < 1 && !options.resizeToFit)
+          throw new ImageImportSizeError(sourceWidth, sourceHeight)
+
         const scale = Math.min(
           1,
           normalizeMaximum(options.maxWidth) / sourceWidth,
           normalizeMaximum(options.maxHeight) / sourceHeight,
+          limitScale,
         )
-        const width = Math.max(1, Math.round(sourceWidth * scale))
-        const height = Math.max(1, Math.round(sourceHeight * scale))
+        const width = Math.max(1, Math.floor(sourceWidth * scale))
+        const height = Math.max(1, Math.floor(sourceHeight * scale))
         const canvas = document.createElement('canvas')
         canvas.width = width
         canvas.height = height

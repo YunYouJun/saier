@@ -177,6 +177,28 @@ function buttonByText(root: ParentNode, text: string): HTMLButtonElement {
 }
 
 describe('painter options bar P7 controls', () => {
+  it('keeps advanced brush settings when their disclosure is closed and reopened', async () => {
+    const { el, painter } = mountOptionsBar()
+    const disclosure = el.querySelector<HTMLDetailsElement>('details.painter-disclosure')!
+    const summary = disclosure.querySelector('summary')!
+    const spacing = disclosure.querySelector<HTMLElement>('[role="slider"][aria-label="Spacing"]')!
+
+    expect(disclosure.open).toBe(false)
+    expect(spacing.getClientRects()).toHaveLength(0)
+    summary.click()
+    await nextTick()
+    expect(spacing.getClientRects().length).toBeGreaterThan(0)
+    spacing.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    await nextTick()
+    expect(painter.brush.setSpacing).toHaveBeenCalled()
+    const value = spacing.getAttribute('aria-valuenow')
+
+    summary.click()
+    summary.click()
+    await nextTick()
+    expect(spacing.getAttribute('aria-valuenow')).toBe(value)
+  })
+
   it('allows watercolor selection when sampleRegion is available', async () => {
     const { el, painter } = mountOptionsBar({ hasSampler: true })
 

@@ -12,6 +12,7 @@ export type SitePainterShortcutMap = Partial<Record<SitePainterCommand, readonly
 export const SITE_PAINTER_COMMANDS = [
   { id: 'file:new', category: 'file' },
   { id: 'file:open-project', category: 'file' },
+  { id: 'file:open-image', category: 'file' },
   { id: 'file:save-project', category: 'file' },
   { id: 'file:cloud-sync', category: 'file' },
   { id: 'file:cloud-room', category: 'file' },

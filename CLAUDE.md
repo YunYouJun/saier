@@ -23,6 +23,7 @@ The architecture rewrite is planned in **`docs/design/`** (a VitePress section).
 - `docs/design/interfaces.md` — core TS contracts (`BrushEngine` / `SurfaceBackend` / `Document`)
 - `docs/design/decisions.md` — key architectural decisions (ADR, D1–D6)
 - `docs/design/testing.md` — testing & determinism strategy
+- `docs/design/ui-guidelines.md` — shared UI / interaction rules; read before changing DOM interfaces, including scroll edge fades
 
 **How to execute**:
 

@@ -13,6 +13,22 @@
         "node_modules/**",
         "test/**"
       ]
+    },
+    {
+      "name": "saier-assets-api",
+      "aclRule": {
+        "invoke": "auth != null"
+      },
+      "handler": "index.main",
+      "runtime": "Nodejs18.15",
+      "timeout": 30,
+      "memorySize": 256,
+      "installDependency": true,
+      "ignore": [
+        "node_modules/**",
+        "test/**",
+        "*.md"
+      ]
     }
   ]
 }

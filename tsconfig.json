@@ -4,6 +4,7 @@
     "types": [
       "node",
       "wicg-file-system-access"
-    ]
+    ],
+    "allowImportingTsExtensions": true
   }
 }

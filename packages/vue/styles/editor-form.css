@@ -1,0 +1,90 @@
+@import './tokens.css';
+
+/* Opt-in compact forms; never style artwork or consumer page controls globally. */
+.saier-editor-form {
+  color: var(--saier-color-text);
+  font: var(--saier-font-size-control) / 1.45 var(--saier-font-ui);
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.saier-editor-form :where(button, input, select, textarea) {
+  box-sizing: border-box;
+  font: inherit;
+  accent-color: var(--saier-color-accent);
+}
+.saier-editor-form :where(button, select, textarea, input[type='number'], input[type='password'], input[type='text']) {
+  min-height: var(--saier-control-size);
+  min-width: 0;
+  padding: 3px 7px;
+  border: 1px solid var(--saier-color-border);
+  border-radius: var(--saier-radius-control);
+  color: var(--saier-color-text);
+  background: var(--saier-color-field);
+}
+.saier-editor-form button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+}
+.saier-editor-form button:hover:not(:disabled) {
+  background: var(--saier-color-surface-hover);
+}
+.saier-editor-form :where(button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--saier-color-focus);
+  outline-offset: 1px;
+}
+.saier-editor-form :where(button, input, select, textarea):disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.saier-editor-form input[type='range'] {
+  appearance: none;
+  width: 100%;
+  min-width: 0;
+  height: var(--saier-control-size);
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.saier-editor-form input[type='range']::-webkit-slider-runnable-track {
+  height: var(--saier-slider-track-height);
+  border-radius: 2px;
+  background: var(--saier-color-control-track);
+}
+.saier-editor-form input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: var(--saier-slider-thumb-size);
+  height: var(--saier-slider-thumb-size);
+  margin-top: calc((var(--saier-slider-track-height) - var(--saier-slider-thumb-size)) / 2);
+  border: 0;
+  border-radius: 50%;
+  background: var(--saier-color-accent);
+}
+.saier-editor-form input[type='range']::-moz-range-track {
+  height: var(--saier-slider-track-height);
+  border-radius: 2px;
+  background: var(--saier-color-control-track);
+}
+.saier-editor-form input[type='range']::-moz-range-thumb {
+  width: var(--saier-slider-thumb-size);
+  height: var(--saier-slider-thumb-size);
+  border: 0;
+  border-radius: 50%;
+  background: var(--saier-color-accent);
+}
+.saier-editor-form .editor-primary {
+  color: var(--saier-color-on-accent);
+  background: var(--saier-color-accent);
+  border-color: transparent;
+}
+.saier-editor-form .editor-primary:hover:not(:disabled) {
+  background: var(--saier-color-accent-hover);
+}
+.saier-editor-form .editor-hint {
+  margin: 0;
+  color: var(--saier-color-text-muted);
+  font-size: var(--saier-font-size-caption);
+  line-height: 1.6;
+}

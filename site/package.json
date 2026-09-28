@@ -23,7 +23,9 @@
     "@cloudbase/js-sdk": "^3.6.2",
     "@colyseus/sdk": "^0.17.43",
     "@saier/collaboration": "workspace:*",
+    "@yunlefun/assets": "0.1.0",
     "@yunlefun/sso": "0.6.0",
+    "ag-psd": "^31.0.2",
     "reka-ui": "^2.10.1"
   },
   "devDependencies": {

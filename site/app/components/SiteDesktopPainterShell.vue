@@ -3,6 +3,8 @@ import type { SiteDesktopPainterPanelGroup } from '~/composables/useDesktopPaint
 import type { SiteLocale } from '~/composables/useSiteI18n'
 import type { SitePainterPanelId } from '~/types/painter-app'
 import type { SitePainterPanelItem, SitePainterShellEmits, SitePainterShellProps } from '~/types/painter-shell'
+import PainterIconButton from '@saier/vue/components/PainterIconButton.vue'
+import PainterPanelHeader from '@saier/vue/components/PainterPanelHeader.vue'
 import { useDesktopPainterPanels } from '~/composables/useDesktopPainterPanels'
 
 const props = defineProps<SitePainterShellProps>()
@@ -32,7 +34,7 @@ const {
   workspaceRef,
 } = useDesktopPainterPanels({
   availablePanels: () => props.availablePanels,
-  panelItems: PANEL_ITEMS,
+  panelItems: () => [...PANEL_ITEMS, ...(props.extensionPanels ?? [])],
   panelVisibility: () => props.panelVisibility,
   setPanelVisible: (panelId, visible) => emit('setPanelVisible', panelId, visible),
 })
@@ -136,7 +138,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
           :style="panelStyle(group)"
           @pointerdown="bringGroupToFront(group.id)"
         >
-          <header class="site-painter-panel__header" @pointerdown="startPanelDrag($event, group.id)">
+          <PainterPanelHeader class="site-painter-panel__header" @pointerdown="startPanelDrag($event, group.id)">
             <div class="site-painter-panel__tabs" role="tablist">
               <button
                 v-for="panel in visiblePanelsForGroup(group)"
@@ -156,9 +158,10 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
               </button>
             </div>
 
-            <div class="site-painter-panel__actions">
-              <button
-                type="button"
+            <template #actions>
+              <slot name="panel-actions" :panel-id="group.activePanelId" />
+              <PainterIconButton
+                size="sm"
                 class="site-painter-panel__icon"
                 :title="panelActionTitle(group, group.collapsed ? 'expand' : 'collapse')"
                 :aria-label="panelActionTitle(group, group.collapsed ? 'expand' : 'collapse')"
@@ -167,10 +170,10 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
                 @pointerdown.stop
               >
                 <span :class="group.collapsed ? 'i-ph-caret-down' : 'i-ph-caret-up'" aria-hidden="true" />
-              </button>
-              <button
+              </PainterIconButton>
+              <PainterIconButton
                 v-if="group.panelIds.length > 1"
-                type="button"
+                size="sm"
                 class="site-painter-panel__icon"
                 :title="panelActionTitle(group, 'detach')"
                 :aria-label="panelActionTitle(group, 'detach')"
@@ -178,9 +181,9 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
                 @pointerdown.stop
               >
                 <span class="i-ph-arrows-out-cardinal" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
+              </PainterIconButton>
+              <PainterIconButton
+                size="sm"
                 class="site-painter-panel__icon"
                 :title="panelActionTitle(group, 'hide')"
                 :aria-label="panelActionTitle(group, 'hide')"
@@ -188,14 +191,19 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
                 @pointerdown.stop
               >
                 <span class="i-ph-eye-slash" aria-hidden="true" />
-              </button>
-              <span class="site-painter-panel__handle" aria-hidden="true">
-                <span class="i-ph-dots-six-vertical" />
-              </span>
-            </div>
-          </header>
+              </PainterIconButton>
+            </template>
+          </PainterPanelHeader>
 
           <div v-show="!group.collapsed" class="site-painter-panel__body">
+            <template v-for="panel in extensionPanels" :key="panel.id">
+              <div
+                v-if="isPanelInGroup(group, panel.id)" v-show="group.activePanelId === panel.id"
+                :id="panelPaneId(group.id, panel.id)" class="site-painter-panel__pane" role="tabpanel" :aria-labelledby="panelTabId(group.id, panel.id)"
+              >
+                <slot :name="panel.id" />
+              </div>
+            </template>
             <div
               v-if="isPanelInGroup(group, 'options')"
               v-show="group.activePanelId === 'options'"
@@ -259,12 +267,11 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
       </div>
 
       <aside v-if="exportPreview" class="site-painter__preview">
-        <header class="site-painter__preview-header">
-          <span>{{ exportPreviewLabel }}</span>
-          <button type="button" class="site-painter__preview-close" :title="closePreviewLabel" @click="emit('closePreview')">
-            <span class="i-ph-x" />
-          </button>
-        </header>
+        <PainterPanelHeader :title="exportPreviewLabel">
+          <template #actions>
+            <PainterIconButton size="sm" :title="closePreviewLabel" icon="i-ph-x" @click="emit('closePreview')" />
+          </template>
+        </PainterPanelHeader>
         <img class="site-painter__preview-image" :src="exportPreview" :alt="exportPreviewLabel">
       </aside>
     </main>
@@ -276,26 +283,26 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   display: grid;
   height: 100vh;
   min-height: 0;
-  grid-template-rows: 132px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
   background: var(--saier-color-app-background);
   color: var(--saier-color-text);
 }
 
 .site-painter.is-activity {
-  grid-template-rows: 88px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .site-painter__chrome {
   display: grid;
   min-width: 0;
-  grid-template-rows: 44px 44px 44px;
+  grid-template-rows: repeat(3, var(--saier-chrome-row-height));
   border-bottom: 1px solid var(--saier-color-border);
   background: var(--saier-color-chrome);
 }
 
 .site-painter.is-activity .site-painter__chrome {
-  grid-template-rows: 44px 44px;
+  grid-template-rows: repeat(2, var(--saier-chrome-row-height));
 }
 
 .site-painter__topbar {
@@ -304,14 +311,14 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 6px 12px 2px;
+  padding-inline: var(--saier-space-3);
 }
 
 .site-painter__primary {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .site-painter__brand {
@@ -324,17 +331,12 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 
 .site-painter__logo {
   display: inline-flex;
-  width: 34px;
-  height: 34px;
+  width: var(--saier-control-size);
+  height: var(--saier-control-size);
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-}
-
-.site-painter__logo :deep(div) {
-  margin: 0;
-  font-size: 28px;
 }
 
 .site-painter__brand-copy {
@@ -352,8 +354,9 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 }
 
 .site-painter__title {
-  font-size: 16px;
-  font-weight: 650;
+  font-family: var(--saier-font-brand);
+  font-size: 14px;
+  font-weight: 600;
   line-height: 1.2;
 }
 
@@ -367,19 +370,22 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 }
 
 .site-painter__toolbar {
+  border-top: 1px solid var(--saier-color-border);
   display: flex;
   min-width: 0;
   align-items: center;
-  padding: 3px 12px 7px;
+  padding-inline: var(--saier-space-3);
   overflow: hidden;
 }
 
 .site-painter__documents {
+  background: var(--saier-color-panel);
+  border-top: 1px solid var(--saier-color-border);
   box-sizing: border-box;
   display: flex;
   min-width: 0;
   align-items: center;
-  padding: 4px 12px 6px;
+  padding-inline: var(--saier-space-3);
   overflow: hidden;
 }
 
@@ -388,7 +394,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   min-width: 0;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 8px;
 }
 
 .site-painter__account {
@@ -422,12 +428,12 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 
 .site-painter__locale {
   display: inline-flex;
-  height: 32px;
+  height: var(--saier-control-size);
   align-items: center;
   gap: 8px;
   border: 1px solid var(--saier-color-border);
-  border-radius: 8px;
-  background: var(--saier-color-surface);
+  border-radius: var(--saier-radius-control);
+  background: transparent;
   color: var(--saier-color-text);
   cursor: pointer;
   font-size: 12px;
@@ -463,7 +469,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   min-width: 136px;
   gap: 2px;
   border: 1px solid var(--saier-color-border);
-  border-radius: 8px;
+  border-radius: var(--saier-radius-panel);
   background: var(--saier-color-panel-raised);
   box-shadow: var(--saier-shadow-panel);
   padding: 4px;
@@ -532,28 +538,24 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 .site-painter-panel {
   position: absolute;
   display: grid;
-  width: min(344px, calc(100vw - 16px));
+  width: min(var(--saier-panel-width), calc(100vw - 16px));
   min-width: 0;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
   border: 1px solid var(--saier-color-border);
-  border-radius: 8px;
+  border-radius: var(--saier-radius-panel);
   background: var(--saier-color-panel);
   box-shadow: var(--saier-shadow-panel);
   color: var(--saier-color-text);
   pointer-events: auto;
 }
 
-.site-painter-panel--controls:not(.site-painter-panel--options):not(.site-painter-panel--layers):not(
-    .site-painter-panel--navigator
-  ):not(.site-painter-panel--diagnostics) {
-  width: min(272px, calc(100vw - 16px));
+.site-painter-panel.is-active {
+  border-color: var(--saier-color-border-strong);
 }
 
-.site-painter-panel.is-active,
 .site-painter-panel.is-dragging {
   border-color: var(--saier-color-accent-border);
-  box-shadow: var(--saier-shadow-dialog);
 }
 
 .site-painter-panel.is-dragging {
@@ -565,16 +567,8 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 }
 
 .site-painter-panel__header {
-  display: flex;
-  min-width: 0;
-  height: 34px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  border-bottom: 1px solid var(--saier-color-border);
-  background: linear-gradient(180deg, var(--saier-color-surface), transparent), var(--saier-color-control-track);
+  background: var(--saier-color-chrome);
   cursor: grab;
-  padding: 4px;
   touch-action: none;
   user-select: none;
 }
@@ -592,7 +586,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   min-width: 0;
   flex: 1 1 auto;
   align-items: center;
-  gap: 3px;
+  gap: var(--saier-space-1);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -604,22 +598,25 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 .site-painter-panel__tab {
   display: inline-flex;
   min-width: 0;
-  height: 26px;
+  height: var(--saier-control-size-sm);
   flex: 0 1 auto;
   align-items: center;
-  gap: 5px;
+  gap: var(--saier-space-1);
   border: 1px solid transparent;
   border-radius: 5px;
   background: transparent;
   color: var(--saier-color-text-muted);
   font-size: 12px;
-  padding: 0 7px;
+  padding-inline: var(--saier-space-1);
 }
 
 .site-painter-panel__tab.is-active {
-  border-color: var(--saier-color-accent-border);
-  background: var(--saier-color-accent-soft);
   color: var(--saier-color-text);
+}
+
+.site-painter-panel__tabs:has(.site-painter-panel__tab:nth-child(2)) .site-painter-panel__tab.is-active {
+  background: var(--saier-color-surface-hover);
+  box-shadow: inset 0 -2px var(--saier-color-accent);
 }
 
 .site-painter-panel__tab:focus-visible,
@@ -635,38 +632,11 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   white-space: nowrap;
 }
 
-.site-painter-panel__actions {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 2px;
-}
-
-.site-painter-panel__icon,
-.site-painter-panel__handle {
-  display: inline-grid;
-  width: 26px;
-  height: 26px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid var(--saier-color-border);
-  border-radius: 5px;
-  background: var(--saier-color-surface);
-  color: var(--saier-color-text-muted);
-}
-
-.site-painter-panel__icon:hover {
-  background: var(--saier-color-surface-hover);
-  color: var(--saier-color-text);
-}
-
-.site-painter-panel__handle {
-  color: var(--saier-color-text-disabled);
-}
-
 .site-painter-panel__body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--saier-color-border-strong) transparent;
   min-width: 0;
-  max-height: min(720px, calc(100vh - 188px));
+  max-height: var(--saier-panel-max-height);
   overflow: auto;
 }
 
@@ -715,29 +685,8 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   width: min(280px, calc(100vw - 24px));
   overflow: hidden;
   border: 1px solid var(--saier-color-border);
-  border-radius: 8px;
+  border-radius: var(--saier-radius-panel);
   background: var(--saier-color-panel);
-}
-
-.site-painter__preview-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--saier-color-border);
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.site-painter__preview-close {
-  display: inline-grid;
-  width: 26px;
-  height: 26px;
-  place-items: center;
-  border: 1px solid var(--saier-color-border);
-  border-radius: 6px;
-  background: var(--saier-color-surface);
-  color: var(--saier-color-text);
 }
 
 .site-painter__preview-image {
@@ -761,11 +710,11 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
 
 @media (max-width: 640px) {
   .site-painter {
-    grid-template-rows: 132px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
   .site-painter__chrome {
-    grid-template-rows: 44px 44px 44px;
+    grid-template-rows: repeat(3, var(--saier-chrome-row-height));
   }
 
   .site-painter__brand-copy,
@@ -774,7 +723,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   }
 
   .site-painter__brand {
-    width: 34px;
+    width: var(--saier-control-size);
   }
 
   .site-painter__logo {
@@ -786,6 +735,7 @@ function selectLocale(event: MouseEvent, locale: SiteLocale): void {
   }
 
   .site-painter__toolbar {
+    border-top: 1px solid var(--saier-color-border);
     padding-inline: 8px;
   }
 

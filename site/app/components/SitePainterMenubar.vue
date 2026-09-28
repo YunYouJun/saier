@@ -30,6 +30,7 @@ interface SitePainterMenubarLabels {
   cloudSync: string
   cloudRoom: string
   importBrush: string
+  openImage: string
   importImage: string
   exportPreview: string
   download: string
@@ -84,6 +85,7 @@ interface SitePainterMenubarLabels {
 }
 
 const props = defineProps<{
+  editorPlugins?: readonly { id: string, label: string, enabled: boolean }[]
   activityMenuItems: readonly SiteActivityMenuItem[]
   activeLayerVisible: boolean
   activeTool: SitePainterTool
@@ -107,6 +109,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  toggleEditorPlugin: [id: string, enabled: boolean]
   command: [command: SitePainterMenuCommand]
   openAbout: []
   openActivity: [pluginId: string]
@@ -204,6 +207,12 @@ function shortcutLabel(command: SitePainterCommand): string {
             </span>
           </MenubarItem>
           <MenubarSeparator class="site-menubar__separator" />
+          <MenubarItem class="site-menubar__item" :disabled="disabled" @select="emit('command', 'file:open-image')">
+            <span class="site-menubar__item-main">
+              <span class="i-ph-image" />
+              <span>{{ labels.openImage }}</span>
+            </span>
+          </MenubarItem>
           <MenubarItem class="site-menubar__item" :disabled="disabled" @select="emit('command', 'file:import-image')">
             <span class="site-menubar__item-main">
               <span class="i-ph-image" />
@@ -228,6 +237,20 @@ function shortcutLabel(command: SitePainterCommand): string {
               <span>{{ labels.download }}</span>
             </span>
           </MenubarItem>
+        </MenubarContent>
+      </MenubarPortal>
+    </MenubarMenu>
+
+    <MenubarMenu v-if="editorPlugins?.length" value="plugins">
+      <MenubarTrigger class="site-menubar__trigger">
+        {{ locale === 'zh' ? '插件' : 'Plugins' }}
+      </MenubarTrigger>
+      <MenubarPortal>
+        <MenubarContent class="site-menubar__content" align="start" :side-offset="7">
+          <MenubarCheckboxItem v-for="plugin in editorPlugins" :key="plugin.id" class="site-menubar__item" :model-value="plugin.enabled" @update:model-value="emit('toggleEditorPlugin', plugin.id, $event === true)">
+            <span class="site-menubar__item-main"><span class="i-ph-puzzle-piece" /><span>{{ plugin.label }}</span></span>
+            <MenubarItemIndicator><span class="i-ph-check" /></MenubarItemIndicator>
+          </MenubarCheckboxItem>
         </MenubarContent>
       </MenubarPortal>
     </MenubarMenu>
@@ -677,7 +700,9 @@ function shortcutLabel(command: SitePainterCommand): string {
 }
 
 .site-menubar__trigger {
-  height: 32px;
+  height: var(--saier-control-size);
+  flex: 0 0 auto;
+  white-space: nowrap;
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;

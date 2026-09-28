@@ -37,8 +37,8 @@ function createPainterProbe(): {
 
 describe('painter workspace theme', () => {
   it.each([
-    ['light', '#d8dce2'],
-    ['dark', '#282a2e'],
+    ['light', '#d7d7da'],
+    ['dark', '#202123'],
   ] as const)('applies the %s canvas surround token to Pixi', (theme, color) => {
     const { background, canvas, painter, render } = createPainterProbe()
 

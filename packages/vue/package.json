@@ -19,12 +19,14 @@
       "import": "./index.ts"
     },
     "./components/*": "./components/*",
+    "./styles/*": "./styles/*",
     "./composables/*": "./composables/*"
   },
   "files": [
     "components",
     "composables",
-    "index.ts"
+    "index.ts",
+    "styles"
   ],
   "scripts": {
     "publish:beta": "pnpm publish --access public --tag beta"

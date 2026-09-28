@@ -44,7 +44,7 @@ interface DragState {
 
 export interface UseDesktopPainterPanelsOptions {
   availablePanels: MaybeRefOrGetter<SitePainterPanelId[]>
-  panelItems: readonly SitePainterPanelItem[]
+  panelItems: MaybeRefOrGetter<readonly SitePainterPanelItem[]>
   panelVisibility: MaybeRefOrGetter<Readonly<Record<SitePainterPanelId, boolean>>>
   setPanelVisible: (panelId: SitePainterPanelId, visible: boolean) => void
 }
@@ -52,7 +52,8 @@ export interface UseDesktopPainterPanelsOptions {
 const PANEL_MARGIN = 8
 const PANEL_RIGHT_GUTTER = 16
 const DEFAULT_PANEL_SIZE = {
-  width: 344,
+  // Fallback before DOM measurement; rendered width follows --saier-panel-width.
+  width: 272,
   height: 320,
 }
 
@@ -68,12 +69,12 @@ export function useDesktopPainterPanels(options: UseDesktopPainterPanelsOptions)
 
   const availablePanelIds = computed(() => toValue(options.availablePanels))
   const visiblePanelIds = computed(() =>
-    options.panelItems
+    toValue(options.panelItems)
       .filter(item => availablePanelIds.value.includes(item.id) && toValue(options.panelVisibility)[item.id])
       .map(item => item.id),
   )
 
-  watch(() => `${availablePanelIds.value.join('|')}::${options.panelItems.map(item => Number(toValue(options.panelVisibility)[item.id])).join('')}`, () => {
+  watch(() => `${availablePanelIds.value.join('|')}::${toValue(options.panelItems).map(item => Number(toValue(options.panelVisibility)[item.id])).join('')}`, () => {
     syncPanelGroups()
   }, { immediate: true })
 
@@ -156,8 +157,8 @@ export function useDesktopPainterPanels(options: UseDesktopPainterPanelsOptions)
     const bounds = workspaceBounds(workspaceRef)
     const offset = panelGroups.value.length * 28
     const id = `${panelId}-${Date.now()}`
-    const x = Math.min(48 + offset, defaultRightPanelX(bounds.width))
-    const y = Math.min(48 + offset, Math.max(12, bounds.height - 220))
+    const x = panelId.startsWith('plugin:') ? 12 : Math.min(48 + offset, defaultRightPanelX(bounds.width))
+    const y = panelId.startsWith('plugin:') ? 12 : Math.min(48 + offset, Math.max(12, bounds.height - 220))
 
     return {
       id,
@@ -173,7 +174,7 @@ export function useDesktopPainterPanels(options: UseDesktopPainterPanelsOptions)
 
   function visiblePanelsForGroup(group: SiteDesktopPainterPanelGroup): SitePainterPanelItem[] {
     const visible = new Set(visiblePanelIds.value)
-    return options.panelItems.filter(item => group.panelIds.includes(item.id) && visible.has(item.id))
+    return toValue(options.panelItems).filter(item => group.panelIds.includes(item.id) && visible.has(item.id))
   }
 
   function shouldShowGroup(group: SiteDesktopPainterPanelGroup): boolean {
@@ -434,7 +435,9 @@ export function useDesktopPainterPanels(options: UseDesktopPainterPanelsOptions)
       if (groupId && group.id !== groupId)
         return group
 
-      const next = clampPanelGroupPosition(group.id, group.x, group.y, bounds)
+      // Content can resize after painter initialization or a disclosure toggle.
+      // Keep the dock edge offset instead of saving the temporary placeholder size.
+      const next = clampPanelGroupPosition(group.id, anchoredX(group, bounds), anchoredY(group, bounds), bounds)
 
       return {
         ...group,

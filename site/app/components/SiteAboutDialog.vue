@@ -22,7 +22,7 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const logoSrc = '/favicon.svg'
+const logoSrc = '/logo.svg'
 const closeButton = shallowRef<HTMLButtonElement>()
 let returnFocus: HTMLElement | null = null
 
@@ -68,7 +68,6 @@ watch(
       </button>
 
       <div class="site-about__brand" aria-hidden="true">
-        <span class="site-about__paint" />
         <img class="site-about__logo" :src="logoSrc" alt="">
       </div>
 
@@ -142,6 +141,15 @@ watch(
   padding: 28px;
 }
 
+.site-about__panel::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: var(--saier-brand-spectrum);
+  content: '';
+  pointer-events: none;
+}
+
 .site-about__icon-button {
   position: absolute;
   z-index: 1;
@@ -168,18 +176,7 @@ watch(
   width: 82px;
   height: 76px;
   margin-bottom: 12px;
-}
-
-.site-about__paint {
-  position: absolute;
-  top: 25px;
-  left: 3px;
-  width: 80px;
-  height: 30px;
-  border-radius: 42% 58% 48% 52%;
-  background: linear-gradient(90deg, rgb(232 64 46 / 18%), rgb(255 138 102 / 50%) 48%, rgb(232 64 46 / 8%));
-  filter: blur(0.5px);
-  transform: rotate(-7deg) skewX(-12deg);
+  margin-inline: auto;
 }
 
 .site-about__logo {
@@ -188,7 +185,6 @@ watch(
   left: 8px;
   width: 64px;
   height: 64px;
-  filter: drop-shadow(0 8px 16px rgb(122 26 14 / 24%));
 }
 
 .site-about__eyebrow {
@@ -196,11 +192,10 @@ watch(
   color: var(--saier-color-text-subtle);
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .site-about__title {
+  font-family: var(--saier-font-brand);
   margin: 0;
   font-size: 25px;
   font-weight: 750;
@@ -290,7 +285,7 @@ watch(
   border: 1px solid var(--saier-color-accent-border);
   border-radius: 6px;
   background: var(--saier-color-accent);
-  color: white;
+  color: var(--saier-color-on-accent);
   font-size: 13px;
   font-weight: 650;
   padding: 0 15px;

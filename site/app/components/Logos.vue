@@ -1,11 +1,15 @@
+<script setup lang="ts">
+const logoSrc = '/logo.svg'
+</script>
+
 <template>
-  <div inline-flex cursor-default text-2xl font-300>
-    <div
-      text="5xl gray4"
-      m="x-4 y-auto"
-      i-ri-artboard-2-line transform transition-all-500 hover:rotate-135
-    >
-      🎨
-    </div>
-  </div>
+  <img class="saier-logo" :src="logoSrc" alt="" width="32" height="32" draggable="false">
 </template>
+
+<style scoped>
+.saier-logo {
+  display: block;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+</style>

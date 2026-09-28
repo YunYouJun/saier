@@ -6,8 +6,9 @@ import {
   SliderTrack,
 } from 'reka-ui'
 import { computed, useId } from 'vue'
+import '../styles/tokens.css'
 
-type PainterSliderVariant = 'compact' | 'panel'
+type PainterSliderVariant = 'compact' | 'panel' | 'row'
 
 const props = withDefaults(defineProps<{
   disabled?: boolean
@@ -107,9 +108,9 @@ function precisionFromStep(step: number): number {
 .painter-slider {
   display: grid;
   min-width: 0;
-  gap: 5px;
+  gap: var(--saier-space-1);
   color: var(--saier-color-text, white);
-  font-size: 12px;
+  font-size: var(--saier-font-size-control);
 }
 
 .painter-slider__header {
@@ -125,6 +126,7 @@ function precisionFromStep(step: number): number {
   min-width: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: left;
 }
 
 .painter-slider__icon {
@@ -135,7 +137,7 @@ function precisionFromStep(step: number): number {
 .painter-slider__value {
   min-width: 44px;
   color: var(--saier-color-text-subtle, rgb(255 255 255 / 54%));
-  font-size: 11px;
+  font-size: var(--saier-font-size-caption);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
@@ -143,7 +145,7 @@ function precisionFromStep(step: number): number {
 .painter-slider__root {
   position: relative;
   display: flex;
-  height: 18px;
+  height: var(--saier-control-size);
   min-width: 0;
   align-items: center;
   touch-action: none;
@@ -153,41 +155,39 @@ function precisionFromStep(step: number): number {
 .painter-slider__track {
   position: relative;
   width: 100%;
-  height: 6px;
+  height: var(--saier-slider-track-height);
   flex: 1;
   overflow: hidden;
-  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 999px;
-  background:
-    linear-gradient(90deg, var(--saier-color-border, rgb(255 255 255 / 8%)) 1px, transparent 1px) 0 0 / 10px 100%,
-    var(--saier-color-control-track, rgb(0 0 0 / 30%));
+  background: var(--saier-color-control-track, rgb(0 0 0 / 30%));
 }
 
 .painter-slider__range {
   position: absolute;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--saier-color-accent, #60a5fa), var(--saier-color-success, #34d399));
+  background: var(--saier-color-accent, #60a5fa);
 }
 
 .painter-slider__thumb {
   display: block;
-  width: 12px;
-  height: 18px;
-  border: 1px solid var(--saier-color-border-strong, rgb(255 255 255 / 72%));
-  border-radius: 4px;
-  background: var(--saier-color-control-thumb, rgb(31 35 42));
-  box-shadow:
-    0 0 0 1px var(--saier-color-swatch-inset, rgb(0 0 0 / 40%)),
-    var(--saier-shadow-control, 0 4px 12px rgb(0 0 0 / 38%));
+  width: var(--saier-slider-thumb-size);
+  height: var(--saier-slider-thumb-size);
+  border-radius: 50%;
+  background: var(--saier-color-text-muted, rgb(255 255 255 / 76%));
   outline: none;
 }
 
 .painter-slider__thumb:focus-visible {
-  border-color: var(--saier-color-focus, rgb(147 197 253));
-  box-shadow:
-    0 0 0 1px var(--saier-color-swatch-inset, rgb(0 0 0 / 40%)),
-    0 0 0 3px var(--saier-color-accent-soft, rgb(96 165 250 / 26%));
+  outline: var(--saier-focus-width) solid var(--saier-color-focus, #93c5fd);
+  outline-offset: 2px;
+}
+
+.painter-slider--row {
+  grid-template-columns: 64px minmax(0, 1fr) 44px;
+  min-height: var(--saier-control-size);
+  align-items: center;
+  gap: var(--saier-space-2);
 }
 
 .painter-slider[data-disabled] {
@@ -196,12 +196,10 @@ function precisionFromStep(step: number): number {
 
 .painter-slider--compact {
   display: inline-flex;
-  height: 28px;
+  height: var(--saier-control-size);
   align-items: center;
-  gap: 6px;
-  padding: 0 7px;
-  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
-  border-radius: 5px;
+  gap: var(--saier-space-2);
+  padding-inline: var(--saier-space-2);
   color: var(--saier-color-text-muted, rgb(255 255 255 / 76%));
 }
 
@@ -216,16 +214,6 @@ function precisionFromStep(step: number): number {
 .painter-slider--compact .painter-slider__root {
   width: var(--painter-slider-compact-track-size, 88px);
   flex: 0 0 var(--painter-slider-compact-track-size, 88px);
-}
-
-.painter-slider--compact .painter-slider__track {
-  height: 5px;
-}
-
-.painter-slider--compact .painter-slider__thumb {
-  width: 10px;
-  height: 16px;
-  border-radius: 3px;
 }
 
 .painter-slider--compact .painter-slider__value {

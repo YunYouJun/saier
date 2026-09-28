@@ -2,6 +2,8 @@
 import type { PainterViewportSnapshot } from 'saier'
 import type { CSSProperties } from 'vue'
 import { computed, onBeforeUnmount, shallowRef, useTemplateRef } from 'vue'
+import PainterIconButton from './PainterIconButton.vue'
+import PainterPanelHeader from './PainterPanelHeader.vue'
 
 interface PainterNavigatorLabels {
   empty: string
@@ -11,11 +13,12 @@ interface PainterNavigatorLabels {
   title: string
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
+  showHeader?: boolean
   thumbnail?: string
   viewport?: PainterViewportSnapshot
   labels?: Partial<PainterNavigatorLabels>
-}>()
+}>(), { showHeader: true })
 
 const emit = defineEmits<{
   center: [point: { x: number, y: number }]
@@ -188,17 +191,12 @@ function safelyReleasePointerCapture(target: HTMLElement, pointerId: number): vo
 
 <template>
   <section class="painter-navigator" :class="{ 'is-dragging': dragging }">
-    <header class="painter-navigator__header">
-      <span class="painter-navigator__title">{{ text.title }}</span>
-      <div class="painter-navigator__actions">
-        <button type="button" class="painter-navigator__icon" :title="text.refresh" :aria-label="text.refresh" @click="emit('refresh')">
-          <span class="i-ph-arrows-clockwise" aria-hidden="true" />
-        </button>
-        <button type="button" class="painter-navigator__icon" :title="text.resetView" :aria-label="text.resetView" @click="emit('reset')">
-          <span class="i-ph-crosshair" aria-hidden="true" />
-        </button>
-      </div>
-    </header>
+    <PainterPanelHeader v-if="showHeader !== false" :title="text.title">
+      <template #actions>
+        <PainterIconButton size="sm" :title="text.refresh" icon="i-ph-arrows-clockwise" @click="emit('refresh')" />
+        <PainterIconButton size="sm" :title="text.resetView" icon="i-ph-crosshair" @click="emit('reset')" />
+      </template>
+    </PainterPanelHeader>
 
     <button
       ref="surface"
@@ -231,60 +229,14 @@ function safelyReleasePointerCapture(target: HTMLElement, pointerId: number): vo
 
 <style scoped>
 .painter-navigator {
-  width: min(100%, 260px);
+  width: min(100%, var(--saier-panel-width));
   min-width: 180px;
   overflow: hidden;
   border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
-  border-radius: 8px;
+  border-radius: var(--saier-radius-panel);
   background: var(--saier-color-panel, rgb(20 21 24 / 92%));
   color: var(--saier-color-text, white);
   box-shadow: var(--saier-shadow-panel, 0 16px 44px rgb(0 0 0 / 28%));
-}
-
-.painter-navigator__header,
-.painter-navigator__meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.painter-navigator__header {
-  padding: 8px 9px 7px;
-  border-bottom: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
-}
-
-.painter-navigator__title {
-  overflow: hidden;
-  min-width: 0;
-  font-size: 12px;
-  font-weight: 650;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.painter-navigator__actions {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 4px;
-}
-
-.painter-navigator__icon {
-  display: inline-grid;
-  width: 24px;
-  height: 24px;
-  place-items: center;
-  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
-  border-radius: 5px;
-  background: var(--saier-color-surface, rgb(255 255 255 / 6%));
-  color: var(--saier-color-text-muted, rgb(255 255 255 / 76%));
-}
-
-.painter-navigator__icon:hover {
-  background: var(--saier-color-surface-hover, rgb(255 255 255 / 10%));
-  color: var(--saier-color-text, white);
 }
 
 .painter-navigator__surface {
@@ -312,8 +264,7 @@ function safelyReleasePointerCapture(target: HTMLElement, pointerId: number): vo
   cursor: default;
 }
 
-.painter-navigator__surface:focus-visible,
-.painter-navigator__icon:focus-visible {
+.painter-navigator__surface:focus-visible {
   outline: 2px solid var(--saier-color-focus, rgb(147 197 253 / 72%));
   outline-offset: 1px;
 }
@@ -363,6 +314,10 @@ function safelyReleasePointerCapture(target: HTMLElement, pointerId: number): vo
 }
 
 .painter-navigator__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--saier-space-2);
   padding: 0 9px 8px;
   color: var(--saier-color-text-subtle, rgb(255 255 255 / 54%));
   font-size: 11px;

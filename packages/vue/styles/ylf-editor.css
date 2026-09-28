@@ -1,0 +1,55 @@
+/* YunLeFun Design · Editor. Opt-in tokens, independent of consumer UI density.
+ * Source: YunLeFun/design packages/ui/styles/editor.css (MIT).
+ * Saier vendors this file until the Editor entry is published; keep copies identical.
+ */
+:root {
+  --ylf-editor-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --ylf-editor-text: 12px;
+  --ylf-editor-caption: 11px;
+  --ylf-editor-control-sm: 24px;
+  --ylf-editor-control: 28px;
+  --ylf-editor-row: 32px;
+  --ylf-editor-header: 32px;
+  --ylf-editor-radius: 5px;
+  --ylf-editor-panel-radius: 10px;
+  --ylf-editor-panel-width: 272px;
+}
+:root,
+.light,
+.ylf-theme-light,
+[data-ylf-editor-theme='light'] {
+  --ylf-editor-bg: #f6f6f7;
+  --ylf-editor-chrome: #ebebed;
+  --ylf-editor-panel: #f6f6f7;
+  --ylf-editor-field: #ffffff;
+  --ylf-editor-workspace: #d7d7da;
+  --ylf-editor-fg: #292a2e;
+  --ylf-editor-muted: #62636b;
+  --ylf-editor-border: rgb(25 25 30 / 13%);
+  --ylf-editor-accent: var(--ylf-palette-blue, #2563eb);
+  --ylf-editor-selection: rgb(37 99 235 / 10%);
+  --ylf-editor-shadow: 0 1px 3px rgb(0 0 0 / 8%), 0 10px 28px -8px rgb(0 0 0 / 18%);
+}
+.dark,
+.ylf-theme-dark,
+[data-ylf-editor-theme='dark'] {
+  --ylf-editor-bg: #242426;
+  --ylf-editor-chrome: #303033;
+  --ylf-editor-panel: #292a2d;
+  --ylf-editor-field: #353639;
+  --ylf-editor-workspace: #202123;
+  --ylf-editor-fg: #eeeef0;
+  --ylf-editor-muted: #b1b1b8;
+  --ylf-editor-border: rgb(255 255 255 / 11%);
+  --ylf-editor-accent: #60a5fa;
+  --ylf-editor-selection: rgb(96 165 250 / 16%);
+  --ylf-editor-shadow: 0 1px 3px rgb(0 0 0 / 20%), 0 10px 28px -8px rgb(0 0 0 / 40%);
+}
+@media (pointer: coarse) {
+  :root {
+    --ylf-editor-control-sm: 40px;
+    --ylf-editor-control: 40px;
+    --ylf-editor-row: 44px;
+    --ylf-editor-header: 44px;
+  }
+}

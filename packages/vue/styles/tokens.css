@@ -1,0 +1,39 @@
+@import './ylf-editor.css';
+
+/* Shared DOM density. Color and shadow tokens come from the host theme. */
+:root {
+  --saier-font-ui: var(--ylf-editor-font);
+  --saier-space-1: 4px;
+  --saier-space-2: 8px;
+  --saier-space-3: 12px;
+  --saier-space-4: 16px;
+  --saier-radius-control: var(--ylf-editor-radius);
+  --saier-radius-panel: var(--ylf-editor-panel-radius);
+  --saier-font-size-caption: var(--ylf-editor-caption);
+  --saier-font-size-control: var(--ylf-editor-text);
+  --saier-font-weight-label: 500;
+  --saier-icon-size: 16px;
+  --saier-control-size-sm: var(--ylf-editor-control-sm);
+  --saier-control-size: var(--ylf-editor-control);
+  --saier-control-size-lg: 40px;
+  --saier-panel-header-height: var(--ylf-editor-header);
+  --saier-panel-width: var(--ylf-editor-panel-width);
+  --saier-panel-padding: var(--saier-space-2);
+  --saier-toolbar-height: 32px;
+  --saier-chrome-row-height: var(--ylf-editor-row);
+  --saier-panel-max-height: min(720px, calc(100vh - 3 * var(--saier-chrome-row-height) - 2 * var(--saier-space-3)));
+  --saier-slider-track-height: 3px;
+  --saier-slider-thumb-size: 10px;
+  --saier-focus-width: 2px;
+}
+
+@media (pointer: coarse) {
+  :root {
+    --saier-control-size-sm: 40px;
+    --saier-control-size: 40px;
+    --saier-panel-header-height: 44px;
+    --saier-toolbar-height: 44px;
+    --saier-chrome-row-height: 48px;
+    --saier-slider-thumb-size: 16px;
+  }
+}

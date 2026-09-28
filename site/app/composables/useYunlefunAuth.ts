@@ -45,6 +45,7 @@ interface CloudbaseLoginState {
 }
 
 interface YunlefunAuthClient extends SsoAdoptionAuth {
+  getSession?: () => Promise<{ data?: { session?: { access_token?: string } | null }, error?: unknown }>
   currentUser?: CloudbaseUser | null
   getLoginState: () => Promise<CloudbaseLoginState | null>
   onLoginStateChanged?: (callback: (state: CloudbaseLoginState | null) => void) => void
@@ -343,6 +344,14 @@ export function useYunlefunAuth() {
     displayName,
     errorMessage,
     getCloudbaseApp: () => ensureCloudbaseApp(cloudbaseEnv.value),
+    async getRuntimeAccessToken(): Promise<string> {
+      const auth = await ensureAuth(cloudbaseEnv.value)
+      const response = await auth?.getSession?.()
+      const token = response?.data?.session?.access_token
+      if (response?.error || !token || !account.value)
+        throw new Error('请先登录云乐坊账号')
+      return token
+    },
     inNativeApp: readonly(inNativeApp),
     initialize,
     isAuthenticated,

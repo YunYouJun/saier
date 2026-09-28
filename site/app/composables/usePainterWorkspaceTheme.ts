@@ -7,6 +7,7 @@ const CANVAS_SURROUND_COLOR_TOKEN = '--saier-color-canvas-surround'
 export function syncPainterWorkspaceTheme(painter: Painter, theme: SiteResolvedTheme): void {
   const { canvas, background } = painter.app.renderer
   canvas.dataset.saierTheme = theme
+  canvas.dataset.ylfEditorTheme = theme
 
   const color = getComputedStyle(canvas)
     .getPropertyValue(CANVAS_SURROUND_COLOR_TOKEN)

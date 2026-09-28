@@ -302,7 +302,7 @@ SAIER_ANALYSIS_ORIGIN=http://localhost:8080 node scripts/watermark-bridge.mjs
 
 打开 `http://localhost:8080/watermark-lab`，将桥接终端的一次性配对码填入页面，再上传图片并点击识别。配对码只留在当前页面内存，不写入 localStorage。纯本地合成不需要启动桥接或调用模型。公开 HTTPS 网站访问本机服务还需要验证浏览器的本地网络权限，不作为本次已验收范围。
 
-### 整套预设与统一 Runtime（服务已发布，前端本地验收）
+### 整套预设与统一 Runtime（服务与前端均已发布）
 
 - 预设包含名称、规则、最多 12 个素材，PNG 字节内嵌；单包最多 64 MiB、总像素 3200 万。读取前验证 PNG 头尺寸，不请求预设中的任何外部 URL。
 - `node scripts/watermark/pack-preset.mjs /path/to/extracted-assets` 将 `watermark-recipe.json` 和 PNG 打包成 `.saier-watermarks.json`，同时输出分析提示词。优先使用 `reusableAssets`：缎带、独立标题／署名／边框、主图标，以及从无空洞部分裁出的纹样和细纹理循环单元。原始纹理含旧脸部空洞，不能整张迁移。
@@ -310,7 +310,7 @@ SAIER_ANALYSIS_ORIGIN=http://localhost:8080 node scripts/watermark-bridge.mjs
 - `preset-contract.ts` / `protocol.ts` 是双端协议，`scripts/watermark/sync-runtime-contract.mjs` 同步到 YunLeFun/api。布局坐标归一化，素材高度由原比例推导；双端拒绝未知素材、无效数字、颜色与旋转越界。
 - 云端发送最多 1 MiB / 最长边 1024px 的 PNG，过大时进一步缩小分析图；原尺寸画作和水印 PNG 仍用于本地导出。服务端验证哈希、CRC、尺寸和解压长度；不使用生图。
 - 网页复用云乐坊会话调用 `POST /ai/v2/apps/saier/watermark`；Runtime 采用同步账本链路，不保存分析图片。服务端模型须同时已启用并标记为支持多模态，客户端不能提交模型或价格。
-- 云端策略键为 `application:saier`，没有启用策略时在预占前拒绝。部署说明及默认关闭的配置样例在 YunLeFun/api 的 `docs/saier-watermark-runtime.md` / `docs/saier-watermark-policy.example.json`。2026-09-28 已发布 `ai-runtime-028` 并启用计费，真实固定测试账号的账本验收通过；前端仍为本地构建／预览，尚未发布。云端停止等待不能保证取消已发出的模型请求。
+- 云端策略键为 `application:saier`，没有启用策略时在预占前拒绝。部署说明及默认关闭的配置样例在 YunLeFun/api 的 `docs/saier-watermark-runtime.md` / `docs/saier-watermark-policy.example.json`。2026-09-28 已发布 `ai-runtime-028` 并启用计费，真实固定测试账号的账本验收通过；前端于同日随 Saier `1e18a3d` 发布。云端停止等待不能保证取消已发出的模型请求。
 - `/watermark-lab` 的画作预算为单边 8192 px、3200 万像素、25 MiB，支持本次 4800 × 4300 原图；主绘画页的 1600 万像素限制保持原状。云端分析仍只发送缩略图，下载按原图尺寸合成。
 
 ## 测试与交付
@@ -416,7 +416,8 @@ SAIER_ANALYSIS_ORIGIN=http://localhost:8080 node scripts/watermark-bridge.mjs
 会话，换号立即清除云端列表；已明确选入当前本地文档的图片是文档内容，不会在退出时删除。
 下载校验字节数与 SHA-256，不持久化签名 URL。完成上传失败可以单独重试确认。
 
-当前完成了本地接入，**生产读写待管理登录恢复、Saier 独立 consumer 注册及真实联调**。
+2026-09-28 已完成 Saier 独立 consumer 注册、生产读写与网页端真实验收：从 Saier 主页面
+登录、上传 32 × 32 合成 PNG、云端重新选用，并在 Drive 查看同一私有图片。发布记录见下方 README。
 现有 Drive 凭据固定 tenant/space，多用户个人库须逐空间授权或由 Drive 补齐按用户的连接
 解析，不能把单用户 credential 当成全站授权。详细上线清单见仓库
 `cloudbase/functions/saier-assets-api/README.md`。

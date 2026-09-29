@@ -12,13 +12,13 @@ Use `saier` for the default painter runtime, `@saier/core` for the headless rast
 
 |                   | URL                                   |
 | ----------------- | ------------------------------------- |
-| 🖼️ **App / Demo** | <https://saier.pages.dev>             |
-| 📖 **Docs**       | <https://saier-docs.pages.dev>        |
+| 🖼️ **App / Demo** | <https://saier.yunle.fun>             |
+| 📖 **Docs**       | <https://docs.saier.yunle.fun>        |
 | 📦 **npm**        | <https://www.npmjs.com/package/saier> |
 
-> Both sites are deployed on Cloudflare Pages (connected to this GitHub repo).
-> `site/` (Nuxt app) → App / Demo · `docs/` (VitePress) → Docs.
-> Custom domains `saier.yunle.fun` and `docs.saier.yunle.fun` should be enabled only after DNS is bound.
+> The production Nuxt app (`site/`) is deployed on EdgeOne Pages.
+> Cloudflare Pages hosts the VitePress docs (`docs/`) and the app mirror at <https://saier.pages.dev>.
+> These deployments follow this repository's `main` branch. The app mirror has separate feature configuration.
 
 ## Documentation
 

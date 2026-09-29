@@ -292,6 +292,21 @@ local generation, not production CloudBase upload or multiplayer deployment.
 The local-import flag remains off in production. CloudBase provider trials
 and local Codex usage are separate.
 
+### Production code deployment (2026-09-29)
+
+The updated `saier-room-api`, including local image import and guarded provider
+adapters, is deployed to `yunlefun-8g7ybcxc7345c490`. The function is `Active`
+on `Nodejs18.15`; its existing environment and 30-second timeout are preserved.
+A management smoke invocation of `importActivityLocalAiRemix` rejects an
+unauthenticated caller with `not_authenticated`.
+
+Production `saier.yunle.fun` uses EdgeOne Pages with Play-native Pictionary and
+private assets enabled. AI remix and local import remain off: the implemented
+import authority is CloudBase, while current production game sessions belong
+to Play. Enabling a browser flag alone does not provide Play-side image import.
+The local companion remains a separately started process on the user's machine.
+No hosted model generation was requested during deployment.
+
 ### Production AI preflight (2026-09-28)
 
 Verified against `yunlefun-8g7ybcxc7345c490` in `ap-shanghai`:

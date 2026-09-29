@@ -76,7 +76,7 @@ export async function analyzeWithCodex(request, signal, options = {}) {
       ...(options.ephemeral ? ['--ephemeral'] : []),
       '-',
     ]
-    child = spawn(options.executable ?? 'codex', args, { cwd: dir, stdio: ['pipe', 'pipe', 'pipe'], shell: false })
+    child = spawn(options.executable ?? 'codex', [...(options.executableArgs ?? []), ...args], { cwd: dir, stdio: ['pipe', 'pipe', 'pipe'], shell: false })
     const stop = () => {
       child.kill('SIGTERM')
       killTimer ??= setTimeout(() => child.kill('SIGKILL'), 1500)

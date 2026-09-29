@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import process from 'node:process'
 import { afterEach, describe, expect, it } from 'vitest'
 import { analyzeWithCodex, validateRequest } from '../scripts/watermark/codex.mjs'
 import { createWatermarkServer } from '../scripts/watermark/server.mjs'
@@ -84,9 +85,8 @@ describe('companion access', () => {
   it('parses the Codex event stream and final schema output', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'saier-fake-codex-'))
     cleanups.push(() => rm(dir, { recursive: true, force: true }))
-    const executable = join(dir, 'codex')
-    await writeFile(executable, `#!/usr/bin/env node
-const fs = require('fs')
+    const executable = join(dir, 'codex.cjs')
+    await writeFile(executable, `const fs = require('fs')
 const output = process.argv[process.argv.indexOf('--output-last-message') + 1]
 process.stdin.resume()
 process.stdin.on('end', () => {
@@ -95,9 +95,9 @@ process.stdin.on('end', () => {
   console.log(JSON.stringify({type:'item.completed',item:{type:'error',message:'Non-fatal startup warning'}}))
   console.log(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:'{}'}}))
 })
-`, { mode: 0o700 })
+`)
     const request = await fixture()
-    const result = await analyzeWithCodex(request, AbortSignal.timeout(5000), { executable })
+    const result = await analyzeWithCodex(request, AbortSignal.timeout(5000), { executable: process.execPath, executableArgs: [executable] })
     expect(result).toEqual({ snapshot: request.snapshot, analysis: { regions: [], warnings: [] }, threadId: 'fixture-thread' })
   })
 

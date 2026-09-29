@@ -96,8 +96,8 @@ describe('site Activity UI primitives', () => {
 
     expect(getComputedStyle(panel).borderRadius).toBe('8px')
     expect(getComputedStyle(control).minHeight).toBe('36px')
-    expect(getComputedStyle(button).backgroundColor).toBe('rgba(96, 165, 250, 0.15)')
+    expect(getComputedStyle(button).backgroundColor).toBe('rgba(96, 165, 250, 0.16)')
     el.className = 'light'
-    expect(getComputedStyle(button).backgroundColor).toBe('rgba(37, 99, 235, 0.12)')
+    expect(getComputedStyle(button).backgroundColor).toBe('rgba(37, 99, 235, 0.1)')
   })
 })

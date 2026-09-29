@@ -2,6 +2,7 @@
 import type { BrushPresetId, BrushPresetSummary } from '@saier/core'
 import type { CSSProperties } from 'vue'
 import { computed, shallowRef, watch } from 'vue'
+import '../styles/tokens.css'
 
 const props = withDefaults(defineProps<{
   addTitle?: string
@@ -440,11 +441,7 @@ function clamp(value: number, min: number, max: number): number {
 .brush-preset-picker {
   display: grid;
   min-width: 0;
-  gap: 6px;
-  padding: 4px;
-  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
-  border-radius: 6px;
-  background: linear-gradient(180deg, var(--saier-color-surface, rgb(255 255 255 / 5%)), transparent 42%), var(--saier-color-control-track, rgb(0 0 0 / 20%));
+  gap: var(--saier-space-2);
 }
 
 .brush-preset-header {
@@ -495,9 +492,8 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 .brush-preset-group.is-active {
-  border-color: var(--saier-color-accent-border, rgb(96 165 250 / 40%));
-  border-bottom-color: var(--saier-color-panel, rgb(18 18 22 / 95%));
-  background: linear-gradient(180deg, var(--saier-color-accent-soft, rgb(96 165 250 / 16%)), var(--saier-color-surface, rgb(255 255 255 / 5%))), var(--saier-color-panel, rgb(18 18 22 / 95%));
+  border-bottom-color: var(--saier-color-accent, #60a5fa);
+  background: var(--saier-color-surface-hover, rgb(255 255 255 / 10%));
   color: var(--saier-color-text, white);
 }
 
@@ -541,8 +537,8 @@ function clamp(value: number, min: number, max: number): number {
 
 .brush-preset-action {
   display: grid;
-  width: 27px;
-  height: 26px;
+  width: var(--saier-control-size-sm);
+  height: var(--saier-control-size-sm);
   place-items: center;
   border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
   border-radius: 4px;
@@ -683,9 +679,8 @@ function clamp(value: number, min: number, max: number): number {
 
 .brush-preset-card.is-active {
   border-color: var(--saier-color-accent-border, rgb(96 165 250 / 62%));
-  background: linear-gradient(180deg, var(--saier-color-accent-strong, rgb(96 165 250 / 20%)), var(--saier-color-accent-soft, rgb(96 165 250 / 8%))), var(--saier-color-surface, rgb(255 255 255 / 4%));
+  background: var(--saier-color-accent-strong, rgb(96 165 250 / 20%));
   color: var(--saier-color-text, white);
-  box-shadow: inset 0 0 0 1px var(--saier-color-accent-border, rgb(96 165 250 / 25%));
 }
 
 .brush-preset-card:hover {
@@ -879,21 +874,20 @@ function clamp(value: number, min: number, max: number): number {
   grid-template-columns: 70px minmax(0, 1fr);
   gap: 7px;
   align-items: center;
-  border: 1px solid var(--saier-color-border, rgb(255 255 255 / 12%));
-  border-radius: 5px;
-  background:
-    linear-gradient(90deg, rgb(255 255 255 / 5%) 1px, transparent 1px) 0 0 / 12px 12px,
-    linear-gradient(0deg, rgb(255 255 255 / 5%) 1px, transparent 1px) 0 0 / 12px 12px,
-    var(--saier-color-brush-preview-background, #1c1d21);
-  padding: 6px;
+  border-radius: var(--saier-radius-control);
+  background: var(--saier-color-surface, rgb(255 255 255 / 6%));
+  padding: var(--saier-space-1);
+  text-align: left;
 }
 
 .brush-preset-preview__surface {
   position: relative;
   display: grid;
-  min-height: 52px;
+  min-height: 40px;
   place-items: center;
   overflow: hidden;
+  border-radius: var(--saier-radius-control);
+  background: var(--saier-color-brush-preview-background, #1c1d21);
 }
 
 .brush-preset-preview__dot {

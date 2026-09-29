@@ -166,10 +166,8 @@ describe('painter navigator', () => {
 
   it('emits refresh and reset actions', async () => {
     const { el, handlers } = mountNavigator()
-    const buttons = [...el.querySelectorAll<HTMLButtonElement>('.painter-navigator__icon')]
-
-    buttons[0]?.click()
-    buttons[1]?.click()
+    el.querySelector<HTMLButtonElement>('[aria-label="Refresh preview"]')!.click()
+    el.querySelector<HTMLButtonElement>('[aria-label="Reset view"]')!.click()
     await nextTick()
 
     expect(handlers.onRefresh).toHaveBeenCalledTimes(1)

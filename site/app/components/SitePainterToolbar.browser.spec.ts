@@ -13,6 +13,7 @@ const labels = {
   exportPreview: 'Preview export',
   image: 'Image',
   importImage: 'Import image',
+  openImage: 'Open image',
   newCanvas: 'New canvas',
   openProject: 'Open project',
   pan: 'Pan',
@@ -84,6 +85,23 @@ function buttonByTitle(root: ParentNode, title: string): HTMLButtonElement {
 }
 
 describe('site painter toolbar recording controls', () => {
+  it('preserves toolbar keyboard navigation and skips disabled controls through shared buttons', async () => {
+    const { el } = mountToolbar()
+    await nextTick()
+    const newCanvas = buttonByTitle(el, 'New canvas')
+    newCanvas.focus()
+    newCanvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    await nextTick()
+    expect(document.activeElement).toBe(buttonByTitle(el, 'Open project'))
+
+    const importImage = buttonByTitle(el, 'Import image')
+    importImage.focus()
+    importImage.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    await nextTick()
+    expect(document.activeElement).toBe(buttonByTitle(el, 'Zoom out'))
+    expect(el.querySelector('button button')).toBeNull()
+  })
+
   it('exposes manual recording commands without enabling replay before strokes exist', async () => {
     const { commands, el } = mountToolbar()
 

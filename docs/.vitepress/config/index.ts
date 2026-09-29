@@ -17,11 +17,14 @@ const GUIDES: DefaultTheme.NavItemWithLink[] = [
 // follow. Keep this list in sync with the `/design/` sidebar below.
 const DESIGN: DefaultTheme.NavItemWithLink[] = [
   { text: 'Overview', link: '/design/' },
-  { text: 'Roadmap (P0–P14)', link: '/design/roadmap' },
+  { text: 'Roadmap (P0–P15)', link: '/design/roadmap' },
   { text: 'Core Interfaces', link: '/design/interfaces' },
   { text: 'Decisions (ADR)', link: '/design/decisions' },
+  { text: 'UI Design Guidelines', link: '/design/ui-guidelines' },
+  { text: '品牌与色彩', link: '/design/brand' },
   { text: 'Testing & Determinism', link: '/design/testing' },
   { text: 'Stroke Recording', link: '/design/stroke-recording' },
+  { text: 'Watermark Workbench & PSD', link: '/design/watermark-workbench' },
   { text: 'Cloud Rooms', link: '/design/cloud-rooms' },
   { text: 'YunLeFun Test Accounts', link: '/design/test-accounts' },
 ]
@@ -117,6 +120,7 @@ export default defineConfig({
   cleanUrls: true,
 
   themeConfig: {
+    logo: '/logo.svg',
     ...vpConfig.themeConfig,
 
     search: {

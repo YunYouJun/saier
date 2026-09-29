@@ -1,0 +1,192 @@
+import { Buffer } from 'node:buffer'
+import { readFile } from 'node:fs/promises'
+import process from 'node:process'
+import { expect, test } from '@playwright/test'
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('saier:locale', 'zh'))
+})
+
+async function workfile() {
+  const bytes = await readFile('site/public/pwa-192x192.png')
+  const source = `data:image/png;base64,${bytes.toString('base64')}`
+  return {
+    format: 'saier.watermark-workfile',
+    version: 1,
+    artwork: source,
+    preset: { format: 'saier.watermark-preset', version: 1, name: '主画板水印', rules: '', assets: [{ id: 'heart', role: 'heart-signature', width: 192, height: 192, enabled: true, recolorable: true, source }] },
+    analysis: { regions: [], warnings: [], placements: [{ assetId: 'heart', x: 0.2, y: 0.3, width: 0.2, rotation: 0, opacity: 0.7, color: '#304050' }] },
+  }
+}
+
+async function togglePlugin(page: import('@playwright/test').Page) {
+  await page.getByRole('menuitem', { name: '插件', exact: true }).click()
+  await page.getByRole('menuitemcheckbox', { name: '水印', exact: true }).click()
+  await page.keyboard.press('Escape')
+}
+
+test('uses the main canvas, keeps documents when the panel closes, and exports edited layers', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
+  await page.goto('/')
+  await expect(page.getByLabel('Saier 主画布', { exact: true })).toBeVisible({ timeout: 20000 })
+  await togglePlugin(page)
+  const panel = page.getByRole('region', { name: '水印插件', exact: true })
+  await expect(panel).toBeVisible()
+  const file = await workfile()
+  await page.getByLabel('打开水印工作文件', { exact: true }).setInputFiles({ name: 'workfile.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(file)) })
+  await expect(page.getByRole('button', { name: '下载 PNG', exact: true })).toBeEnabled()
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByLabel('Saier 主画布', { exact: true })).toHaveCount(1)
+  await expect(page.locator('.watermark-workspace')).toHaveCount(0)
+  await page.getByRole('button', { name: '选择图层 心形签名', exact: true }).click()
+  await expect(page.getByLabel('图层宽度 %', { exact: true })).toHaveValue('20')
+  await page.getByRole('button', { name: '缩小为 70%', exact: true }).click()
+  await expect(page.getByLabel('图层宽度 %', { exact: true })).toHaveValue('14')
+  await page.getByRole('button', { name: '撤销', exact: true }).click()
+  await expect(page.getByLabel('图层宽度 %', { exact: true })).toHaveValue('20')
+  await page.getByLabel('Saier 主画布', { exact: true }).focus()
+  await page.keyboard.press('ArrowUp')
+  await expect.poll(async () => Number(await page.getByLabel('图层 Y %', { exact: true }).inputValue())).toBeLessThan(30)
+  await page.keyboard.press('Control+z')
+  await expect(page.getByLabel('图层 Y %', { exact: true })).toHaveValue('30')
+  await page.getByLabel('图层颜色', { exact: true }).fill('#445566')
+  await page.getByLabel('图层颜色', { exact: true }).dispatchEvent('change')
+  const mainCanvas = await page.getByLabel('Saier 主画布', { exact: true }).elementHandle()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(page.locator('.site-mobile-painter')).toBeVisible()
+  expect(await mainCanvas!.evaluate(canvas => canvas.isConnected)).toBe(true)
+  await expect(page.getByLabel('图层颜色', { exact: true })).toHaveValue('#445566')
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await expect(page.locator('.site-painter')).toBeVisible()
+  expect(await mainCanvas!.evaluate(canvas => canvas.isConnected)).toBe(true)
+
+  const tabs = page.locator('.site-workspace-tabs').getByRole('tab')
+  await expect(tabs).toHaveCount(2)
+  await tabs.first().click()
+  await expect(page.getByRole('list', { name: '水印图层' })).toHaveCount(0)
+  await tabs.nth(1).click()
+  await expect(page.getByLabel('图层颜色', { exact: true })).toHaveValue('#445566')
+  await togglePlugin(page)
+  await expect(panel).toHaveCount(0)
+  await expect(tabs).toHaveCount(2)
+  await page.getByRole('button', { name: '水印设置', exact: true }).click()
+  await expect(page.getByLabel('图层颜色', { exact: true })).toHaveValue('#445566')
+  const saved = page.waitForEvent('download')
+  await page.getByRole('button', { name: '保存水印工作文件', exact: true }).click()
+  const savedData = JSON.parse(await readFile((await (await saved).path())!, 'utf8'))
+  expect(savedData.analysis.placements[0].color).toBe('#445566')
+  expect(savedData.preset.assets[0].source).toBe(file.preset.assets[0].source)
+  await expect(tabs.nth(1)).not.toHaveAccessibleName(/未保存|unsaved/i)
+
+  const psdDownload = page.waitForEvent('download')
+  await page.getByRole('button', { name: '下载分层 PSD', exact: true }).click()
+  const psd = await readFile((await (await psdDownload).path())!)
+  expect(psd.toString('ascii', 0, 4)).toBe('8BPS')
+  expect([psd.readUInt32BE(18), psd.readUInt32BE(14)]).toEqual([192, 192])
+  const pngDownload = page.waitForEvent('download')
+  await page.getByRole('button', { name: '下载 PNG', exact: true }).click()
+  const png = await readFile((await (await pngDownload).path())!)
+  expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([192, 192])
+
+  await page.locator('.site-workspace-tab').nth(1).getByRole('button', { name: '关闭文件', exact: true }).click()
+  await expect(tabs).toHaveCount(1)
+  await expect(page.getByLabel('Saier 主画布', { exact: true })).toBeVisible({ timeout: 20000 })
+  await page.reload()
+  await expect(panel).toBeVisible()
+  expect(errors).toEqual([])
+})
+
+test('adds the plugin to the mobile sheet and remembers analysis settings', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+  await togglePlugin(page)
+  const panel = page.getByRole('region', { name: '水印插件', exact: true })
+  await expect(panel).toBeVisible()
+  await page.getByRole('combobox', { name: '分析方式', exact: true }).selectOption('codex')
+  await page.getByLabel('布局与避让规则', { exact: true }).fill('缎带保持深蓝；避开所有角色的眼睛。')
+  await page.getByLabel('本机配对码', { exact: true }).fill('do-not-persist-me')
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('saier:watermark-settings:v1'))).toContain('缎带保持深蓝')
+  expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain('do-not-persist-me')
+  await page.reload()
+  await expect(panel).toBeVisible()
+  await expect(page.getByLabel('布局与避让规则', { exact: true })).toHaveValue('缎带保持深蓝；避开所有角色的眼睛。')
+  await expect(page.getByLabel('本机配对码', { exact: true })).toHaveValue('')
+})
+
+test('takes the current drawing and applies an explicitly requested AI layout as another document', async ({ page }) => {
+  await page.goto('/')
+  await togglePlugin(page)
+  await expect(page.getByRole('button', { name: '使用当前画布 / 原图', exact: true })).toBeEnabled()
+  await page.getByRole('button', { name: '使用当前画布 / 原图', exact: true }).click()
+  await expect(page.getByText('已准备画作 512 × 512。应用后会在主画板新增水印文档。')).toBeVisible()
+  const file = await workfile()
+  await page.getByRole('button', { name: '整套水印预设', exact: true }).setInputFiles({ name: 'preset.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(file.preset)) })
+  await page.getByRole('combobox', { name: '分析方式', exact: true }).selectOption('codex')
+  await page.getByLabel('本机配对码', { exact: true }).fill('fixture')
+  let calls = 0
+  await page.route('http://127.0.0.1:47831/analyze', async (route) => {
+    calls++
+    const input = route.request().postDataJSON()
+    expect(input.preset.assets).toHaveLength(1)
+    expect(input.image).toMatch(/^data:image\/png;base64,/)
+    await route.fulfill({ json: { snapshot: input.snapshot, analysis: { regions: [{ label: 'face', x: 0.4, y: 0.2, width: 0.2, height: 0.2 }], warnings: [], placements: file.analysis.placements } } })
+  })
+  expect(calls).toBe(0)
+  await page.getByRole('button', { name: '分析水印布局', exact: true }).click()
+  await expect(page.getByRole('button', { name: '在主画板应用布局', exact: true })).toBeEnabled()
+  const tabs = page.locator('.site-workspace-tabs').getByRole('tab')
+  await expect(tabs).toHaveCount(1)
+  expect(calls).toBe(1)
+  await page.getByRole('button', { name: '在主画板应用布局', exact: true }).click()
+  await expect(tabs).toHaveCount(2)
+  await expect(page.getByLabel('图层宽度 %', { exact: true })).toHaveValue('20')
+  await expect(page.getByRole('button', { name: '下载 PNG', exact: true })).toBeEnabled()
+  const saved = page.waitForEvent('download')
+  await page.getByLabel('Saier 主画布', { exact: true }).focus()
+  await page.keyboard.press('ControlOrMeta+s')
+  const savedData = JSON.parse(await readFile((await (await saved).path())!, 'utf8'))
+  expect(savedData.format).toBe('saier.watermark-workfile')
+  expect(savedData.analysis.regions[0].label).toBe('face')
+  await page.getByText('素材、布局与 AI 配置', { exact: true }).click()
+  await page.getByRole('button', { name: '使用当前画布 / 原图', exact: true }).click()
+  await page.getByRole('button', { name: '在主画板应用布局', exact: true }).click()
+  await expect(tabs).toHaveCount(3)
+  expect(calls).toBe(1)
+})
+
+test('imports custom local watermarks without login and preserves the existing layout in a portable workfile', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
+  await page.goto('/')
+  await togglePlugin(page)
+  const file = await workfile()
+  await page.getByLabel('打开水印工作文件', { exact: true }).setInputFiles({ name: 'workfile.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(file)) })
+  await expect(page.getByRole('button', { name: '下载 PNG', exact: true })).toBeEnabled()
+  await page.getByText('素材、布局与 AI 配置', { exact: true }).click()
+  await page.getByLabel('自定义水印用途', { exact: true }).selectOption('display-only')
+  await page.getByLabel('添加自定义水印', { exact: true }).setInputFiles({ name: '我的图标.png', mimeType: 'image/png', buffer: await readFile('site/public/pwa-192x192.png') })
+  await expect(page.getByRole('button', { name: '在主画板应用布局', exact: true })).toBeEnabled()
+  await page.getByText('Drive 私有素材库', { exact: true }).click()
+  if (process.env.SAIER_E2E_PRIVATE_ASSETS === 'true')
+    await expect(page.getByRole('button', { name: '登录云乐坊', exact: true })).toBeVisible()
+  else
+    await expect(page.getByText('云端同步尚未开通，本地素材可继续使用。', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '上传到 Drive', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('list', { name: '我的 Drive 素材' })).toHaveCount(0)
+  await page.getByText('我的水印', { exact: true }).scrollIntoViewIfNeeded()
+  await page.screenshot({ path: test.info().outputPath('private-material-library.png') })
+  await page.getByRole('button', { name: '在主画板应用布局', exact: true }).click()
+  await expect(page.locator('.site-workspace-tabs').getByRole('tab')).toHaveCount(3)
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: '保存水印工作文件', exact: true }).click()
+  const saved = JSON.parse(await readFile((await (await download).path())!, 'utf8'))
+  expect(saved.preset.assets).toHaveLength(2)
+  expect(saved.preset.assets[1]).toMatchObject({ name: '我的图标.png', role: 'display-only', recolorable: true })
+  expect(saved.preset.assets[1].source).toMatch(/^data:image\/png;base64,/)
+  expect(saved.analysis.placements).toHaveLength(2)
+  expect(saved.analysis.placements[0]).toMatchObject({ assetId: 'heart', color: '#304050', opacity: 0.7, rotation: 0 })
+  for (const field of ['x', 'y', 'width'] as const)
+    expect(saved.analysis.placements[0][field]).toBeCloseTo(file.analysis.placements[0]![field], 10)
+  expect(errors).toEqual([])
+})

@@ -30,6 +30,7 @@ import type {
   PainterStrokeEventScope,
   PainterStrokePreviewEvent,
 } from './event'
+import type { ImportedImagePixels, ImportImagePixelsOptions } from './import'
 import type { PainterInputOptions, PainterPointerSource } from './input'
 import {
   createDefaultBrushEngineRegistry,
@@ -44,7 +45,7 @@ import {
   UndoManager,
 } from '@saier/core'
 import { PixiTileTextureBackend, RenderTextureBackend, TouchGestureRouter } from '@saier/pixi'
-import { Application, Container, Rectangle, Sprite } from 'pixi.js'
+import { Application, Container, Rectangle, Sprite, Texture } from 'pixi.js'
 import { PainterBoard } from './board'
 import { createBrush, PainterBrush } from './brush'
 import { createCanvas } from './canvas'
@@ -77,6 +78,10 @@ export const PAINTER_TOOLS = [
 export type PainterTool = typeof PAINTER_TOOLS[number]
 
 export interface PainterOptions {
+  /** Let a host manage drop/paste and choose between opening and placing images. */
+  imageDrop?: boolean
+  /** Host file picker, used by the image tool (including its keyboard shortcut). */
+  onImageRequest?: () => void
   debug?: boolean
   backend?: 'rendertexture' | 'tiled'
   input?: PainterInputOptions
@@ -139,6 +144,17 @@ export interface CreatePainterDocumentOptions {
   height: number
   defaultLayerLabel?: string
   activate?: boolean
+}
+
+/** Place an image inside the current document without resizing the document. */
+export interface LoadPainterImageOptions extends Omit<ImportImagePixelsOptions, 'maxWidth' | 'maxHeight'> {
+  autoToggleSelection?: boolean
+  label?: string
+}
+
+/** Open an image in its own document, optionally using explicit import limits. */
+export interface OpenPainterImageOptions extends Omit<ImportImagePixelsOptions, 'maxWidth' | 'maxHeight'> {
+  name?: string
 }
 
 export type PainterExtractCanvasType = 'image' | 'base64' | 'canvas' | 'pixels'
@@ -303,6 +319,7 @@ export class Painter {
   private documentCounter = 0
   private selectedTransformLayerId: string | null = null
   private activeTransformSession: ActiveTransformSession | null = null
+  private documentPreview: { source: HTMLCanvasElement, sprite: Sprite } | undefined
 
   constructor(options: PainterOptions) {
     assertStrokeEventScope(options.strokeEventScope)
@@ -400,7 +417,8 @@ export class Painter {
     stage.on('pointercancel', onPointerLeave)
 
     // image drag-and-drop import
-    addImageDropListener(this, this.options.view)
+    if (this.options.imageDrop !== false)
+      addImageDropListener(this, this.options.view)
 
     // window listeners + default tool
     const removeWindowListeners = this.addEventListeners()
@@ -518,7 +536,7 @@ export class Painter {
 
   zoomViewportAt(point: ViewportPoint, scaleFactor: number): void {
     const board = this.board.container
-    const scale = Math.max(board.scale.x * scaleFactor, this.board.minScale)
+    const scale = Math.max(board.scale.x * scaleFactor, this.minimumViewportScale())
     const docX = (point.x - board.position.x) / board.scale.x
     const docY = (point.y - board.position.y) / board.scale.y
     board.position.set(point.x - docX * scale, point.y - docY * scale)
@@ -935,19 +953,83 @@ export class Painter {
   }
 
   /**
+   * Display a host-composited preview in document space while retaining native
+   * transform handles. This is display-only: hosts must export their own full
+   * resolution composition. Passing null restores the normal raster display.
+   */
+  setDocumentPreview(source: HTMLCanvasElement | null): void {
+    if (this.documentPreview?.source !== source) {
+      this.documentPreview?.sprite.destroy({ texture: true, textureSource: true })
+      this.documentPreview = undefined
+      if (source) {
+        const sprite = new Sprite(Texture.from(source))
+        sprite.eventMode = 'none'
+        sprite.anchor.set(0.5)
+        this.canvas.container.addChild(sprite)
+        this.documentPreview = { source, sprite }
+      }
+    }
+    this.canvas.documentsContainer.visible = !source
+    if (this.documentPreview) {
+      this.documentPreview.sprite.width = this.document.width
+      this.documentPreview.sprite.height = this.document.height
+      this.documentPreview.sprite.texture.source.update()
+    }
+  }
+
+  /**
    * toggle to selection when image loaded
    */
-  async loadImage(src: string, options: {
-    autoToggleSelection?: boolean
-  } = {}): Promise<void> {
+  async loadImage(src: string, options: LoadPainterImageOptions = {}): Promise<void> {
     const session = this.requireActiveSession()
     const imported = await importImagePixels(src, {
+      ...options,
       maxWidth: session.width,
       maxHeight: session.height,
     })
     if (this.documentSessions.get(session.id) !== session)
       throw new Error(`Cannot import image into closed document: ${session.id}`)
 
+    options.signal?.throwIfAborted()
+    this.insertImagePixels(session, imported, options)
+  }
+
+  /** Decode first, then open a document at the image's oriented pixel dimensions. */
+  async openImage(src: string, options: OpenPainterImageOptions = {}): Promise<PainterDocumentState> {
+    const imported = await importImagePixels(src, options)
+    options.signal?.throwIfAborted()
+    const previousId = this.requireActiveSession().id
+    const created = this.createDocument({
+      name: options.name,
+      width: imported.width,
+      height: imported.height,
+      activate: false,
+    })
+    const session = this.documentSessions.get(created.id)!
+    try {
+      const blankLayerId = session.document.activeLayerId!
+      this.insertImagePixels(session, imported, { label: options.name, autoToggleSelection: false })
+      session.document.removeLayer(blankLayerId)
+      session.history.clear()
+      this.switchDocument(session.id)
+      this.useTool('selection')
+      this.selectTransformLayer(session.document.activeLayerId!, session.id)
+      const { width, height } = this.viewportViewSize()
+      this.setViewportTransform({
+        x: width / 2,
+        y: height / 2,
+        scale: Math.min(1, width * 0.85 / imported.width, height * 0.85 / imported.height),
+      })
+      return this.toDocumentState(session)
+    }
+    catch (error) {
+      this.switchDocument(previousId)
+      this.closeDocument(session.id)
+      throw error
+    }
+  }
+
+  private insertImagePixels(session: PainterDocumentSession, imported: ImportedImagePixels, options: LoadPainterImageOptions): void {
     const pixelRect = centeredImageRect(session, imported.width, imported.height)
     const anchorX = pixelRect.x + pixelRect.width / 2
     const anchorY = pixelRect.y + pixelRect.height / 2
@@ -957,7 +1039,7 @@ export class Painter {
       anchorX,
       anchorY,
     })
-    const label = `Image ${++EditableLayer.order}`
+    const label = options.label || `Image ${++EditableLayer.order}`
     const rasterLayer = session.document.addLayer({ label, transform })
     const record = this.createTransformLayerRecord(session, {
       layerId: rasterLayer.id,
@@ -1408,6 +1490,10 @@ export class Painter {
   }
 
   useImage() {
+    if (this.options.onImageRequest) {
+      this.options.onImageRequest()
+      return
+    }
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = 'image/*'
@@ -1557,6 +1643,7 @@ export class Painter {
   }
 
   destroy() {
+    this.setDocumentPreview(null)
     this.removeEventListeners()
     this.keyboard.destroy()
     this.brush.destroy()
@@ -1668,6 +1755,7 @@ export class Painter {
   }
 
   private activateSession(session: PainterDocumentSession): void {
+    this.setDocumentPreview(null)
     this.document = session.document
     this.surface = session.surface
     this.undoManager = session.undoManager
@@ -1743,6 +1831,7 @@ export class Painter {
       target: {
         target: exportContainer,
         frame: new Rectangle(0, 0, session.width, session.height),
+        resolution: 1,
       },
       restore: () => {
         session.layersContainer.position.copyFrom(originalPosition)
@@ -1804,8 +1893,13 @@ export class Painter {
   private setViewportTransform(viewport: PainterViewportState): void {
     this.board.container.position.set(viewport.x, viewport.y)
     this.boundingBoxes.position.set(viewport.x, viewport.y)
-    this.canvas.scaleTo(Math.max(viewport.scale, this.board.minScale))
+    this.canvas.scaleTo(Math.max(viewport.scale, this.minimumViewportScale()))
     this.emitViewportChange()
+  }
+
+  private minimumViewportScale(): number {
+    const { width, height } = this.viewportViewSize()
+    return Math.min(this.board.minScale, width * 0.85 / this.surface.width, height * 0.85 / this.surface.height)
   }
 
   private viewportViewSize(): { width: number, height: number } {

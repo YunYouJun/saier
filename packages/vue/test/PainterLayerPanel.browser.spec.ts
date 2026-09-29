@@ -92,6 +92,16 @@ function buttonByTitle(root: ParentNode, title: string): HTMLButtonElement {
 }
 
 describe('painter layer panel mask controls', () => {
+  it('keeps the layer name editable beside a mask at the shared panel width', async () => {
+    const { el } = mountLayerPanel({ layer: createLayer({ mask: { id: 'mask-1', enabled: true } }) })
+    await nextTick()
+    const name = el.querySelector<HTMLInputElement>('.layer-tree-row__name')!
+    const panel = el.querySelector<HTMLElement>('.painter-layer-panel')!
+    expect(name.value).toBe('Ink')
+    expect(name.getBoundingClientRect().width).toBeGreaterThan(48)
+    expect(panel.scrollWidth).toBeLessThanOrEqual(panel.clientWidth)
+  })
+
   it('emits addMask for a raster layer without a mask', async () => {
     const { el, handlers } = mountLayerPanel()
 

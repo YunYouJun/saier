@@ -1,0 +1,20 @@
+/* YunLeFun Design palette. See docs/design/brand.md for the source and usage. */
+:root {
+  --saier-palette-blue: var(--ylf-palette-blue, #2563eb);
+  --saier-palette-cyan: var(--ylf-palette-cyan, #06b6d4);
+  --saier-palette-green: var(--ylf-palette-green, #22c55e);
+  --saier-palette-sun: var(--ylf-palette-sun, #facc15);
+  --saier-palette-coral: var(--ylf-palette-coral, #ff6b4a);
+  --saier-palette-pink: var(--ylf-palette-pink, #ec4899);
+  /* Hard stops form six solid ink bands, never an interpolated rainbow. */
+  --saier-brand-spectrum: linear-gradient(
+    90deg,
+    var(--saier-palette-blue) 0% 16.667%,
+    var(--saier-palette-cyan) 16.667% 33.333%,
+    var(--saier-palette-green) 33.333% 50%,
+    var(--saier-palette-sun) 50% 66.667%,
+    var(--saier-palette-coral) 66.667% 83.333%,
+    var(--saier-palette-pink) 83.333% 100%
+  );
+  --saier-font-brand: ui-rounded, 'Hiragino Maru Gothic ProN', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+}

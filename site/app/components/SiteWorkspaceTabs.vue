@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { SiteWorkspaceTab } from '~/types/activity-plugin'
+import PainterIconButton from '@saier/vue/components/PainterIconButton.vue'
 
 interface SiteWorkspaceTabsLabels {
   newCanvas: string
@@ -56,31 +57,29 @@ function tabLabel(tab: SiteWorkspaceTab, unsavedChangesTitle: string): string {
             class="site-workspace-tab__dirty"
             :title="labels.unsavedChangesTitle"
             aria-hidden="true"
-          >*</span>
+          >•</span>
         </span>
         <span class="site-workspace-tab__subtitle">{{ tab.subtitle }}</span>
       </button>
-      <button
+      <PainterIconButton
         v-if="tab.closeable"
-        type="button"
+        size="sm"
         class="site-workspace-tab__close"
         :disabled="disabled"
         :title="tab.closeLabel"
+        icon="i-ph-x"
         @click.stop="emit('close', tab)"
-      >
-        <span class="i-ph-x" />
-      </button>
+      />
     </div>
 
-    <button
-      type="button"
+    <PainterIconButton
+      size="md"
       class="site-workspace-tabs__new"
       :disabled="disabled"
       :title="labels.newCanvas"
+      icon="i-ph-plus"
       @click="emit('new')"
-    >
-      <span class="i-ph-plus" />
-    </button>
+    />
   </div>
 </template>
 
@@ -90,7 +89,7 @@ function tabLabel(tab: SiteWorkspaceTab, unsavedChangesTitle: string): string {
   min-width: 0;
   max-width: 100%;
   align-items: center;
-  gap: 6px;
+  gap: var(--saier-space-1);
   overflow-x: auto;
   padding-block: 1px;
   scrollbar-width: none;
@@ -104,27 +103,28 @@ function tabLabel(tab: SiteWorkspaceTab, unsavedChangesTitle: string): string {
   box-sizing: border-box;
   display: grid;
   width: clamp(142px, 17vw, 206px);
-  height: 36px;
+  height: var(--saier-control-size);
   flex: 0 0 auto;
   grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  column-gap: 6px;
-  border: 1px solid var(--saier-color-border);
-  border-radius: 6px;
-  background: var(--saier-color-surface);
+  column-gap: var(--saier-space-1);
+  border: 1px solid transparent;
+  border-radius: var(--saier-radius-control);
+  background: transparent;
   color: var(--saier-color-text-muted);
-  padding: 4px 9px 4px 10px;
+  padding-inline: var(--saier-space-2);
   text-align: left;
 }
 
 .site-workspace-tab.has-close {
-  grid-template-columns: minmax(0, 1fr) 24px;
+  grid-template-columns: minmax(0, 1fr) var(--saier-control-size-sm);
   padding-right: 4px;
 }
 
 .site-workspace-tab.is-active {
-  border-color: var(--saier-color-accent-border);
-  background: linear-gradient(180deg, var(--saier-color-surface), transparent), var(--saier-color-accent-soft);
+  background: var(--saier-color-field);
+  border-color: var(--saier-color-border);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
   color: var(--saier-color-text);
 }
 
@@ -141,12 +141,12 @@ function tabLabel(tab: SiteWorkspaceTab, unsavedChangesTitle: string): string {
 }
 
 .site-workspace-tab__main {
-  display: grid;
+  display: flex;
   min-width: 0;
   height: 100%;
-  align-content: center;
-  grid-template-rows: 16px 12px;
-  row-gap: 1px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--saier-space-2);
   border: 0;
   border-radius: 4px;
   background: transparent;
@@ -175,7 +175,7 @@ function tabLabel(tab: SiteWorkspaceTab, unsavedChangesTitle: string): string {
 .site-workspace-tab__name {
   flex: 0 1 auto;
   font-size: 12px;
-  font-weight: 650;
+  font-weight: var(--saier-font-weight-label);
 }
 
 .site-workspace-tab__dirty {
@@ -191,53 +191,18 @@ function tabLabel(tab: SiteWorkspaceTab, unsavedChangesTitle: string): string {
 }
 
 .site-workspace-tab__subtitle {
-  grid-column: 1;
+  flex: 0 1 auto;
   color: var(--saier-color-text-subtle);
-  font-size: 10px;
+  font-size: var(--saier-font-size-caption);
   line-height: 12px;
 }
 
-.site-workspace-tab__close,
-.site-workspace-tabs__new {
-  box-sizing: border-box;
-  display: grid;
-  place-items: center;
-  border: 1px solid transparent;
-  border-radius: 5px;
-  color: var(--saier-color-text-muted);
-}
-
-.site-workspace-tab__close {
-  width: 24px;
-  height: 24px;
-  font-size: 13px;
-}
-
-.site-workspace-tabs__new {
-  width: 36px;
-  height: 36px;
-  flex: 0 0 auto;
-  background: var(--saier-color-surface);
-  font-size: 16px;
-}
-
-.site-workspace-tab__close:hover,
-.site-workspace-tabs__new:hover {
-  border-color: var(--saier-color-border);
-  background: var(--saier-color-surface-hover);
-  color: var(--saier-color-text);
-}
-
-.site-workspace-tab__main:focus-visible,
-.site-workspace-tab__close:focus-visible,
-.site-workspace-tabs__new:focus-visible {
+.site-workspace-tab__main:focus-visible {
   outline: 2px solid var(--saier-color-focus);
   outline-offset: 1px;
 }
 
-.site-workspace-tab__main:disabled,
-.site-workspace-tab__close:disabled,
-.site-workspace-tabs__new:disabled {
+.site-workspace-tab__main:disabled {
   color: var(--saier-color-text-disabled);
   pointer-events: none;
 }

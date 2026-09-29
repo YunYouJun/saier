@@ -1,0 +1,48 @@
+const en = {
+  importTitle: 'Open or place image',
+  importDescription: 'Open at the original size, or fit a new layer into the current canvas.',
+  open: 'Open as new canvas',
+  place: 'Place as a layer',
+  cancel: 'Cancel',
+  resize: 'Resize and continue',
+  tooLarge: 'This image exceeds the import limit (8192 px per side, 16 megapixels). Resize to fit these limits?',
+  importFailed: 'Could not import this image. Try another PNG or JPEG.',
+  unsupported: 'Choose a PNG or JPEG image.',
+  busy: 'Processing image…',
+  exportTitle: 'Export image',
+  exportDescription: 'Download at the canvas resolution. Your editable layers stay in Saier.',
+  format: 'Format',
+  transparent: 'Transparent background',
+  background: 'Background color',
+  quality: 'JPEG quality',
+  filename: 'File name',
+  download: 'Download',
+  exportFailed: 'Could not export the image. Please try again.',
+}
+
+export type ImageFileMessages = { [K in keyof typeof en]: string }
+
+export const IMAGE_FILE_MESSAGES: Record<'en' | 'zh', ImageFileMessages> = {
+  en,
+  zh: {
+    importTitle: '打开或置入图片',
+    importDescription: '按原图尺寸新建画布，或适配当前画布并添加为图层。',
+    open: '打开为新画布',
+    place: '置入为图层',
+    cancel: '取消',
+    resize: '缩小后继续',
+    tooLarge: '图片超过导入上限（单边 8192 像素、总计 1600 万像素），是否按比例缩小后继续？',
+    importFailed: '无法导入这张图片，请尝试其他 PNG 或 JPEG 图片。',
+    unsupported: '请选择 PNG 或 JPEG 图片。',
+    busy: '正在处理图片…',
+    exportTitle: '导出图片',
+    exportDescription: '按画布分辨率下载，可编辑图层仍保留在 Saier 中。',
+    format: '格式',
+    transparent: '透明背景',
+    background: '背景颜色',
+    quality: 'JPEG 质量',
+    filename: '文件名',
+    download: '下载',
+    exportFailed: '无法导出图片，请重试。',
+  },
+}

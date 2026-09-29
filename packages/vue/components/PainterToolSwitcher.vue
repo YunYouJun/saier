@@ -3,6 +3,7 @@ import {
   ToggleGroupItem,
   ToggleGroupRoot,
 } from 'reka-ui'
+import PainterIconButton from './PainterIconButton.vue'
 
 interface PainterToolSwitcherOption {
   icon: string
@@ -44,12 +45,12 @@ function updateSelection(value: unknown): void {
     <ToggleGroupItem
       v-for="tool in tools"
       :key="tool.value"
-      class="painter-tool-switcher__item"
-      :title="tool.label"
+      as-child
       :value="tool.value"
     >
-      <span :class="tool.icon" aria-hidden="true" />
-      <span v-if="showLabels" class="painter-tool-switcher__label">{{ tool.label }}</span>
+      <PainterIconButton class="painter-tool-switcher__item" size="md" :title="tool.label" :icon="tool.icon">
+        <span v-if="showLabels" class="painter-tool-switcher__label">{{ tool.label }}</span>
+      </PainterIconButton>
     </ToggleGroupItem>
   </ToggleGroupRoot>
 </template>
@@ -60,44 +61,7 @@ function updateSelection(value: unknown): void {
   min-width: 0;
   flex: 0 0 auto;
   align-items: center;
-  gap: 3px;
-}
-
-.painter-tool-switcher__item {
-  display: inline-grid;
-  width: 30px;
-  height: 28px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid transparent;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--saier-color-text-muted, rgb(255 255 255 / 76%));
-  font-size: 17px;
-  outline: none;
-}
-
-.painter-tool-switcher__item:hover {
-  border-color: var(--saier-color-border, rgb(255 255 255 / 12%));
-  background: var(--saier-color-surface-hover, rgb(255 255 255 / 8%));
-  color: var(--saier-color-text, white);
-}
-
-.painter-tool-switcher__item:focus-visible {
-  border-color: var(--saier-color-accent-border, rgb(96 165 250 / 70%));
-  box-shadow: 0 0 0 2px var(--saier-color-accent-soft, rgb(96 165 250 / 26%));
-}
-
-.painter-tool-switcher__item[data-state='on'] {
-  border-color: var(--saier-color-accent-border, rgb(96 165 250 / 70%));
-  background: var(--saier-color-accent-soft, rgb(96 165 250 / 26%));
-  color: var(--saier-color-text, white);
-}
-
-.painter-tool-switcher__item:disabled,
-.painter-tool-switcher__item[data-disabled] {
-  color: var(--saier-color-text-disabled, rgb(255 255 255 / 30%));
-  pointer-events: none;
+  gap: var(--saier-space-1);
 }
 
 .painter-tool-switcher--labeled {
@@ -109,17 +73,17 @@ function updateSelection(value: unknown): void {
   display: inline-flex;
   width: auto;
   min-width: 0;
-  height: 32px;
+  height: var(--saier-control-size);
   justify-content: center;
-  gap: 6px;
-  padding-inline: 8px;
+  gap: var(--saier-space-1);
+  padding-inline: var(--saier-space-2);
   font-size: 15px;
 }
 
 .painter-tool-switcher__label {
   overflow: hidden;
   font-size: 11px;
-  font-weight: 650;
+  font-weight: var(--saier-font-weight-label);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

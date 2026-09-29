@@ -58,7 +58,7 @@ describe('site activity plugin host', () => {
     const host = el.querySelector<HTMLElement>('.site-activity-plugin-host')!
     expect(host.hasAttribute('data-saier-theme')).toBe(false)
     expect(host.getAttribute('data-theme-policy')).toBe('inherit')
-    expect(getComputedStyle(host).getPropertyValue('--saier-color-text').trim()).toBe('#fff')
+    expect(getComputedStyle(host).getPropertyValue('--saier-color-text').trim()).toBe('#eeeef0')
     expect(el.querySelector('.fake-activity-plugin')?.textContent).toBe('room-1:token-1')
     const pluginButton = el.querySelector('.fake-activity-plugin') as HTMLButtonElement
     pluginButton.click()
@@ -89,7 +89,7 @@ describe('site activity plugin host', () => {
     const host = el.querySelector('.site-activity-plugin-host')
     expect(host?.hasAttribute('data-saier-theme')).toBe(false)
     expect(host?.getAttribute('data-theme-policy')).toBe('inherit')
-    expect(getComputedStyle(host!).getPropertyValue('--saier-color-text').trim()).toBe('#fff')
+    expect(getComputedStyle(host!).getPropertyValue('--saier-color-text').trim()).toBe('#eeeef0')
   })
 
   it('does not attempt to render an unknown plugin', async () => {

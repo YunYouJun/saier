@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import PainterSlider from '@saier/vue/components/PainterSlider.vue'
-import { ToolbarButton, ToolbarRoot, ToolbarSeparator } from 'reka-ui'
+import PainterToolbar from '@saier/vue/components/PainterToolbar.vue'
+import PainterToolbarButton from '@saier/vue/components/PainterToolbarButton.vue'
+import { ToolbarSeparator } from 'reka-ui'
 import { computed } from 'vue'
 
 type SiteStrokeReplayCommand
@@ -91,70 +93,70 @@ function clampSpeed(value: number): number {
 </script>
 
 <template>
-  <ToolbarRoot class="site-stroke-replay" :aria-label="labels.position" loop>
-    <ToolbarButton
+  <PainterToolbar class="site-stroke-replay" :label="labels.position">
+    <PainterToolbarButton
       class="site-stroke-replay__button"
       :disabled="disabled"
       :title="labels.importLog"
       @click="emit('command', 'recording:import-log')"
     >
       <span class="i-ph-upload-simple" />
-    </ToolbarButton>
+    </PainterToolbarButton>
     <span v-if="!hasReplayControls" class="site-stroke-replay__hint" :title="labels.emptyHint">
       <span class="i-ph-info" />
       {{ labels.emptyHint }}
     </span>
 
     <template v-if="hasReplayControls">
-      <ToolbarButton
+      <PainterToolbarButton
         class="site-stroke-replay__button"
         :disabled="disabled || normalizedCount <= 0"
         :title="labels.exportLog"
         @click="emit('command', 'recording:export-log')"
       >
         <span class="i-ph-download-simple" />
-      </ToolbarButton>
+      </PainterToolbarButton>
 
-      <ToolbarSeparator class="site-stroke-replay__separator" />
+      <ToolbarSeparator class="painter-toolbar__separator" />
 
-      <ToolbarButton
+      <PainterToolbarButton
         class="site-stroke-replay__button"
         :disabled="disabled || normalizedPosition <= 0"
         :title="labels.reset"
         @click="emit('command', 'recording:seek-start')"
       >
         <span class="i-ph-skip-back" />
-      </ToolbarButton>
-      <ToolbarButton
+      </PainterToolbarButton>
+      <PainterToolbarButton
         class="site-stroke-replay__button"
         :disabled="disabled || (!playing && !canStepForward)"
         :title="playing ? labels.pause : labels.play"
         @click="playPause"
       >
         <span :class="playing ? 'i-ph-pause' : 'i-ph-play'" />
-      </ToolbarButton>
-      <ToolbarButton
+      </PainterToolbarButton>
+      <PainterToolbarButton
         class="site-stroke-replay__button"
         :disabled="!canStepForward"
         :title="labels.step"
         @click="emit('command', 'recording:step-forward')"
       >
         <span class="i-ph-skip-forward" />
-      </ToolbarButton>
-      <ToolbarButton
+      </PainterToolbarButton>
+      <PainterToolbarButton
         class="site-stroke-replay__button"
         :disabled="!previewing"
         :title="labels.closePreview"
         @click="emit('command', 'recording:close-preview')"
       >
         <span class="i-ph-x" />
-      </ToolbarButton>
+      </PainterToolbarButton>
       <span v-if="previewing" class="site-stroke-replay__hint" :title="labels.previewActive">
         <span class="i-ph-info" />
         {{ labels.previewActive }}
       </span>
 
-      <ToolbarSeparator class="site-stroke-replay__separator" />
+      <ToolbarSeparator class="painter-toolbar__separator" />
 
       <PainterSlider
         v-model="positionModel"
@@ -181,61 +183,10 @@ function clampSpeed(value: number): number {
         variant="compact"
       />
     </template>
-  </ToolbarRoot>
+  </PainterToolbar>
 </template>
 
 <style scoped>
-.site-stroke-replay {
-  display: inline-flex;
-  max-width: none;
-  height: 36px;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid var(--saier-color-border);
-  border-radius: 7px;
-  background: var(--saier-color-surface);
-}
-
-:global(.site-stroke-replay__button) {
-  display: inline-grid;
-  width: 30px;
-  height: 28px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid transparent;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--saier-color-text-muted);
-  font-size: 17px;
-  outline: none;
-}
-
-:global(.site-stroke-replay__button:hover) {
-  border-color: var(--saier-color-border);
-  background: var(--saier-color-surface-hover);
-  color: var(--saier-color-text);
-}
-
-:global(.site-stroke-replay__button:focus-visible) {
-  border-color: var(--saier-color-accent-border);
-  box-shadow: 0 0 0 2px var(--saier-color-accent-soft);
-}
-
-:global(.site-stroke-replay__button:disabled),
-:global(.site-stroke-replay__button[data-disabled]) {
-  color: var(--saier-color-text-disabled);
-  pointer-events: none;
-}
-
-.site-stroke-replay__separator {
-  width: 1px;
-  height: 22px;
-  margin: 0 3px;
-  background: var(--saier-color-surface-hover);
-}
-
 .site-stroke-replay__position {
   flex: 0 0 auto;
   --painter-slider-compact-track-size: 132px;

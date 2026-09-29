@@ -52,6 +52,9 @@ export default defineNuxtConfig({
         realtimePreview: process.env.NUXT_PUBLIC_SAIER_FEATURE_REALTIME_PREVIEW === 'true',
         redisDeadlineAcceleration: process.env.NUXT_PUBLIC_SAIER_FEATURE_REDIS_DEADLINE_ACCELERATION === 'true',
       },
+      saierPrivateAssetsEnabled: process.env.NUXT_PUBLIC_SAIER_PRIVATE_ASSETS_ENABLED === 'true',
+      saierAssetsApiFunctionName: process.env.NUXT_PUBLIC_SAIER_ASSETS_API_FUNCTION_NAME || 'saier-assets-api',
+      saierWatermarkRuntimeUrl: process.env.NUXT_PUBLIC_SAIER_WATERMARK_RUNTIME_URL || 'https://ai-runtime-193029-4-1325586649.sh.run.tcloudbase.com/ai/v2/apps/saier/watermark',
       saierRealtimeUrl: process.env.NUXT_PUBLIC_SAIER_REALTIME_URL || '',
       saierCloudFileMaxBytes: Number(process.env.NUXT_PUBLIC_SAIER_CLOUD_FILE_MAX_BYTES || 200 * 1024 * 1024),
       saierCloudRoomApiFunctionName: process.env.NUXT_PUBLIC_SAIER_CLOUD_ROOM_API_FUNCTION_NAME || 'saier-room-api',
@@ -86,6 +89,7 @@ export default defineNuxtConfig({
     },
     optimizeDeps: {
       include: [
+        '@yunlefun/assets',
         '@cloudbase/js-sdk',
         '@yunlefun/sso',
         '@yunlefun/sso/browser',

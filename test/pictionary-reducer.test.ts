@@ -226,6 +226,52 @@ describe('pictionary authoritative reducer', () => {
     expect(late.events).toContainEqual(expect.objectContaining({ type: 'aiRemixBonusReady' }))
   })
 
+  it.each(['pending', 'applied'])('preserves a newer %s remix when an expired request returns', (status) => {
+    let game = drawingGame({ aiMode: 'remix' })
+    const fence = {
+      controllerEpoch: game.publicState.controllerEpoch,
+      phaseEpoch: game.publicState.phaseEpoch,
+      roundId: game.publicState.round.roundId,
+    }
+    const payload = {
+      effect: 'texture',
+      rect: { height: 192, width: 192, x: 32, y: 32 },
+    }
+    game = apply(game, 'host', command('requestAiRemix', {
+      ...payload,
+      requestId: 'remix-old',
+    }, fence), 2000)
+    game = apply(game, 'host', command('phaseTimeout', {}, fence), 47_000)
+    game = apply(game, 'host', command('requestAiRemix', {
+      ...payload,
+      requestId: 'remix-new',
+    }, fence), 47_001)
+    if (status === 'applied') {
+      game = apply(game, 'host', command('completeAiRemix', {
+        fileId: 'cloud://env/remix-new.png',
+        requestId: 'remix-new',
+      }, fence), 47_002)
+    }
+    const newerRemix = structuredClone(game.publicState.round.aiRemix)
+
+    game = apply(game, 'host', command('completeAiRemix', {
+      fileId: 'cloud://env/remix-old.png',
+      requestId: 'remix-old',
+    }, fence), 47_003)
+
+    expect(game.publicState.round.aiRemixBonus).toMatchObject({ requestId: 'remix-old' })
+    expect(game.publicState.round.aiRemix).toEqual(newerRemix)
+    if (status === 'pending') {
+      game = apply(game, 'host', command('completeAiRemix', {
+        fileId: 'cloud://env/remix-new.png',
+        requestId: 'remix-new',
+      }, fence), 47_004)
+    }
+    expect(game.publicState.round.aiRemix).toMatchObject({ requestId: 'remix-new', status: 'applied' })
+    expect(game.publicState.round.canvasSeq).toBe(1)
+    expect(game.publicState.round.aiRemixUsed).toBe(true)
+  })
+
   it('persists disconnect grace and lets the deadline command end a drawer-less round', () => {
     let game = drawingGame()
     const fence = {

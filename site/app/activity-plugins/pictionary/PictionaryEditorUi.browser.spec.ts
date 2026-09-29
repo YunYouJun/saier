@@ -66,7 +66,7 @@ describe('pictionary editor UI', () => {
     const primaryButton = el.querySelector<HTMLElement>('.site-activity-button.is-primary')!
     expect(getComputedStyle(panel).borderRadius).toBe('8px')
     expect(getComputedStyle(control).minHeight).toBe('36px')
-    expect(getComputedStyle(primaryButton).backgroundColor).toBe('rgba(96, 165, 250, 0.15)')
+    expect(getComputedStyle(primaryButton).backgroundColor).toBe('rgba(96, 165, 250, 0.16)')
     expect(el.textContent).toContain('Create room')
     expect(el.textContent).toContain('Join game')
     expect(el.querySelector('[aria-describedby="pictionary-create-error"]')).not.toBeNull()
@@ -79,7 +79,7 @@ describe('pictionary editor UI', () => {
     expect(title.value).toBe('Friday sketch club')
 
     el.className = 'light'
-    expect(getComputedStyle(primaryButton).backgroundColor).toBe('rgba(37, 99, 235, 0.12)')
+    expect(getComputedStyle(primaryButton).backgroundColor).toBe('rgba(37, 99, 235, 0.1)')
 
     setLocale('zh')
     await nextTick()

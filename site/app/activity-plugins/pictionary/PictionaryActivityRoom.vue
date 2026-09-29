@@ -18,6 +18,7 @@ import { createSiteActivityHref } from '~/utils/activityPluginRoutes'
 import { formatPictionaryMessage, usePictionaryI18n } from './i18n'
 import PictionaryAiRemixControl from './PictionaryAiRemixControl.vue'
 import PictionaryDrawingPanel from './PictionaryDrawingPanel.vue'
+import PictionaryLocalAi from './PictionaryLocalAi.vue'
 import PictionaryRoomLobby from './PictionaryRoomLobby.vue'
 import PictionaryRoomToolbar from './PictionaryRoomToolbar.vue'
 import PictionaryScoreboard from './PictionaryScoreboard.vue'
@@ -134,9 +135,13 @@ const {
   effect: aiEffect,
   finishSelection: finishAiSelection,
   generate: generateAiRemix,
+  handoff: aiHandoff,
+  handoffBusy: aiHandoffBusy,
+  localAi,
   message: aiMessage,
   moveSelection: moveAiSelection,
   pending: aiPending,
+  prepareHandoff: prepareAiHandoff,
   requestBusy: aiRequestBusy,
   selecting: aiSelecting,
   selection: aiSelection,
@@ -791,14 +796,31 @@ function requireRoundState() {
           <PictionaryAiRemixControl
             v-if="canUseAi"
             v-model:effect="aiEffect"
-            :busy="aiRequestBusy"
+            :busy="aiRequestBusy || aiHandoffBusy || localAi.busy.value || localAi.applying.value"
+            :handoff="aiHandoff"
             :message="aiMessage"
             :pending="aiPending"
             :selection="aiSelection"
             :used="aiUsed"
             @generate="generateAiRemix"
+            @prepare-handoff="prepareAiHandoff"
             @select="beginAiSelection"
-          />
+          >
+            <template #local>
+              <PictionaryLocalAi
+                v-model:pairing-code="localAi.pairingCode.value"
+                v-model:port="localAi.port.value"
+                :applying="localAi.applying.value"
+                :busy="localAi.busy.value"
+                :disabled="aiRequestBusy || aiHandoffBusy || aiPending || aiUsed || !aiSelection"
+                :message="localAi.message.value"
+                :result="localAi.result.value"
+                @apply="localAi.apply"
+                @cancel="localAi.cancel"
+                @generate="localAi.generate"
+              />
+            </template>
+          </PictionaryAiRemixControl>
           <PictionaryScoreboard
             :current-user-id="currentUserId"
             :is-host="isHost"

@@ -62,6 +62,7 @@ function createSaierRoomApiHandler(options) {
       userId,
       activityService,
       aiRemixService: options.aiRemixService,
+      localAiRemixService: options.localAiRemixService,
       playPictionaryTickets: options.playPictionaryTickets,
     }
 
@@ -104,6 +105,10 @@ function createSaierRoomApiHandler(options) {
         if (!services.aiRemixService)
           throw roomError('backend_unavailable', 'AI remix service is not configured.')
         return services.aiRemixService.request(event, userId)
+      case 'importActivityLocalAiRemix':
+        if (!services.localAiRemixService)
+          throw roomError('backend_unavailable', 'Local AI image import is not configured.')
+        return services.localAiRemixService.request(event, userId)
       case 'resumeActivity':
         return services.activityService.resumeActivity(event, userId)
       case 'getActivityPrivateProjection':

@@ -77,6 +77,7 @@ function createActivityTransactionStore(transaction, collections) {
     getActivityCommand: id => getById(transaction, collections.activityCommands, id),
     getActivitySecret: id => getById(transaction, collections.activitySecrets, id),
     getActivitySession: id => getById(transaction, collections.activitySessions, id),
+    getAiUsage: id => getByIdStrict(transaction, collections.aiUsage, id),
     getMember: id => getById(transaction, collections.members, id),
     getRoom: id => getById(transaction, collections.rooms, id),
     setActivityCanvasOperation: (id, doc) => setById(transaction, collections.activityCanvasOperations, id, doc),
@@ -85,6 +86,7 @@ function createActivityTransactionStore(transaction, collections) {
     setActivityOutbox: (id, doc) => setById(transaction, collections.activityOutbox, id, doc),
     setActivitySecret: (id, doc) => setById(transaction, collections.activitySecrets, id, doc),
     setActivitySession: (id, doc) => setById(transaction, collections.activitySessions, id, doc),
+    setAiUsage: (id, doc) => setById(transaction, collections.aiUsage, id, doc),
     setMember: (id, doc) => setById(transaction, collections.members, id, doc),
     setRoom: (id, doc) => setById(transaction, collections.rooms, id, doc),
   }
@@ -137,6 +139,13 @@ async function getById(database, collectionName, id) {
   catch {
     return undefined
   }
+}
+
+async function getByIdStrict(database, collectionName, id) {
+  const response = await database.collection(collectionName).doc(id).get()
+  if (Array.isArray(response.data))
+    return response.data[0]
+  return response.data ?? undefined
 }
 
 async function getOne(database, collectionName, query, orderBy) {

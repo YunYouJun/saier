@@ -31,6 +31,7 @@ listStorageFiles({ appId, kind, slotKey })
 | NoSQL collection `saier_room_game_outbox`                        | `no-sql/saier_room_game_outbox.json`            | `CUSTOM`   |
 | NoSQL collection `saier_room_game_canvas_operations`             | `no-sql/saier_room_game_canvas_operations.json` | `CUSTOM`   |
 | NoSQL collection `saier_room_game_snapshots`                     | `no-sql/saier_room_game_snapshots.json`         | `CUSTOM`   |
+| NoSQL collection `saier_room_ai_usage`                           | `no-sql/saier_room_ai_usage.json`               | `CUSTOM`   |
 | NoSQL collection `yunlefun_test_accounts`                        | `no-sql/yunlefun_test_accounts.json`            | `CUSTOM`   |
 | Cloud Storage bucket `7975-yunlefun-8g7ybcxc7345c490-1325586649` | `storage/saier-projects.json`                   | `CUSTOM`   |
 
@@ -96,6 +97,12 @@ The room collections are intentionally client-private:
 - `saier_room_game_outbox`
 - `saier_room_game_canvas_operations`
 - `saier_room_game_snapshots`
+- `saier_room_ai_usage`
+
+2026-09-28 AI preflight: `saier_room_ai_usage` was created in
+`yunlefun-8g7ybcxc7345c490`, and its `CUSTOM` client-deny rule was applied and
+read back successfully. This does not enable the image model workflow or
+deploy the function's usage-limiter implementation.
 
 All reads and writes go through `saier-room-api`, which enforces YunLeFun auth,
 invite-token checks, owner/editor/viewer roles, server-side revision assignment,
@@ -159,6 +166,7 @@ for (const [resourceId, securityRule] of [
   ['saier_room_game_outbox', saierRoomGameOutboxRule],
   ['saier_room_game_canvas_operations', saierRoomGameCanvasOperationsRule],
   ['saier_room_game_snapshots', saierRoomGameSnapshotsRule],
+  ['saier_room_ai_usage', saierRoomAiUsageRule],
   ['yunlefun_test_accounts', yunlefunTestAccountsRule],
 ]) {
   managePermissions({
@@ -200,7 +208,7 @@ After applying:
 9. `finalizeStorageUpload` replaces the previous active brush library for the same `userId + appId + kind + slotKey` and releases the old file's quota.
 10. Saier project lists only show `kind: 'project'` or legacy `.saier.project.json` rows; `kind: 'brush-library'` rows stay hidden from the project table.
 11. `renameStorageFile` updates project display names only for the current owner and never accepts `kind: 'brush-library'`.
-12. Browser clients cannot directly read or write any `saier_room_*` collection.
+12. Browser clients cannot directly read or write any `saier_room_*` collection, including AI usage counters.
 13. `saier-room-api` rejects forged room membership, invite token, `storageKey`, and duplicate `clientOpId` writes.
 14. `yunlefun_test_accounts` is backend-private; clients cannot list fixture users or credentials.
 15. `room-storage/saier/**.saier.room-snapshot.json` uploads are allowed only for signed-in users and remain capped at 200 MiB.

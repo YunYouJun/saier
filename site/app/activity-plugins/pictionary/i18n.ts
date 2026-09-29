@@ -57,9 +57,31 @@ export interface PictionaryMessages {
     aiEffectPolish: string
     aiEffectSurprise: string
     aiEffectTexture: string
+    aiExternalCopied: string
+    aiExternalCopy: string
+    aiExternalCopyFailed: string
+    aiExternalDownload: string
+    aiExternalFailed: string
+    aiExternalHint: string
+    aiExternalOpen: string
+    aiExternalPrepare: string
+    aiExternalPrompt: string
+    aiExternalTitle: string
     aiFailed: string
     aiGenerate: string
     aiMagic: string
+    aiLocalApply: string
+    aiLocalApplying: string
+    aiLocalApplyFailed: string
+    aiLocalCancel: string
+    aiLocalDownload: string
+    aiLocalFailed: string
+    aiLocalGenerate: string
+    aiLocalHint: string
+    aiLocalPairing: string
+    aiLocalPort: string
+    aiLocalPreview: string
+    aiLocalTitle: string
     aiMagicHint: string
     aiMode: string
     aiModeAnswerAware: string
@@ -181,7 +203,29 @@ const PICTIONARY_MESSAGES = {
       aiFailed: 'Generation failed or expired. Your opportunity was refunded.',
       aiGenerate: 'Generate patch',
       aiMagic: 'AI magic area',
+      aiLocalApply: 'Apply to this round',
+      aiLocalApplying: 'Applying…',
+      aiLocalApplyFailed: 'Could not apply. Check that local import is enabled and this round is still active. The preview can still be downloaded.',
+      aiLocalCancel: 'Cancel generation',
+      aiLocalDownload: 'Download generated image',
+      aiLocalFailed: 'Local generation failed or timed out. Check the companion, pairing code, Codex login and image quota.',
+      aiLocalGenerate: 'Generate with local Codex',
+      aiLocalHint: 'Run pnpm dev:ai-remix and enter its pairing code. Uses your Codex account’s usage allowance. Review the result before applying; the server checks round permissions.',
+      aiLocalPairing: 'Pairing code (this page only)',
+      aiLocalPort: 'Local port',
+      aiLocalPreview: 'Codex image preview',
+      aiLocalTitle: 'Local Codex',
       aiMagicHint: 'Select one square. Only that region can be replaced.',
+      aiExternalCopied: 'Prompt copied.',
+      aiExternalCopy: 'Copy prompt',
+      aiExternalCopyFailed: 'Copy failed. Select and copy the prompt below manually.',
+      aiExternalDownload: 'Download selection PNG',
+      aiExternalFailed: 'Could not prepare the selection. Select the area again and retry.',
+      aiExternalHint: 'Download the crop and copy the prompt, then upload them in ChatGPT. The result will not automatically replace this round’s canvas.',
+      aiExternalOpen: 'Open ChatGPT',
+      aiExternalPrepare: 'Prepare selection and prompt',
+      aiExternalPrompt: 'Editing prompt',
+      aiExternalTitle: 'Continue in ChatGPT',
       aiMode: 'AI magic',
       aiModeAnswerAware: 'Answer-aware',
       aiModeHint: 'Remix hides the answer from AI. The setting locks when the game starts.',
@@ -304,7 +348,29 @@ const PICTIONARY_MESSAGES = {
       aiFailed: '生成失败或已超时，本回合机会已退还。',
       aiGenerate: '生成局部图片',
       aiMagic: 'AI 魔法区',
+      aiLocalApply: '应用到本轮选区',
+      aiLocalApplying: '正在应用…',
+      aiLocalApplyFailed: '应用失败，请确认已开启本地结果导入且本轮仍在进行。仍可下载预览图。',
+      aiLocalCancel: '取消生成',
+      aiLocalDownload: '下载生成图片',
+      aiLocalFailed: '本地生成失败或超时，请检查桥接服务、配对码、Codex 登录及生图额度。',
+      aiLocalGenerate: '使用本地 Codex 生成',
+      aiLocalHint: '运行 pnpm dev:ai-remix 并填写配对码。占用你的 Codex 账号使用额度；预览后可应用，由服务端检查本轮权限。',
+      aiLocalPairing: '配对码（仅当前页面保存）',
+      aiLocalPort: '本地端口',
+      aiLocalPreview: 'Codex 生图预览',
+      aiLocalTitle: '本地 Codex',
       aiMagicHint: '框选一个正方形，只替换这个区域。',
+      aiExternalCopied: '提示词已复制。',
+      aiExternalCopy: '复制提示词',
+      aiExternalCopyFailed: '复制失败，请手动选择并复制提示词。',
+      aiExternalDownload: '下载选区 PNG',
+      aiExternalFailed: '无法准备选区，请重新选择后重试。',
+      aiExternalHint: '下载选区图片并复制提示词，在 ChatGPT 中上传后生成。结果不会自动贴回本轮画布。',
+      aiExternalOpen: '打开 ChatGPT',
+      aiExternalPrepare: '准备选区和提示词',
+      aiExternalPrompt: '编辑提示词',
+      aiExternalTitle: '在 ChatGPT 中继续',
       aiMode: 'AI 魔法',
       aiModeAnswerAware: '知晓答案',
       aiModeHint: '“趣味变奏”不会把答案交给 AI；开局后设置锁定。',

@@ -266,7 +266,8 @@ function reducePictionaryCommand(input) {
       }
       else {
         const source = pending ?? expired
-        state.round.aiRemix = undefined
+        if (pending)
+          state.round.aiRemix = undefined
         state.round.aiRemixBonus = {
           effect: normalizeAiRemixEffect(source.effect),
           fileId,

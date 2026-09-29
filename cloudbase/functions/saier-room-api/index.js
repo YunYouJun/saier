@@ -12,7 +12,13 @@ const {
 } = require('./cloudbase-runtime.cjs')
 const { createSaierRoomApiHandler } = require('./handler.cjs')
 const {
+  createPictionaryAiAudit,
+  createPictionaryAiUsageLimiter,
+  parseDailyLimit,
+} = require('./pictionary-ai-guardrails.cjs')
+const {
   createCloudbasePictionaryAiGenerator,
+  createCloudbasePictionaryImageImporter,
   createPictionaryAiRemixService,
 } = require('./pictionary-ai-remix.cjs')
 const { createPlayPictionaryTicketService } = require('./play-pictionary-ticket.cjs')
@@ -27,6 +33,7 @@ const COLLECTIONS = {
   activitySecrets: 'saier_room_game_secrets',
   activitySessions: 'saier_room_game_sessions',
   activitySnapshots: 'saier_room_game_snapshots',
+  aiUsage: 'saier_room_ai_usage',
   members: 'saier_room_members',
   operations: 'saier_room_operations',
   reservations: 'saier_room_snapshot_reservations',
@@ -44,12 +51,33 @@ const aiRemixAllowlist = new Set((process.env.SAIER_AI_PICTIONARY_ALLOWLIST ?? '
   .split(',')
   .map(value => value.trim())
   .filter(Boolean))
-const aiRemixService = createPictionaryAiRemixService({
+const aiRemixOptions = {
+  audit: createPictionaryAiAudit({
+    sink: record => process.stdout.write(`[saier-room-api] pictionary-ai ${JSON.stringify(record)}\n`),
+  }),
   commandService: activityService,
   enabled: aiRemixEnabled,
-  imageGenerator: createCloudbasePictionaryAiGenerator({ app }),
   isUserAllowed: userId => aiRemixAllowlist.has('*') || aiRemixAllowlist.has(userId),
   repo,
+  usageLimiter: createPictionaryAiUsageLimiter({
+    globalDailyLimit: parseDailyLimit(process.env.SAIER_AI_PICTIONARY_GLOBAL_DAILY_LIMIT, 30, 'SAIER_AI_PICTIONARY_GLOBAL_DAILY_LIMIT'),
+    repo,
+    userDailyLimit: parseDailyLimit(process.env.SAIER_AI_PICTIONARY_USER_DAILY_LIMIT, 3, 'SAIER_AI_PICTIONARY_USER_DAILY_LIMIT'),
+  }),
+}
+const aiRemixService = createPictionaryAiRemixService({
+  ...aiRemixOptions,
+  imageGenerator: createCloudbasePictionaryAiGenerator({
+    adapter: process.env.SAIER_AI_PICTIONARY_IMAGE_ADAPTER,
+    app,
+    model: process.env.SAIER_AI_PICTIONARY_IMAGE_MODEL,
+    provider: process.env.SAIER_AI_PICTIONARY_IMAGE_PROVIDER,
+  }),
+})
+const localAiRemixService = createPictionaryAiRemixService({
+  ...aiRemixOptions,
+  enabled: aiRemixEnabled && process.env.SAIER_AI_PICTIONARY_LOCAL_IMPORT_ENABLED === 'true',
+  imageGenerator: createCloudbasePictionaryImageImporter({ app }),
 })
 const deadlineWorker = createActivityDeadlineWorker({
   commandService: activityService,
@@ -59,6 +87,7 @@ const deadlineWorker = createActivityDeadlineWorker({
 const handler = createSaierRoomApiHandler({
   activityService,
   aiRemixService,
+  localAiRemixService,
   envId: process.env.SAIER_REALTIME_ENV_ID ?? process.env.TCB_ENV,
   getCurrentUserId,
   realtimeTokenSecret: process.env.SAIER_REALTIME_TOKEN_SECRET,

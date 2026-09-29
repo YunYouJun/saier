@@ -1,13 +1,27 @@
 import { Buffer } from 'node:buffer'
 import { createRequire } from 'node:module'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 const require = createRequire(import.meta.url)
 const { createSaierRoomApiHandler } = require('../cloudbase/functions/saier-room-api/handler.cjs') as {
   createSaierRoomApiHandler: (options: RoomApiTestOptions) => (event: Record<string, unknown>, context?: Record<string, unknown>) => Promise<Record<string, unknown>>
 }
+const { createActivityCommandService } = require('../cloudbase/functions/saier-room-api/activity-command-service.cjs') as {
+  createActivityCommandService: (options: { now: () => number, repo: MemoryRoomRepository }) => {
+    submitCommand: (input: Record<string, unknown>, userId: string) => Promise<Record<string, unknown>>
+    submitSystemCommand: (input: Record<string, unknown>, userId: string) => Promise<Record<string, unknown>>
+  }
+}
+const { createPictionaryAiRemixService } = require('../cloudbase/functions/saier-room-api/pictionary-ai-remix.cjs') as {
+  createPictionaryAiRemixService: (options: Record<string, unknown>) => {
+    request: (input: Record<string, unknown>, userId: string) => Promise<Record<string, unknown>>
+  }
+}
 
 interface RoomApiTestOptions {
+  localAiRemixService?: {
+    request: (input: Record<string, unknown>, userId: string) => Promise<Record<string, unknown>>
+  }
   envId?: string
   getCurrentUserId: () => Promise<string> | string
   hash: (value: string) => string
@@ -256,7 +270,7 @@ function replaceMap(target: Map<string, MemoryRecord>, source: Map<string, Memor
     target.set(id, structuredClone(value))
 }
 
-function createHarness(initialUserId = 'owner') {
+function createHarness(initialUserId = 'owner', overrides: Partial<RoomApiTestOptions> = {}) {
   let currentUserId = initialUserId
   let currentTime = 1000
   const counters = new Map<string, number>()
@@ -312,6 +326,7 @@ function createHarness(initialUserId = 'owner') {
         return `cloud://snapshot/${reservation.id}`
       },
     },
+    ...overrides,
   })
 
   return {
@@ -802,6 +817,122 @@ describe('saier-room-api handler', () => {
 })
 
 describe('saier room activity authority', () => {
+  it('checks trusted identity and captured epochs before importing a local result, with one shared round opportunity', async () => {
+    const game = await createDrawingActivity({ aiMode: 'remix' })
+    const generate = vi.fn().mockResolvedValue({ fileId: 'cloud://env/import.png' })
+    const reserve = vi.fn().mockResolvedValue({ deduped: false })
+    const service = createPictionaryAiRemixService({
+      commandService: createActivityCommandService({ now: () => 2000, repo: game.repo }),
+      enabled: true,
+      imageGenerator: { generate },
+      isUserAllowed: () => true,
+      repo: game.repo,
+      usageLimiter: { reserve },
+    })
+    const api = createHarness('viewer', { localAiRemixService: service, repo: game.repo })
+    const input = {
+      action: 'importActivityLocalAiRemix',
+      activityEpoch: game.activityEpoch,
+      commandId: 'local-import',
+      controllerEpoch: game.controllerEpoch,
+      effect: 'polish',
+      phaseEpoch: game.phaseEpoch,
+      rect: { height: 256, width: 256, x: 32, y: 32 },
+      referenceImageDataUrl: 'data:image/png;base64,aW1hZ2U=',
+      roundId: game.roundId,
+      sessionId: game.sessionId,
+      userId: 'owner', // This client-supplied identity must not be trusted.
+    }
+    await expect(api.handler(input)).rejects.toThrow()
+    api.setUser('owner')
+    for (const key of ['activityEpoch', 'controllerEpoch', 'phaseEpoch'] as const)
+      await expect(api.handler({ ...input, [key]: input[key] + 1 })).rejects.toThrow()
+    expect(generate).not.toHaveBeenCalled()
+    expect(reserve).not.toHaveBeenCalled()
+    await expect(api.handler(input)).resolves.toMatchObject({ outcome: 'applied', fileId: 'cloud://env/import.png' })
+    await expect(api.handler(input)).rejects.toThrow()
+    await expect(api.handler({ ...input, commandId: 'second-local-import' })).rejects.toThrow()
+    expect(generate).toHaveBeenCalledOnce()
+    expect(reserve).toHaveBeenCalledOnce()
+    const session = await game.repo.getActivitySession(game.sessionId)
+    expect(session?.round).toMatchObject({ aiRemixUsed: true, canvasSeq: 1 })
+  })
+
+  it.each([
+    { completedAt: 2001, outcome: 'applied', reveal: false },
+    { completedAt: 47_000, outcome: 'bonus', reveal: false },
+    { completedAt: 100_000, outcome: 'bonus', reveal: true },
+  ])('reports $outcome at $completedAt even when drawing continues during generation', async ({ completedAt, outcome, reveal }) => {
+    const game = await createDrawingActivity({ aiMode: 'remix' })
+    let clock = 2000
+    const commandService = createActivityCommandService({ now: () => clock, repo: game.repo })
+    const fence = {
+      activityEpoch: game.activityEpoch,
+      controllerEpoch: game.controllerEpoch,
+      phaseEpoch: game.phaseEpoch,
+      roundId: game.roundId,
+      sessionId: game.sessionId,
+    }
+    const service = createPictionaryAiRemixService({
+      commandService,
+      enabled: true,
+      imageGenerator: {
+        async generate() {
+          await commandService.submitCommand({
+            ...fence,
+            commandId: 'stroke-during-generation',
+            payload: {
+              brushVersion: 'saier.activity-brush.v1',
+              commit: {
+                events: [{ kind: 'point', pressure: 1, t: 0, x: 10, y: 20 }],
+                schema: 'saier.stroke.v1',
+              },
+              strokeId: 'stroke-during-generation',
+              tool: 'pen',
+            },
+            type: 'commitStroke',
+          }, 'owner')
+          clock = completedAt
+          if (reveal) {
+            await commandService.submitSystemCommand({
+              ...fence,
+              commandId: 'round-deadline',
+              payload: {},
+              type: 'phaseTimeout',
+            }, 'owner')
+          }
+          return { fileId: 'cloud://env/remix.jpg' }
+        },
+      },
+      isUserAllowed: () => true,
+      repo: game.repo,
+      usageLimiter: { reserve: async () => ({ deduped: false }) },
+    })
+
+    await expect(service.request({
+      ...fence,
+      commandId: 'remix-with-concurrent-stroke',
+      effect: 'polish',
+      rect: { height: 256, width: 256, x: 32, y: 32 },
+      referenceImageDataUrl: 'data:image/png;base64,aW1hZ2U=',
+    }, 'owner')).resolves.toMatchObject({
+      canvasSeq: outcome === 'applied' ? 2 : 1,
+      fileId: 'cloud://env/remix.jpg',
+      outcome,
+    })
+
+    const latest = await game.repo.getActivitySession(game.sessionId)
+    await expect(commandService.submitSystemCommand({
+      activityEpoch: game.activityEpoch,
+      commandId: 'ai-complete:remix-with-concurrent-stroke',
+      payload: { fileId: 'cloud://env/remix.jpg', requestId: 'remix-with-concurrent-stroke' },
+      phaseEpoch: latest?.phaseEpoch,
+      roundId: game.roundId,
+      sessionId: game.sessionId,
+      type: 'completeAiRemix',
+    }, 'owner')).resolves.toMatchObject({ aiRemixOutcome: outcome, deduped: true })
+  })
+
   it('issues a Play ticket from the trusted backend without exposing the service credential', async () => {
     const game = await createTwoPlayerActivity()
     const response = await game.handler({
@@ -1228,7 +1359,7 @@ describe('saier room activity authority', () => {
   })
 })
 
-async function createTwoPlayerActivity() {
+async function createTwoPlayerActivity(config: Record<string, unknown> = {}) {
   const harness = createHarness()
   const { finalized, reserved } = await createAndFinalizeRoom(harness.handler)
   const roomId = String((finalized.session?.room as { id: string }).id)
@@ -1242,6 +1373,7 @@ async function createTwoPlayerActivity() {
   const activated = await harness.handler({
     action: 'activatePictionary',
     commandId: 'activate-game',
+    config,
     roomId,
     words: ['apple', 'bicycle', 'castle', 'dragon'],
   })
@@ -1253,8 +1385,8 @@ async function createTwoPlayerActivity() {
   }
 }
 
-async function createChoosingActivity() {
-  const game = await createTwoPlayerActivity()
+async function createChoosingActivity(config: Record<string, unknown> = {}) {
+  const game = await createTwoPlayerActivity(config)
   game.setUser('viewer')
   await game.handler({
     action: 'submitActivityCommand',
@@ -1284,8 +1416,8 @@ async function createChoosingActivity() {
   }
 }
 
-async function createDrawingActivity() {
-  const game = await createChoosingActivity()
+async function createDrawingActivity(config: Record<string, unknown> = {}) {
+  const game = await createChoosingActivity(config)
   const chosen = await game.handler({
     action: 'submitActivityCommand',
     activityEpoch: game.activityEpoch,

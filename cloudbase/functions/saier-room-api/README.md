@@ -22,6 +22,8 @@ Reusable room primitives live in this function folder:
   due-session scanner. Redis is an optional acceleration index only.
 - `pictionary-ai-remix.cjs`: feature-gated CloudBase image-to-image adapter,
   fixed prompt policy, result persistence, and the Pictionary request workflow.
+- `pictionary-ai-guardrails.cjs`: transactional daily budgets and allowlisted,
+  identifier-hashed audit events for the optional image model path.
 
 These modules are intentionally kept inside `saier-room-api` for now so the
 function deployment package stays self-contained. If another product adopts the
@@ -84,6 +86,7 @@ The durable activity collections are:
 - `saier_room_game_outbox`
 - `saier_room_game_canvas_operations`
 - `saier_room_game_snapshots`
+- `saier_room_ai_usage`
 
 All have client-deny rules under `cloudbase/security-rules/no-sql/`. Service
 entries still re-check membership, role, activity/round/phase/controller epochs
@@ -110,14 +113,226 @@ AI remix is off unless both the browser and authority gates are enabled:
 - Authority breaker: `SAIER_AI_PICTIONARY_ENABLED=true`
 - Authority allowlist: `SAIER_AI_PICTIONARY_ALLOWLIST=uid-1,uid-2` (`*` is only
   appropriate for an explicitly approved rollout)
+- Per-user UTC-day budget: `SAIER_AI_PICTIONARY_USER_DAILY_LIMIT=3`
+- Environment-wide UTC-day budget: `SAIER_AI_PICTIONARY_GLOBAL_DAILY_LIMIT=30`
 
 The browser sends a cropped square reference image and one fixed effect id; it
-cannot send a free-form prompt. The authority uses CloudBase
-`HY-Image-v3.0-I2I-ToB-v1.0.1`, immediately copies the expiring provider result
+cannot send a free-form prompt. The authority defaults to CloudBase
+`HY-Image-v3.0-I2I-ToB-v1.0.1` and also supports a Seedream adapter through a
+CloudBase custom provider. It immediately copies the expiring provider result
 to activity-scoped CloudBase storage, and persists only the resulting `fileId`
 in canvas operations. A successful canvas patch consumes the round opportunity.
 Failures and 45-second authority expiry refund it; results reaching reveal are
 stored as a non-scoring bonus instead of mutating the final canvas.
+The completion transaction persists an explicit `aiRemixOutcome` (`applied` or
+`bonus`), including on deduplicated replies. Unrelated strokes must not turn a
+late bonus into an applied result. An expired request may publish its bonus
+without clearing a newer pending or applied remix in the same round.
+
+The cost budget is deliberately separate from the gameplay opportunity. An
+atomic `saier_room_ai_usage` transaction reserves both the hashed-user and
+global counters immediately before the provider call. Provider failures still
+count toward this budget, because they can incur cost, while the player's round
+opportunity is refunded. Repeating the same `(session, user, request)` is
+idempotent. Counters reset at `00:00 UTC`; setting either limit to `0` is a
+fail-closed budget breaker. Counter rows carry `deleteAfter` for cleanup seven
+days after their UTC budget day ends.
+
+Audit output is a bounded JSON record prefixed with
+`[saier-room-api] pictionary-ai`. It contains only fixed event/reason values,
+hashed request/session/user identifiers, counts, effect id, outcome, and
+latency. Do not add prompts, reference/generated images, answers, file ids,
+provider responses, raw exceptions, or credentials to this record.
+
+Create CloudBase log alerts before widening the allowlist:
+
+- any `quota_unavailable` event is actionable;
+- warn when `globalCount / globalLimit >= 0.8`, and stop rollout at `0.95`;
+- alert when provider failures reach three in 15 minutes or exceed 20% with at
+  least five attempts;
+- alert when 15-minute generation p95 reaches 35 seconds, before the 45-second
+  gameplay timeout.
+
+### Third-party image-to-image trial
+
+For the existing square-crop remix, the first adapter targets Volcengine Ark
+**Seedream 5.0 Flash** (model
+`doubao-seedream-5-0-flash-260915`). It uses a single reference image and returns
+one 1024×1024 JPEG. This is crop-based image editing, not mask-based inpainting.
+
+Configure a custom image provider in the CloudBase AI console:
+
+- Provider identifier: for example, `custom-ark-image` (use the actual saved id).
+- BaseURL: `https://ark.cn-beijing.volces.com/api/v3`.
+- API Key: enter the Ark key only in the provider's credential field.
+- Model: `doubao-seedream-5-0-flash-260915`; enable access in Ark first.
+
+Then set these **server-only** function variables:
+
+```dotenv
+SAIER_AI_PICTIONARY_IMAGE_ADAPTER=seedream
+SAIER_AI_PICTIONARY_IMAGE_PROVIDER=custom-ark-image
+SAIER_AI_PICTIONARY_IMAGE_MODEL=doubao-seedream-5-0-flash-260915
+```
+
+The adapter explicitly routes `generateImageSubUrlConfig` to
+`images/generations`, sends the validated PNG/JPEG as an `image` Data URL,
+requests a URL response, and immediately persists it to CloudBase storage.
+It leaves Ark's watermark setting at the provider default. The fixed effect
+prompt, answer visibility, allowlist, usage budgets, failure refunds, and late
+bonus handling remain shared. Browser input cannot choose the provider, model,
+API path, or arbitrary generation parameters. There is no automatic retry or
+fallback to another paid model.
+
+These settings alone do not enable generation. Use the existing breaker and
+single-account `1/1` budget for the first real smoke. Remove all three image
+variables to restore the built-in Hunyuan adapter. Incomplete or unknown
+configurations fail before a model call; they do not prevent other room APIs
+from starting. Do not switch to Seedream 4.5 using this profile: its minimum
+output area is larger than the fixed 1024×1024 request. Other models require
+checking their input, size, output-format, and single-image behavior first.
+
+Provider options checked on 2026-09-28:
+
+| Provider                                                                                               | Fit for this feature                                                                | Published trial cost                                                                                                                            |
+| ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Volcengine Ark Seedream 5.0 Flash](https://docs.volcengine.com/docs/ark/image-generation-api?lang=zh) | JSON image-to-image; closest match to the existing synchronous SDK flow             | [¥0.12 per output image, input free](https://docs.volcengine.com/docs/ark/model-pricing?lang=zh)                                                |
+| [Alibaba Cloud Qwen Image Edit Plus](https://help.aliyun.com/zh/model-studio/qwen-image-edit-api)      | Reference-image editing; requires a separate DashScope request/response adapter     | [Beijing ¥0.20 per image; eligible accounts have 100 free images with a 90-day validity](https://help.aliyun.com/zh/model-studio/model-pricing) |
+| [Black Forest Labs FLUX.1 Fill](https://docs.bfl.ml/flux_tools/flux_1_fill)                            | Explicit image+mask inpainting; requires mask input and asynchronous result polling | Check provider billing before a trial                                                                                                           |
+
+CloudBase's [third-party proxy documentation](https://docs.cloudbase.net/ai/quickstart/third-party-model)
+supports this route. Local adapter tests verify the request shape and storage
+handoff; provider credentials, upstream account access, gateway compatibility,
+latency, and image quality still require a real call. No paid generation has
+been performed for this adapter.
+
+### ChatGPT handoff and local Codex
+
+The Pictionary AI panel now includes **Continue in ChatGPT**. After selecting
+an area, prepare the snapshot, download its PNG, copy the displayed editing
+prompt, and open ChatGPT. The user uploads the image there manually. The link
+is simply `https://chatgpt.com/`; no image, answer, room id, credential, or
+prompt is embedded in a URL. Preparing a handoff makes no room API/model call
+and reserves no generation budget. It is a snapshot, not a live export.
+
+Changing the selection, effect, round, phase, or drawing permission invalidates
+the prepared handoff, including a snapshot still being extracted. The entry
+shares the existing browser feature and drawing-permission gates; it does not
+enable AI for Play-owned sessions. Generated results stay in ChatGPT: there is
+no automatic import into the authoritative round canvas. ChatGPT's image
+capabilities depend on the user's plan and workspace. See the official
+[image-generation guide](https://learn.chatgpt.com/docs/image-generation).
+
+Local **Codex App Server** is now connected through a separate loopback
+companion. It starts a dedicated ephemeral stdio task using the local Codex
+login; the browser does not control existing desktop chats. Requirements:
+Node.js 22.18+ (native TypeScript stripping), a `codex` executable on PATH,
+and a signed-in account with image generation available.
+
+```bash
+codex login
+pnpm dev:ai-remix
+```
+
+The default page origin is `http://localhost:8080` and the companion listens
+only on `127.0.0.1:47832`. When using another site origin, set it explicitly:
+
+```bash
+SAIER_REMIX_ORIGIN=https://saier.yunle.fun pnpm dev:ai-remix
+```
+
+`SAIER_REMIX_PORT` can change the local port. Copy the terminal's temporary
+pairing code into **Local Codex** in the AI panel. The code stays in page
+memory and changes whenever the companion restarts. The browser may ask for
+local-network permission. Keep the terminal running until generation finishes.
+
+Select a crop and effect, generate, review the preview, then choose **Apply to
+this round**. Generation sends only the selected 512×512 PNG and a fixed
+effect. It uses the user's Codex usage allowance, not a CloudBase model call;
+there is no automatic retry. The companion queries `model/list` and uses its
+advertised default if the locally configured model is unavailable to the CLI
+account. It never rewrites the user's global configuration. Both
+`image_generation` and `code_mode_host` must remain enabled in the dedicated
+process: disabling the latter also removes the image tool.
+
+The endpoint enforces the exact Host/Origin, bearer pairing, one active job,
+bounded input/output, and a 240-second deadline. Only fixed image edits are
+exposed, not arbitrary RPC, prompts, models, commands or filesystem paths.
+Shell, browser, plugins, configured MCP servers, hooks and other agent tools
+are disabled or rejected. Cancellation interrupts the turn, terminates its
+dedicated process, and removes the temporary input workspace. The browser
+decodes the PNG/JPEG output and normalizes it to a 512×512 PNG before preview
+or upload. Round, controller, permission, selection or effect changes discard
+stale work. See the official [App Server protocol](https://learn.chatgpt.com/docs/app-server).
+
+Applying is a separate CloudBase action, `importActivityLocalAiRemix`, enabled
+only when both server variables are true:
+
+```dotenv
+SAIER_AI_PICTIONARY_ENABLED=true
+SAIER_AI_PICTIONARY_LOCAL_IMPORT_ENABLED=true
+```
+
+It shares the allowlist, daily usage guardrail and one-remix-per-round limit
+with hosted generation. Local generation itself does not reserve those
+CloudBase counters or a round opportunity; applying does. The server checks
+the authenticated drawer and the captured activity/round/phase/controller
+epochs, validates PNG dimensions/size, uploads into its own storage namespace,
+and publishes through the existing authoritative canvas flow. Clients never
+patch only their local Painter. Races during upload use the existing bonus
+handling. If import is disabled or fails while the selection remains current,
+the generated preview remains downloadable. These two server flags do not
+replace the existing browser AI feature gate or enable Play-owned sessions.
+
+Verified on 2026-09-29 with `codex-cli 0.154.0`: a synthetic 512px apple crop
+produced one textured square PNG in about 41 seconds. The initial configured
+`gpt-6-sol` was rejected by the CLI account; the advertised default
+`gpt-6-astra` succeeded after restoring the Code Mode Host. This verifies one
+local generation, not production CloudBase upload or multiplayer deployment.
+The local-import flag remains off in production. CloudBase provider trials
+and local Codex usage are separate.
+
+### Production AI preflight (2026-09-28)
+
+Verified against `yunlefun-8g7ybcxc7345c490` in `ap-shanghai`:
+
+- Created `saier_room_ai_usage` and read back its `CUSTOM` rule:
+  `{ "read": false, "create": false, "update": false, "delete": false }`.
+- The registry confirms `ylf_test_saier_owner` is active, with UID
+  `2074792729263353858`, for the proposed single-user smoke.
+- `saier-room-api` is active on `Nodejs18.15` with a 30-second timeout. No
+  `SAIER_AI_PICTIONARY_*` environment variables are set. This preflight did not
+  deploy code, update function configuration, or enable generation.
+- `DescribeAIModels` reports the `hunyuan-image` group enabled and includes
+  `HY-Image-v3.0-I2I-ToB-v1.0.1`; the managed catalog also lists this model, but
+  does not return a price for it. Model enablement alone does not prove quota.
+- `DescribeActivityInfo` returned no growth-plan attendance records.
+  `DescribeEnvPostpayPackage` returned expired Token packages and an active
+  10,000-point `CREDITS` package, with no image-generation package. This is a
+  provider-resource check, not a check of YunLeFun users' AI-point balances.
+
+The current built-in `hunyuan-image`
+[SDK prerequisites](https://docs.cloudbase.net/ai/image-model/node-sdk)
+require growth-plan image resources. The [growth-plan FAQ](https://docs.cloudbase.net/ai/ai-inspire-plan)
+states that normal CloudBase plan resources do not cover image generation and
+that image resource packs are not currently sold separately. Do not treat
+ordinary resource points or a generic Token package as image quota, or advise
+purchasing one as a verified fix. Confirm eligible image resources for this
+environment before testing the built-in provider.
+
+This quota restriction does not block CloudBase's
+[third-party image-model proxy](https://docs.cloudbase.net/ai/quickstart/third-party-model).
+A custom provider can register its BaseURL and API Key in CloudBase and be
+called through `createImageModel(provider)`. `generateImageSubUrlConfig` supports
+provider/model-specific API subpaths. The upstream provider supplies the model
+quota; this route does not require growth-plan image resources. The Seedream
+adapter above now provides server-side provider/model configuration and maps
+the provider's reference-image request and image-response formats. Proxy support
+alone does not prove that a particular model supports image-to-image editing.
+
+Credential rotation remains unconfirmed. Deployment, the `1/1` budgets and
+single-user allowlist, timeout change, audit alerts, storage cleanup policy,
+and real generation verification remain pending. No model call was made.
 
 ## Deployment Sketch
 
@@ -211,6 +426,16 @@ this change**. Confirm model quota/billing, rotate any exposed management
 credentials, set the server allowlist, raise the function timeout, and run a
 real-account generation smoke before turning on either feature flag.
 Apply a storage lifecycle rule (or scheduled cleanup) to
-`room-storage/saier/*/activities/*/ai-remix/` before expanding beyond the
-allowlisted preview, so generated images do not outlive the activity retention
-policy indefinitely.
+`room-storage/saier/*/activities/*/ai-remix/` before the smoke. Generated remix
+objects must be deleted no later than two days after creation, keeping storage
+close to the activity authority's 24-hour retention while allowing for
+day-granularity lifecycle evaluation. Cleanup must be prefix-scoped and must
+not match room snapshots outside `ai-remix/`.
+
+The real-account smoke remains an external, paid operation. Run it only after
+the collection/rule, 900-second function timeout, explicit single-user
+allowlist, daily budgets, log alerts, storage lifecycle, and credential rotation
+are all verified. Start with both daily limits set to `1`; assert one generated
+object is copied to the `ai-remix/` prefix, one canvas patch or late bonus is
+recorded, no sensitive audit field appears, a second request is rejected, and
+the breaker can be returned to `false` immediately afterward.

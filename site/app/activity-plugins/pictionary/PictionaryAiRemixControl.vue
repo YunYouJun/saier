@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import type { PictionaryAiEffect, PictionaryAiRect } from '@saier/collaboration'
+import type { PictionaryAiHandoff } from './ai-handoff'
 import { computed } from 'vue'
 import { SiteActivityButton, SiteActivityField, SiteActivityPanel } from '~/components/activity'
 import { usePictionaryI18n } from './i18n'
+import PictionaryAiHandoffControl from './PictionaryAiHandoff.vue'
 
 const props = defineProps<{
   busy: boolean
+  handoff?: PictionaryAiHandoff
   message?: string
   pending: boolean
   selection?: PictionaryAiRect
@@ -14,6 +17,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   generate: []
+  prepareHandoff: []
   select: []
 }>()
 
@@ -65,6 +69,14 @@ const selectionLabel = computed(() => props.selection
       <span :class="pending ? 'i-ph-spinner-gap animate-spin' : 'i-ph-magic-wand'" aria-hidden="true" />
       {{ pending ? text.room.aiPending : used ? text.room.aiUsed : text.room.aiGenerate }}
     </SiteActivityButton>
+
+    <PictionaryAiHandoffControl
+      :disabled="busy || pending || used || !selection"
+      :handoff="handoff"
+      @prepare="emit('prepareHandoff')"
+    />
+
+    <slot name="local" />
 
     <p v-if="message" class="pictionary-ai-remix__message" aria-live="polite">
       {{ message }}

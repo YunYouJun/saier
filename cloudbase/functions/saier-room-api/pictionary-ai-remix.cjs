@@ -14,6 +14,7 @@ const EFFECT_PROMPTS = Object.freeze({
 function createPictionaryAiRemixService(options) {
   const enabled = options.enabled === true
   const isUserAllowed = typeof options.isUserAllowed === 'function' ? options.isUserAllowed : () => false
+  const now = typeof options.now === 'function' ? options.now : Date.now
 
   return {
     async request(input, userId) {
@@ -50,22 +51,51 @@ function createPictionaryAiRemixService(options) {
       if (!session || !secret || session.round?.roundId !== roundId)
         throw activityError('SESSION_ENDED', 'AI remix round is no longer active.')
 
+      let usage
+      try {
+        usage = await options.usageLimiter.reserve({ requestId, sessionId, userId })
+      }
+      catch (error) {
+        await failPendingRemix(options, { requestId, roundId, sessionId, userId })
+        recordAudit(options.audit, 'quota_rejected', auditInput(input, userId, {
+          quotaScope: error?.quotaScope,
+          reason: error?.code === 'AI_REMIX_DAILY_LIMIT'
+            ? `quota_${error.quotaScope}`
+            : 'quota_unavailable',
+        }))
+        if (error?.code === 'AI_REMIX_DAILY_LIMIT')
+          throw error
+        throw activityError('AI_REMIX_FAILED', 'AI remix capacity is temporarily unavailable without consuming the round opportunity.')
+      }
+      recordAudit(options.audit, 'quota_reserved', auditInput(input, userId, usage))
+      const generationStartedAt = now()
+      recordAudit(options.audit, 'generation_started', auditInput(input, userId))
+
       let generated
       try {
         generated = await options.imageGenerator.generate({
           answer: session.config?.aiMode === 'answer-aware' ? secret.selectedAnswer : undefined,
           effect: input.effect,
           imageBase64: reference.base64,
+          imageMimeType: reference.mimeType,
           storageKey: aiRemixStorageKey(session, requestId),
         })
       }
       catch {
+        recordAudit(options.audit, 'generation_failed', auditInput(input, userId, {
+          latencyMs: now() - generationStartedAt,
+          reason: 'provider_failed',
+        }))
         await failPendingRemix(options, { requestId, roundId, sessionId, userId })
         throw activityError('AI_REMIX_FAILED', 'AI remix generation failed without consuming the round opportunity.')
       }
 
       const latest = await options.repo.getActivitySession(sessionId)
       if (!latest || latest.round?.roundId !== roundId) {
+        recordAudit(options.audit, 'generation_completed', auditInput(input, userId, {
+          latencyMs: now() - generationStartedAt,
+          outcome: 'bonus',
+        }))
         return { fileId: generated.fileId, outcome: 'bonus', requestId }
       }
 
@@ -79,17 +109,46 @@ function createPictionaryAiRemixService(options) {
           sessionId,
           type: 'completeAiRemix',
         }, userId)
-        return {
+        const response = {
           ...result,
           fileId: generated.fileId,
-          outcome: (result.canvasSeq ?? 0) > (reservation.canvasSeq ?? 0) ? 'applied' : 'bonus',
+          outcome: result.aiRemixOutcome === 'applied' ? 'applied' : 'bonus',
           requestId,
         }
+        recordAudit(options.audit, 'generation_completed', auditInput(input, userId, {
+          latencyMs: now() - generationStartedAt,
+          outcome: response.outcome,
+        }))
+        return response
       }
       catch {
+        recordAudit(options.audit, 'generation_completed', auditInput(input, userId, {
+          latencyMs: now() - generationStartedAt,
+          outcome: 'bonus',
+          reason: 'authority_apply_failed',
+        }))
         return { fileId: generated.fileId, outcome: 'bonus', requestId }
       }
     },
+  }
+}
+
+function auditInput(input, userId, extra = {}) {
+  return {
+    effect: input.effect,
+    requestId: input.commandId,
+    sessionId: input.sessionId,
+    userId,
+    ...extra,
+  }
+}
+
+function recordAudit(audit, event, input) {
+  try {
+    audit?.record?.(event, input)
+  }
+  catch {
+    // Injected observability adapters must remain non-authoritative.
   }
 }
 
@@ -98,14 +157,33 @@ function createCloudbasePictionaryAiGenerator(options) {
 
   return {
     async generate(input) {
-      const imageModel = options.app.ai().createImageModel('hunyuan-image')
-      const response = await imageModel.generateImage({
-        images: [requiredString(input.imageBase64, 'imageBase64')],
-        model: AI_IMAGE_MODEL,
-        prompt: buildAiRemixPrompt(input),
-        revise: { value: false },
-        size: '1024x1024',
-      })
+      // Resolve lazily so an invalid optional AI setting cannot break room APIs.
+      const config = resolveImageConfig(options)
+      const prompt = buildAiRemixPrompt(input)
+      const imageBase64 = requiredString(input.imageBase64, 'imageBase64')
+      const request = config.adapter === 'seedream'
+        ? {
+            image: referenceDataUrl(imageBase64, input.imageMimeType),
+            model: config.model,
+            output_format: 'jpeg',
+            prompt,
+            response_format: 'url',
+            size: '1024x1024',
+            stream: false,
+          }
+        : {
+            images: [imageBase64],
+            model: config.model,
+            prompt,
+            revise: { value: false },
+            size: '1024x1024',
+          }
+      const imageModel = options.app.ai().createImageModel(config.provider)
+      if (config.adapter === 'seedream') {
+        // CloudBase's default AR path is not the Ark images endpoint.
+        imageModel.generateImageSubUrlConfig[config.provider] = [[/^/u, 'images/generations']]
+      }
+      const response = await imageModel.generateImage(request)
       const url = requiredString(response?.data?.[0]?.url, 'generatedImageUrl')
       const fileContent = await downloadImage(url)
       if (!Buffer.isBuffer(fileContent) || fileContent.length < 1 || fileContent.length > MAX_IMAGE_BYTES)
@@ -113,6 +191,52 @@ function createCloudbasePictionaryAiGenerator(options) {
       const uploaded = await options.app.uploadFile({
         cloudPath: requiredString(input.storageKey, 'storageKey'),
         fileContent,
+      })
+      return { fileId: requiredString(uploaded?.fileID, 'fileID') }
+    },
+  }
+}
+
+function resolveImageConfig(options) {
+  const adapter = options.adapter ?? 'hunyuan'
+  if (adapter === 'hunyuan') {
+    if ((options.provider !== undefined && options.provider !== 'hunyuan-image')
+      || (options.model !== undefined && options.model !== AI_IMAGE_MODEL)) {
+      throw new Error('AI image configuration requires the matching provider adapter.')
+    }
+    return { adapter, model: AI_IMAGE_MODEL, provider: 'hunyuan-image' }
+  }
+  if (adapter !== 'seedream'
+    || typeof options.provider !== 'string'
+    || !/^[a-z][a-z\d-]{0,63}$/u.test(options.provider)
+    || options.provider === 'hunyuan-image'
+    || typeof options.model !== 'string'
+    || !/^[\w.-]{1,128}$/u.test(options.model)) {
+    throw new Error('AI image configuration requires a supported adapter, provider and model.')
+  }
+  return { adapter, model: options.model, provider: options.provider }
+}
+
+function referenceDataUrl(imageBase64, mimeType) {
+  if (mimeType !== 'image/png' && mimeType !== 'image/jpeg')
+    throw new Error('AI reference image MIME type must be PNG or JPEG.')
+  return `data:${mimeType};base64,${imageBase64}`
+}
+
+// This adapter imports an already generated local image; it never calls a model.
+function createCloudbasePictionaryImageImporter(options) {
+  return {
+    async generate(input) {
+      const bytes = Buffer.from(requiredString(input.imageBase64, 'imageBase64'), 'base64')
+      if (input.imageMimeType !== 'image/png' || bytes.length < 33 || bytes.length > 2 * 1024 * 1024
+        || bytes.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a'
+        || bytes.toString('ascii', 12, 16) !== 'IHDR'
+        || bytes.readUInt32BE(16) !== 512 || bytes.readUInt32BE(20) !== 512) {
+        throw activityError('INVALID_AI_REMIX', 'Local AI results must be normalized to a 512px square PNG under 2MB.')
+      }
+      const uploaded = await options.app.uploadFile({
+        cloudPath: requiredString(input.storageKey, 'storageKey').replace(/\.jpg$/u, '.png'),
+        fileContent: bytes,
       })
       return { fileId: requiredString(uploaded?.fileID, 'fileID') }
     },
@@ -228,6 +352,7 @@ module.exports = {
   AI_IMAGE_MODEL,
   buildAiRemixPrompt,
   createCloudbasePictionaryAiGenerator,
+  createCloudbasePictionaryImageImporter,
   createPictionaryAiRemixService,
   parseReferenceImageDataUrl,
 }

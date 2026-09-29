@@ -156,7 +156,7 @@ export function useYunlefunRoomActivities() {
     return run(() => callRoomApi('submitActivityCommand', { ...command }) as Promise<ActivityCommandResult>)
   }
 
-  async function requestAiRemix(input: {
+  interface AiRemixInput {
     activityEpoch: number
     commandId: string
     controllerEpoch: number
@@ -166,8 +166,20 @@ export function useYunlefunRoomActivities() {
     referenceImageDataUrl: string
     roundId: string
     sessionId: string
-  }): Promise<{ fileId: string, outcome: 'applied' | 'bonus', requestId: string }> {
-    return run(() => callRoomApi('requestActivityAiRemix', input) as Promise<{
+  }
+
+  async function requestAiRemix(input: AiRemixInput): Promise<{ fileId: string, outcome: 'applied' | 'bonus', requestId: string }> {
+    return run(() => callRoomApi('requestActivityAiRemix', { ...input }) as Promise<{
+      fileId: string
+      outcome: 'applied' | 'bonus'
+      requestId: string
+    }>)
+  }
+
+  async function importLocalAiRemix(input: AiRemixInput): Promise<{ fileId: string, outcome: 'applied' | 'bonus', requestId: string }> {
+    if (playNative)
+      throw new Error('Local AI import is unavailable for Play-owned sessions.')
+    return run(() => callRoomApi('importActivityLocalAiRemix', { ...input }) as Promise<{
       fileId: string
       outcome: 'applied' | 'bonus'
       requestId: string
@@ -335,6 +347,7 @@ export function useYunlefunRoomActivities() {
     publicState: readonly(publicState),
     realtimeUrl: config.public.saierRealtimeUrl ?? '',
     requestAiRemix,
+    importLocalAiRemix,
     resolveFileUrl,
     resumeActivity,
     roomSession: readonly(roomSession),

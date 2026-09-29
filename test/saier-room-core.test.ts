@@ -13,6 +13,7 @@ const roomCore = require('../cloudbase/functions/saier-room-api/room-core.cjs') 
 }
 const cloudbaseRuntime = require('../cloudbase/functions/saier-room-api/cloudbase-runtime.cjs') as {
   createActivityTransactionStore: (database: CloudbaseTransactionDatabase, collections: CloudbaseRuntimeCollections) => {
+    getAiUsage: (id: string) => Promise<Record<string, unknown> | undefined>
     setRoom: (id: string, doc: Record<string, unknown>) => Promise<void>
   }
   createCloudbaseCollectionStore: (database: CloudbaseRuntimeDatabase, collections: CloudbaseRuntimeCollections) => {
@@ -22,6 +23,7 @@ const cloudbaseRuntime = require('../cloudbase/functions/saier-room-api/cloudbas
 }
 
 interface CloudbaseRuntimeCollections {
+  aiUsage: string
   members: string
   operations: string
   reservations: string
@@ -40,6 +42,7 @@ interface CloudbaseRuntimeDatabase {
 interface CloudbaseTransactionDatabase {
   collection: (name: string) => {
     doc: (id: string) => {
+      get: () => Promise<{ data?: unknown }>
       set: (document: Record<string, unknown>) => Promise<void>
     }
   }
@@ -91,6 +94,7 @@ describe('saier room shared primitives', () => {
       }),
     }
     const repo = cloudbaseRuntime.createCloudbaseCollectionStore(database, {
+      aiUsage: 'ai-usage',
       members: 'members',
       operations: 'operations',
       reservations: 'reservations',
@@ -106,6 +110,7 @@ describe('saier room shared primitives', () => {
     const transaction: CloudbaseTransactionDatabase = {
       collection: () => ({
         doc: () => ({
+          get: async () => ({ data: [] }),
           set: async (document) => {
             writtenDocument = document
           },
@@ -113,6 +118,7 @@ describe('saier room shared primitives', () => {
       }),
     }
     const store = cloudbaseRuntime.createActivityTransactionStore(transaction, {
+      aiUsage: 'ai-usage',
       members: 'members',
       operations: 'operations',
       reservations: 'reservations',
@@ -130,6 +136,29 @@ describe('saier room shared primitives', () => {
       id: 'sr_1',
       status: 'active',
     })
+  })
+
+  it('fails closed when an AI usage transaction read fails', async () => {
+    const transaction: CloudbaseTransactionDatabase = {
+      collection: () => ({
+        doc: () => ({
+          get: async () => {
+            throw new Error('database timeout')
+          },
+          set: async () => {},
+        }),
+      }),
+    }
+    const store = cloudbaseRuntime.createActivityTransactionStore(transaction, {
+      aiUsage: 'ai-usage',
+      members: 'members',
+      operations: 'operations',
+      reservations: 'reservations',
+      rooms: 'rooms',
+      snapshots: 'snapshots',
+    })
+
+    await expect(store.getAiUsage('usage-1')).rejects.toThrow('database timeout')
   })
 })
 

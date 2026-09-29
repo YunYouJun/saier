@@ -6,10 +6,13 @@ import type {
 } from '@saier/collaboration'
 import type { Painter } from 'saier'
 import type { ComputedRef, DeepReadonly, ShallowRef } from 'vue'
+import type { PictionaryAiHandoff } from './ai-handoff'
 import type { PictionaryMessages } from './i18n'
 import type { useYunlefunRoomActivities } from '~/composables/useYunlefunRoomActivities'
 import { importImagePixels } from 'saier'
-import { computed, shallowRef, watch } from 'vue'
+import { computed, onScopeDispose, shallowRef, watch } from 'vue'
+import { createPictionaryAiHandoff } from './ai-handoff'
+import { usePictionaryLocalAi } from './usePictionaryLocalAi'
 
 interface PictionaryRoundContext {
   activityEpoch: number
@@ -36,9 +39,86 @@ export function usePictionaryAiRemix(options: UsePictionaryAiRemixOptions) {
   const message = shallowRef('')
   const bonusUrl = shallowRef('')
   const detachedBonus = shallowRef(false)
+  const handoff = shallowRef<PictionaryAiHandoff>()
+  const handoffBusy = shallowRef(false)
+  let handoffRevision = 0
   const pending = computed(() => requestBusy.value
     || options.activities.publicState.value?.round?.aiRemix?.status === 'pending')
   const used = computed(() => options.activities.publicState.value?.round?.aiRemixUsed ?? false)
+
+  function invalidateHandoff(): void {
+    handoffRevision++
+    handoff.value = undefined
+  }
+
+  watch([
+    () => options.activities.publicState.value?.round?.roundId,
+    () => options.activities.publicState.value?.phase,
+    selection,
+    effect,
+    options.canUse,
+    pending,
+    used,
+  ], invalidateHandoff, { flush: 'sync' })
+  onScopeDispose(invalidateHandoff)
+
+  const localAi = usePictionaryLocalAi({
+    canUse: computed(() => options.canUse.value && !!selection.value && !pending.value && !used.value && !handoffBusy.value),
+    scopeKey: computed(() => JSON.stringify([
+      options.activities.publicState.value?.round?.roundId,
+      options.activities.publicState.value?.phaseEpoch,
+      options.activities.publicState.value?.controllerEpoch,
+      options.canUse.value,
+      used.value,
+      selection.value,
+      effect.value,
+    ])),
+    text: options.text,
+    async capture() {
+      const painter = options.getPainter()
+      const rect = selection.value && { ...selection.value }
+      if (!painter || !rect)
+        throw new Error('No selection')
+      const current = options.requireRoundState()
+      const context = {
+        activityEpoch: current.activityEpoch,
+        commandId: crypto.randomUUID(),
+        controllerEpoch: current.state.controllerEpoch ?? 1,
+        effect: effect.value,
+        phaseEpoch: current.state.phaseEpoch,
+        rect,
+        roundId: current.state.round!.roundId,
+        sessionId: current.sessionId,
+      }
+      return { ...context, imageDataUrl: await createReferenceImage(painter, rect) }
+    },
+    async importImage(snapshot, imageDataUrl) {
+      requestBusy.value = true
+      message.value = ''
+      try {
+        const { imageDataUrl: _reference, ...context } = snapshot
+        const result = await options.activities.importLocalAiRemix({ ...context, referenceImageDataUrl: imageDataUrl })
+        if (result.outcome === 'bonus') {
+          bonusUrl.value = await options.activities.resolveFileUrl(result.fileId)
+          detachedBonus.value = options.activities.publicState.value?.round?.roundId !== snapshot.roundId
+          message.value = options.text.value.room.aiBonusHint
+        }
+        else {
+          message.value = options.text.value.room.aiApplied
+          selection.value = undefined
+        }
+      }
+      finally {
+        requestBusy.value = false
+        try {
+          await options.syncAuthority()
+        }
+        catch {
+          // Room polling retries authoritative recovery; never patch only this client.
+        }
+      }
+    },
+  })
 
   watch(
     () => options.activities.publicState.value?.round?.roundId,
@@ -72,7 +152,7 @@ export function usePictionaryAiRemix(options: UsePictionaryAiRemixOptions) {
   )
 
   function beginSelection(): void {
-    if (!options.canUse.value || pending.value || used.value)
+    if (!options.canUse.value || pending.value || used.value || handoffBusy.value || localAi.busy.value || localAi.applying.value)
       return
     const painter = options.getPainter()
     painter?.brush.cancelStroke()
@@ -123,7 +203,7 @@ export function usePictionaryAiRemix(options: UsePictionaryAiRemixOptions) {
   async function generate(): Promise<void> {
     const selected = selection.value
     const painter = options.getPainter()
-    if (!selected || !painter || !options.canUse.value || pending.value || used.value)
+    if (!selected || !painter || !options.canUse.value || pending.value || used.value || handoffBusy.value || localAi.busy.value || localAi.applying.value)
       return
     const current = options.requireRoundState()
     requestBusy.value = true
@@ -164,6 +244,30 @@ export function usePictionaryAiRemix(options: UsePictionaryAiRemixOptions) {
     }
   }
 
+  async function prepareHandoff(): Promise<void> {
+    const selected = selection.value
+    const painter = options.getPainter()
+    if (!selected || !painter || !options.canUse.value || pending.value || used.value || handoffBusy.value || localAi.busy.value || localAi.applying.value)
+      return
+    invalidateHandoff()
+    const revision = handoffRevision
+    const selectedEffect = effect.value
+    handoffBusy.value = true
+    message.value = ''
+    try {
+      const image = await createReferenceImage(painter, selected)
+      if (revision === handoffRevision)
+        handoff.value = createPictionaryAiHandoff(image, selectedEffect)
+    }
+    catch {
+      if (revision === handoffRevision)
+        message.value = options.text.value.room.aiExternalFailed
+    }
+    finally {
+      handoffBusy.value = false
+    }
+  }
+
   async function applyCanvasPatch(patch: PictionaryAiCanvasPatch): Promise<void> {
     const painter = options.getPainter()
     if (!painter?.surface.writeRegion)
@@ -200,9 +304,13 @@ export function usePictionaryAiRemix(options: UsePictionaryAiRemixOptions) {
     effect,
     finishSelection,
     generate,
+    handoff,
+    handoffBusy,
+    localAi,
     message,
     moveSelection,
     pending,
+    prepareHandoff,
     requestBusy,
     selecting,
     selection,

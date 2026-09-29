@@ -226,6 +226,7 @@ async function submitCommand(input, userId, services, systemCommand = false) {
     const ended = reduced.state.status === 'finished'
     const commandResult = sanitizeCommandResult({
       activityEpoch: session.activityEpoch,
+      aiRemixOutcome: command.type === 'completeAiRemix' ? (canvasOperation ? 'applied' : 'bonus') : undefined,
       canvasSeq: reduced.state.round?.canvasSeq,
       eventSeq: reduced.state.eventSeq,
       gameRevision: reduced.state.gameRevision,
@@ -682,6 +683,9 @@ function sanitizeCommandResult(result) {
   const transient = result.transient
   return {
     activityEpoch: result.activityEpoch,
+    ...(result.aiRemixOutcome === 'applied' || result.aiRemixOutcome === 'bonus'
+      ? { aiRemixOutcome: result.aiRemixOutcome }
+      : {}),
     canvasSeq: result.canvasSeq,
     eventSeq: result.eventSeq,
     gameRevision: result.gameRevision,

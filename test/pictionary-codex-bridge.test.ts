@@ -1,6 +1,8 @@
 import { Buffer } from 'node:buffer'
 import { EventEmitter } from 'node:events'
+import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
+import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createCodexRpc, generateWithCodex, parseRemixInput } from '../scripts/ai-remix/codex.mjs'
 import { createRemixServer } from '../scripts/ai-remix/server.mjs'
@@ -82,7 +84,7 @@ describe('codex image companion', () => {
     expect(thread).toMatchObject({ ephemeral: true, approvalPolicy: 'never', sandbox: 'read-only', model: 'available-default', config: { 'mcp_servers.private.enabled': false, 'model_reasoning_effort': 'medium' } })
     const turn = runtime.calls.at(-1)!.params
     expect(turn).not.toHaveProperty('model')
-    expect(turn.input).toEqual([expect.objectContaining({ type: 'text', text: expect.stringContaining('Clean up the lines') }), expect.objectContaining({ type: 'localImage', path: expect.stringContaining('/selection.png') })])
+    expect(turn.input).toEqual([expect.objectContaining({ type: 'text', text: expect.stringContaining('Clean up the lines') }), expect.objectContaining({ type: 'localImage', path: join(thread.cwd as string, 'selection.png') })])
     expect(runtime.child.kill).toHaveBeenCalled()
   })
 
@@ -102,7 +104,7 @@ describe('codex image companion', () => {
     expect(() => parseRemixInput({ imageDataUrl: 'file:///etc/passwd', effect: 'polish' })).toThrow()
     expect(() => parseRemixInput({ imageDataUrl: png(), effect: 'custom prompt' })).toThrow()
     await expect(generateWithCodex({ imageDataUrl: png(), effect: 'polish' }, new AbortController().signal, fakeRuntime({ interactive: true }))).rejects.toThrow('unsupported interactive')
-    await expect(generateWithCodex({ imageDataUrl: png(), effect: 'polish' }, new AbortController().signal, fakeRuntime({ savedPath: '/etc/hosts' }))).rejects.toThrow('outside')
+    await expect(generateWithCodex({ imageDataUrl: png(), effect: 'polish' }, new AbortController().signal, fakeRuntime({ savedPath: fileURLToPath(import.meta.url) }))).rejects.toThrow('outside')
   })
 
   it('requires pairing and the exact page origin, and rejects concurrent jobs', async () => {

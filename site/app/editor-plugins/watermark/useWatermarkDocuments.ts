@@ -1,14 +1,17 @@
 import type { Painter } from 'saier'
 import type { ShallowRef } from 'vue'
+import type { WatermarkDraft, WatermarkDraftRecord } from '~/features/watermark/draft'
 import type { WatermarkWorkInput } from '~/features/watermark/workfile'
 import type { WatermarkWorkspaceState } from '~/features/watermark/workspace'
 import type { SitePainterCommand } from '~/types/painter-app'
-import { onBeforeUnmount, shallowRef, watch } from 'vue'
+import { computed, onBeforeUnmount, shallowRef, watch } from 'vue'
 import { downloadWatermarkBlob, serializeWatermarkWorkfile } from '~/features/watermark/workfile'
 import { WatermarkWorkspace } from '~/features/watermark/workspace'
+import { useWatermarkDrafts } from './useWatermarkDrafts'
 
 /** Own document-scoped watermark adapters without creating another canvas or Painter. */
 export function useWatermarkDocuments(painter: ShallowRef<Painter | undefined>, report: (error: unknown) => void, canInteract: () => boolean = () => true) {
+  const drafts = useWatermarkDrafts()
   const sessions = new Map<string, WatermarkWorkspace>()
   const active = shallowRef<WatermarkWorkspace>()
   const state = shallowRef<WatermarkWorkspaceState>()
@@ -18,6 +21,8 @@ export function useWatermarkDocuments(painter: ShallowRef<Painter | undefined>, 
   let unbind: (() => void) | undefined
   const refresh = (): void => {
     state.value = active.value?.getState()
+    if (active.value)
+      drafts.changed(active.value)
   }
   watch(painter, (p) => {
     unbind?.()
@@ -27,6 +32,7 @@ export function useWatermarkDocuments(painter: ShallowRef<Painter | undefined>, 
       const ids = new Set(p.getDocuments().map(d => d.id))
       for (const [id, session] of sessions) {
         if (!ids.has(id)) {
+          drafts.detach(session)
           session.destroy()
           sessions.delete(id)
         }
@@ -75,7 +81,7 @@ export function useWatermarkDocuments(painter: ShallowRef<Painter | undefined>, 
     }
   }, { immediate: true })
 
-  async function open(input: WatermarkWorkInput): Promise<void> {
+  async function open(input: WatermarkWorkInput, record?: WatermarkDraftRecord, draft?: WatermarkDraft): Promise<void> {
     const p = painter.value
     if (!p || busy.value)
       return
@@ -92,6 +98,12 @@ export function useWatermarkDocuments(painter: ShallowRef<Painter | undefined>, 
       sessions.set(workspace.documentId, workspace)
       active.value = workspace
       workspace.resume()
+      if (draft) {
+        p.renameDocument(workspace.documentId, draft.name)
+        const layer = workspace.getState().layers[draft.selected]
+        workspace.select(layer?.id ?? p.document.layers[0]!.id)
+      }
+      drafts.track(workspace, record)
       p.markDocumentDirty()
       refresh()
     }
@@ -170,6 +182,7 @@ export function useWatermarkDocuments(painter: ShallowRef<Painter | undefined>, 
   function dispose(): void {
     if (disposed)
       return
+    drafts.dispose()
     disposed = true
     pending?.destroy()
     unbind?.()
@@ -180,7 +193,7 @@ export function useWatermarkDocuments(painter: ShallowRef<Painter | undefined>, 
     state.value = undefined
   }
   onBeforeUnmount(dispose)
-  return { active, state, busy, dispose, open, download, allows, command, isManaged: (id: string) => sessions.has(id) || busy.value }
+  return { active, state, busy: computed(() => busy.value || drafts.busy.value), drafts, restoreDraft: (record: WatermarkDraftRecord) => drafts.restore(record, open), dispose, open, download, allows, command, isManaged: (id: string) => sessions.has(id) || busy.value }
 }
 
 export type WatermarkDocumentHost = ReturnType<typeof useWatermarkDocuments>

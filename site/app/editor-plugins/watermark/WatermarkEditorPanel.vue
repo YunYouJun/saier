@@ -12,6 +12,7 @@ import { useYunlefunAuth } from '~/composables/useYunlefunAuth'
 import { createCloudWatermarkProvider } from '~/features/watermark/cloud-provider'
 import { useWatermarkLab } from '~/features/watermark/useWatermarkLab'
 import { serializeWatermarkWorkfile } from '~/features/watermark/workfile'
+import WatermarkDraftPanel from './WatermarkDraftPanel.vue'
 import '@saier/vue/styles/editor-form.css'
 
 const props = defineProps<{ painter?: Painter, host: WatermarkDocumentHost, available: boolean }>()
@@ -53,7 +54,7 @@ const {
 } = useWatermarkLab(cloud)
 provider.value = 'manual'
 const STORAGE_KEY = 'saier:watermark-settings:v1'
-const locked = computed(() => !props.available || props.host.busy.value || busy.value || loading.value)
+const locked = computed(() => !props.available || props.host.busy.value || props.host.drafts.busy.value || busy.value || loading.value)
 const selected = computed(() => props.host.state.value?.layers.find(layer => layer.id === props.host.state.value?.selectedId))
 
 onMounted(() => {
@@ -129,6 +130,7 @@ function update(patch: Partial<PresetPlacement>): void {
     <div class="workfile-row">
       <PainterFileInput label="打开水印工作文件" accept="application/json,.json" :disabled="locked" @pick="openWorkfile" />
     </div>
+    <WatermarkDraftPanel :host="host" :disabled="!available || host.busy.value || busy || loading" />
     <template v-if="host.active.value">
       <fieldset :disabled="locked">
         <WatermarkWorkspaceInspector :layer="selected" @update="update" />
@@ -148,7 +150,7 @@ function update(patch: Partial<PresetPlacement>): void {
             </button>
           </div>
           <p class="editor-hint">
-            离开前保存工作文件，保留素材与布局。
+            下载工作文件可长期保留素材与布局。
           </p>
         </div>
       </fieldset>

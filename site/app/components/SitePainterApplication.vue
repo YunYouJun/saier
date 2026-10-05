@@ -319,6 +319,10 @@ watch(editorPlugins.enabled, () => {
   for (const plugin of editorPlugins.all)
     panelVisibility[plugin.panelId] = editorPlugins.enabled.value.includes(plugin.id)
 })
+watch(watermarkDocuments.drafts.ready, (ready) => {
+  if (ready && watermarkDocuments.drafts.recoveries.value.length)
+    toggleEditorPlugin('watermark', true)
+})
 function toggleEditorPlugin(id: string, enabled: boolean): void {
   editorPlugins.toggle(id, enabled)
 }
@@ -1596,8 +1600,16 @@ function reportProjectDraftSaveFailure(error: unknown): void {
 }
 
 async function writeCurrentProjectDraft(current: Painter): Promise<void> {
-  if (watermarkDocuments.isManaged(current.getActiveDocumentId()))
+  if (watermarkDocuments.isManaged(current.getActiveDocumentId())) {
+    const workspace = watermarkDocuments.active.value
+    if (workspace) {
+      await watermarkDocuments.drafts.save(workspace)
+      const failure = watermarkDocuments.drafts.status(workspace)?.error
+      if (failure)
+        throw new Error(failure)
+    }
     return
+  }
 
   const draft = createProjectDraft(current.exportProject())
   await queueProjectDraftStorage(() => writeProjectDraft(draft))

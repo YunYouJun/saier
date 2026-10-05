@@ -1,5 +1,6 @@
 import type { SaierProjectFile } from '@saier/core'
 import { SAIER_PROJECT_FORMAT } from '@saier/core'
+import { requestResult, transactionDone } from './indexedDb'
 
 export const SAIER_PROJECT_DRAFT_FORMAT = 'saier.project-draft.v1'
 export const SAIER_PROJECT_DRAFT_VERSION = 1
@@ -155,21 +156,6 @@ function openProjectDraftDatabase(indexedDb: IDBFactory | undefined): Promise<ID
     }
     request.onerror = () => reject(request.error ?? new Error('Failed to open project draft database.'))
     request.onsuccess = () => resolve(request.result)
-  })
-}
-
-function requestResult<T>(request: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    request.onerror = () => reject(request.error ?? new Error('IndexedDB request failed.'))
-    request.onsuccess = () => resolve(request.result)
-  })
-}
-
-function transactionDone(transaction: IDBTransaction): Promise<void> {
-  return new Promise((resolve, reject) => {
-    transaction.oncomplete = () => resolve()
-    transaction.onerror = () => reject(transaction.error ?? new Error('IndexedDB transaction failed.'))
-    transaction.onabort = () => reject(transaction.error ?? new Error('IndexedDB transaction aborted.'))
   })
 }
 

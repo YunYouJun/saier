@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises'
 import process from 'node:process'
 import { expect, test } from '@playwright/test'
 
+test.use({ baseURL: process.env.SAIER_SITE_E2E_URL ?? 'http://127.0.0.1:8090' })
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('saier:locale', 'zh'))
 })

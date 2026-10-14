@@ -4,24 +4,24 @@ title: 品牌与色彩
 
 # 云绘 Saier · 缤纷一笔
 
-<img src="/logo.svg" alt="云绘 Saier 六色 S 笔触标记" width="128" height="128">
+<img class="saier-app-icon" src="https://yunlefun-cos-1253292018.cos.ap-shanghai.myqcloud.com/desktop/app-icons/v1/pixi-painter.webp" alt="云绘 Saier 画笔与彩虹笔触应用图标" width="128" height="128" referrerpolicy="no-referrer" style="border-radius:21.5%">
 
-Saier 的首字母 **S** 是一笔连续的绘画轨迹。蓝、青、绿、黄、橙、粉六段颜料沿笔势相接，宽阔的转弯与斜切收笔呼应画笔的运动。白色圆角底像一张小画纸，让标记在浅色与黑灰主题中保持相同的辨识度。
+应用图标采用历史会话里生成的 **画笔与彩虹笔触**：真实画笔、缤纷颜料与浅色纸面更直观地表达绘画。使用当时选定的原图，不重新生成近似版本。该图原先使用 `pixi-painter` 资产名；现在作为云绘 Saier 的应用图标，项目、包名与文件格式标识保持不变。
 
-中文产品名为 **云绘**，英文产品名与开源项目名为 **Saier**。品牌与 [YunLeFun Design](https://github.com/YunLeFun/design/blob/main/packages/guide/colors.md) 共用色板，保留独立的 S 标记。
+中文产品名为 **云绘**，英文产品名与开源项目名为 **Saier**。界面继续与 [YunLeFun Design](https://github.com/YunLeFun/design/blob/main/packages/guide/colors.md) 共用色板。原六色 S 矢量保留为旧版资产，以及远程图片不可用时的本地回退。
 
 ## 色板
 
-| 色彩   | 色值      | 在云绘中的用途                   |
-| ------ | --------- | -------------------------------- |
-| 晴空蓝 | `#2563eb` | 主操作、链接、选中状态、S 的起笔 |
-| 青色   | `#06b6d4` | 品牌笔触、信息色的基础色相       |
-| 鲜绿   | `#22c55e` | 品牌笔触、成功色的基础色相       |
-| 明黄   | `#facc15` | 品牌笔触、提醒色的基础色相       |
-| 珊瑚橙 | `#ff6b4a` | 品牌笔触、错误色的基础色相       |
-| 桃粉   | `#ec4899` | 品牌笔触的收笔，表达创作         |
+| 色彩   | 色值      | 在云绘中的用途             |
+| ------ | --------- | -------------------------- |
+| 晴空蓝 | `#2563eb` | 主操作、链接、选中状态     |
+| 青色   | `#06b6d4` | 品牌笔触、信息色的基础色相 |
+| 鲜绿   | `#22c55e` | 品牌笔触、成功色的基础色相 |
+| 明黄   | `#facc15` | 品牌笔触、提醒色的基础色相 |
+| 珊瑚橙 | `#ff6b4a` | 品牌笔触、错误色的基础色相 |
+| 桃粉   | `#ec4899` | 品牌笔触的收笔，表达创作   |
 
-使用纯色分段，不混合成彩虹渐变。全色板集中在 logo、文档品牌区和关于弹窗的细色条；工具栏与面板使用单一晴空蓝强调。
+界面的细色条使用纯色分段；应用图标使用选定原图里的颜料渐变。工具栏与面板仍使用单一晴空蓝强调，不把应用图标的渐变扩展到工作台控件。
 
 ## 绘画优先的界面
 
@@ -34,17 +34,24 @@ Saier 的首字母 **S** 是一笔连续的绘画轨迹。蓝、青、绿、黄�
 
 ## 资产与维护
 
-- `site/public/logo.svg`：可编辑的矢量源文件，最小建议尺寸 24px；favicon 可缩至 16px。
-- `site/app/components/Logos.vue`：只负责展示品牌图形；桌面、移动端复用该组件，关于弹窗引用相同 SVG。
+- `site/app/constants/brand.ts`：网站、文档站 favicon 与 PWA 的固定 COS 地址及母版 SHA-256；不接受运行时输入 URL。统一预览与采用状态维护于 `YunLeFun/icons` 的 `assets/catalog/app-assets.json`。
+- `site/app/components/Logos.vue`：展示同一应用图标；桌面、移动端与关于弹窗复用，加载失败时回退本地 `site/public/logo.svg`，尺寸保持不变。
+- `site/public/logo.svg` 与两站旧 favicon / 安装 PNG：保留的六色 S 旧版资产，不再是应用图标的活动来源。
 - `site/app/assets/brand.css`：六色基础变量和分段色条；兼容宿主提供的 `--ylf-palette-*`，独立使用时保留对应回退值。文档站直接复用此文件。
 - `site/app/assets/theme.css`：工作台明暗主题与状态色；文档站在自己的 VitePress 主题中映射相同品牌色。
 
-修改源 SVG 后运行：
+1024px PNG 母版位于 [COS 原图](https://yunlefun-cos-1253292018.cos.ap-shanghai.myqcloud.com/desktop/app-icons/masters/v1/pixi-painter.png)，SHA-256 为 `49bb33e486d6326f19e57bf7e06c6d7df19a39fd954f06f1daf5724ba1e16e4d`，对应 COS 存储原对象；普通 GET 可能经桶的 imageSlim 自动压缩，响应字节的哈希会不同。常规展示使用 256px WebP；favicon、Apple 与 PWA 使用同一母版导出的 PNG，分别为 32、180、192、512px。图片不进入源码或 npm 包；版本更新使用新的 COS 路径，不覆盖长期缓存的已有对象。
+
+本次仅有静态扁平图，不声称它是 Icon Composer 分层文件或已验证的 maskable 图标。PWA 使用 `purpose: any`；native Electron 打包尚未配置应用图标，Capacitor 的 iOS / Android 项目尚未生成，之后的原生导出使用同一母版单独验收。
+
+受 Service Worker 控制的联网访问后，网站仅缓存明确列出的固定图标地址。远程图标未缓存或 COS 不可用时，已加载的工作台使用本地旧 S 回退，尺寸和绘画功能保持不变。
+
+只有维护六色 S 旧版资产时才运行：
 
 ```bash
 node scripts/generate-brand-assets.mjs
 ```
 
-脚本使用已有的 Playwright Chromium，生成文档 logo、两站 favicon、16/32/48px ICO、192/512px PWA 图标、180px Apple 图标及独立 maskable 图标。maskable 版本使用不透明白底，将标记缩进中心安全区域。
+该脚本仅导出旧版 S：文档 logo、两站旧 favicon、ICO、旧 PWA / Apple / maskable PNG。它不会覆盖 COS 上的画笔应用图标，也不改变 `brand.ts` 的活动来源。
 
 配色依据：YunLeFun Design `c26f50fb5db99bb62d77b8845b7c817254e4ae18` 中的 `packages/ui/styles/css-vars.scss`。本次采用配色与品牌语言；完整组件库的依赖接入另行管理。

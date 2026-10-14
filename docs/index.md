@@ -6,7 +6,7 @@ hero:
   text: "Saier · 优雅的在线画板"
   tagline: 云乐坊旗下的在线绘画工作台 —— 融合 SAI / Procreate / Krita 之长，把画意手感搬到 web（PixiJS 显示 + 可脱离 Pixi 的 raster 引擎）
   image:
-    src: /logo.svg
+    src: https://yunlefun-cos-1253292018.cos.ap-shanghai.myqcloud.com/desktop/app-icons/v1/pixi-painter.webp
     alt: 云绘 Saier
   actions:
     - theme: brand

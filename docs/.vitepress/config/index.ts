@@ -4,6 +4,7 @@ import { getVitepressConfig } from '@yunyoujun/docs'
 import { defineConfig } from 'vitepress'
 import { groupIconMdPlugin } from 'vitepress-plugin-group-icons'
 import { version } from '../../../package.json'
+import { appIcon } from '../../../site/app/constants/brand'
 
 const GUIDES: DefaultTheme.NavItemWithLink[] = [
   { text: 'What is 云绘 / Saier?', link: '/guide/what-is' },
@@ -120,8 +121,8 @@ export default defineConfig({
   cleanUrls: true,
 
   themeConfig: {
-    logo: '/logo.svg',
     ...vpConfig.themeConfig,
+    logo: { src: appIcon.src, alt: '云绘 Saier' },
 
     search: {
       provider: 'local',
@@ -173,7 +174,7 @@ export default defineConfig({
   },
 
   head: [
-    ['link', { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' }],
+    ['link', { rel: 'icon', href: appIcon.faviconSrc, type: 'image/png', sizes: '32x32' }],
     ['meta', { name: 'author', content: 'YunYouJun' }],
     ['meta', { property: 'og:title', content: '云绘 Saier' }],
     ['meta', { property: 'og:description', content: '云绘（Saier）—— 云乐坊旗下的在线绘画工作台' }],

@@ -1,5 +1,6 @@
 import type { ModuleOptions } from '@vite-pwa/nuxt'
 import process from 'node:process'
+import { appIcon, appIconCachePattern } from '../constants/brand'
 import { appDescription, appName, appShortName } from '../constants/index'
 
 const scope = '/'
@@ -17,24 +18,7 @@ export const pwa: ModuleOptions = {
     lang: 'zh-CN',
     background_color: '#f8fafc',
     theme_color: '#f8fafc',
-    icons: [
-      {
-        src: 'pwa-192x192.png',
-        sizes: '192x192',
-        type: 'image/png',
-      },
-      {
-        src: 'pwa-512x512.png',
-        sizes: '512x512',
-        type: 'image/png',
-      },
-      {
-        src: 'maskable-icon.png',
-        sizes: '512x512',
-        type: 'image/png',
-        purpose: 'maskable',
-      },
-    ],
+    icons: [...appIcon.pwaIcons],
   },
   workbox: {
     globIgnores: [
@@ -48,6 +32,18 @@ export const pwa: ModuleOptions = {
     navigateFallback: '/',
     cleanupOutdatedCaches: true,
     runtimeCaching: [
+      {
+        urlPattern: appIconCachePattern,
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'saier-app-icon-v1',
+          expiration: {
+            maxEntries: 5,
+            maxAgeSeconds: 60 * 60 * 24 * 365,
+          },
+          cacheableResponse: { statuses: [0, 200] },
+        },
+      },
       {
         urlPattern: /^https:\/\/fonts.googleapis.com\/.*/i,
         handler: 'CacheFirst',

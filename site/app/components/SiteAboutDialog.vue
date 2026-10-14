@@ -22,7 +22,6 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const logoSrc = '/logo.svg'
 const closeButton = shallowRef<HTMLButtonElement>()
 let returnFocus: HTMLElement | null = null
 
@@ -68,7 +67,7 @@ watch(
       </button>
 
       <div class="site-about__brand" aria-hidden="true">
-        <img class="site-about__logo" :src="logoSrc" alt="">
+        <Logos class="site-about__logo" :size="64" />
       </div>
 
       <div class="site-about__copy">

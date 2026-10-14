@@ -7,6 +7,8 @@ export const appIcon = {
   masterSrc: `${mediaOrigin}/desktop/app-icons/masters/v1/pixi-painter.png`,
   masterSha256: '49bb33e486d6326f19e57bf7e06c6d7df19a39fd954f06f1daf5724ba1e16e4d',
   legacySrc: '/logo.svg',
+  /** Small browser-tab companion; installation icons retain the historical artwork. */
+  faviconSvgSrc: '/favicon-brush-v1.svg',
   faviconSrc: `${installIconBase}/favicon-32x32.png`,
   appleTouchIconSrc: `${installIconBase}/apple-touch-icon.png`,
   pwaIcons: [

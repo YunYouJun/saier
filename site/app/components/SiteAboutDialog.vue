@@ -67,7 +67,7 @@ watch(
       </button>
 
       <div class="site-about__brand" aria-hidden="true">
-        <Logos class="site-about__logo" :size="64" />
+        <Logos class="site-about__logo" :size="80" />
       </div>
 
       <div class="site-about__copy">
@@ -115,6 +115,7 @@ watch(
 
 <style scoped>
 .site-about {
+  --saier-about-surface: #fffdf9;
   box-sizing: border-box;
   position: absolute;
   z-index: 46;
@@ -122,41 +123,37 @@ watch(
   display: grid;
   place-items: center;
   overflow: auto;
-  padding: 14px;
+  padding: var(--saier-space-4);
   background: var(--saier-color-scrim);
+}
+
+:global(.dark .site-about),
+:global([data-saier-theme='dark'] .site-about) {
+  --saier-about-surface: var(--saier-color-panel);
 }
 
 .site-about__panel {
   box-sizing: border-box;
   position: relative;
   display: grid;
-  width: min(440px, calc(100vw - 28px));
+  width: min(420px, 100%);
   overflow: hidden;
   border: 1px solid var(--saier-color-border);
   border-radius: 10px;
-  background: var(--saier-color-panel-raised);
+  background: var(--saier-about-surface);
   box-shadow: var(--saier-shadow-dialog);
   color: var(--saier-color-text);
-  padding: 28px;
-}
-
-.site-about__panel::before {
-  position: absolute;
-  inset: 0 0 auto;
-  height: 4px;
-  background: var(--saier-brand-spectrum);
-  content: '';
-  pointer-events: none;
+  padding: 32px 28px 24px;
 }
 
 .site-about__icon-button {
   position: absolute;
   z-index: 1;
-  top: 10px;
-  right: 10px;
+  top: 8px;
+  right: 8px;
   display: grid;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   place-items: center;
   border: 1px solid transparent;
   border-radius: 6px;
@@ -171,38 +168,38 @@ watch(
 }
 
 .site-about__brand {
-  position: relative;
-  width: 82px;
-  height: 76px;
-  margin-bottom: 12px;
+  width: 80px;
+  height: 80px;
+  margin-bottom: var(--saier-space-4);
   margin-inline: auto;
 }
 
 .site-about__logo {
-  position: absolute;
-  top: 4px;
-  left: 8px;
-  width: 64px;
-  height: 64px;
+  width: 80px;
+  height: 80px;
+}
+
+.site-about__copy {
+  text-align: center;
 }
 
 .site-about__eyebrow {
   margin: 0 0 5px;
-  color: var(--saier-color-text-subtle);
-  font-size: 11px;
-  font-weight: 700;
+  color: var(--saier-color-text-muted);
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .site-about__title {
   font-family: var(--saier-font-brand);
   margin: 0;
-  font-size: 25px;
-  font-weight: 750;
+  font-size: 24px;
+  font-weight: 650;
   letter-spacing: -0.025em;
 }
 
 .site-about__title span {
-  color: var(--saier-color-text-subtle);
+  color: var(--saier-color-text-muted);
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 0;
@@ -217,42 +214,42 @@ watch(
 
 .site-about__meta {
   display: grid;
-  gap: 1px;
-  overflow: hidden;
-  margin: 22px 0;
-  border: 1px solid var(--saier-color-border);
-  border-radius: 8px;
-  background: var(--saier-color-border);
+  gap: 12px;
+  margin: 24px 0 20px;
+  padding-block: var(--saier-space-4);
+  border-block: 1px solid var(--saier-color-border);
 }
 
 .site-about__meta > div {
   display: grid;
-  grid-template-columns: 92px 1fr;
+  grid-template-columns: 72px minmax(0, 1fr);
   align-items: baseline;
-  gap: 14px;
-  background: var(--saier-color-surface);
-  padding: 10px 12px;
+  gap: var(--saier-space-4);
+  text-align: left;
 }
 
 .site-about__meta dt {
-  color: var(--saier-color-text-subtle);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  color: var(--saier-color-text-muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
 }
 
 .site-about__meta dd {
   margin: 0;
-  color: var(--saier-color-text-muted);
-  font-size: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--saier-color-text);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
   line-height: 1.5;
+  text-align: right;
 }
 
 .site-about__footer {
   display: flex;
   min-width: 0;
-  align-items: end;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
 }
@@ -261,7 +258,7 @@ watch(
   display: grid;
   min-width: 0;
   gap: 7px;
-  color: var(--saier-color-text-subtle);
+  color: var(--saier-color-text-muted);
   font-size: 11px;
 }
 
@@ -279,15 +276,16 @@ watch(
 }
 
 .site-about__close {
-  height: 34px;
+  min-width: 72px;
+  height: 32px;
   flex: 0 0 auto;
   border: 1px solid var(--saier-color-accent-border);
-  border-radius: 6px;
+  border-radius: var(--saier-radius-control);
   background: var(--saier-color-accent);
   color: var(--saier-color-on-accent);
   font-size: 13px;
-  font-weight: 650;
-  padding: 0 15px;
+  font-weight: 550;
+  padding-inline: var(--saier-space-4);
 }
 
 .site-about__close:hover {
@@ -303,7 +301,7 @@ watch(
 
 @media (max-width: 480px) {
   .site-about__panel {
-    padding: 24px 20px 20px;
+    padding: 32px 20px 20px;
   }
 
   .site-about__footer {
@@ -313,6 +311,28 @@ watch(
 
   .site-about__close {
     width: 100%;
+  }
+}
+
+@media (pointer: coarse) {
+  .site-about__icon-button {
+    width: var(--saier-control-size);
+    height: var(--saier-control-size);
+  }
+
+  .site-about__close {
+    min-height: var(--saier-control-size);
+  }
+}
+
+@media (max-width: 360px) {
+  .site-about__meta > div {
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: var(--saier-space-2);
+  }
+
+  .site-about__meta dd {
+    font-size: 12px;
   }
 }
 </style>

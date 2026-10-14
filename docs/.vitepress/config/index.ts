@@ -175,6 +175,7 @@ export default defineConfig({
 
   head: [
     ['link', { rel: 'icon', href: appIcon.faviconSrc, type: 'image/png', sizes: '32x32' }],
+    ['link', { rel: 'icon', href: appIcon.faviconSvgSrc, type: 'image/svg+xml', sizes: 'any' }],
     ['meta', { name: 'author', content: 'YunYouJun' }],
     ['meta', { property: 'og:title', content: '云绘 Saier' }],
     ['meta', { property: 'og:description', content: '云绘（Saier）—— 云乐坊旗下的在线绘画工作台' }],

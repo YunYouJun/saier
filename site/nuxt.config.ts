@@ -1,6 +1,7 @@
 import path from 'node:path'
 import process from 'node:process'
 import { pwa } from './app/config/pwa'
+import { appIcon } from './app/constants/brand'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -35,9 +36,8 @@ export default defineNuxtConfig({
   app: {
     head: {
       link: [
-        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
-        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
-        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+        { rel: 'icon', type: 'image/png', sizes: '32x32', href: appIcon.faviconSrc },
+        { rel: 'apple-touch-icon', sizes: '180x180', href: appIcon.appleTouchIconSrc },
       ],
     },
   },

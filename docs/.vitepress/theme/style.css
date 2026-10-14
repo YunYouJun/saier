@@ -2,7 +2,7 @@
  * Customize default theme styling by overriding CSS variables:
  * https://github.com/vuejs/vitepress/blob/main/src/client/theme-default/styles/vars.css
  *
- * Saier's six-color brush mark follows YunLeFun Design.
+ * Saier's selected brush artwork shares the YunLeFun palette.
  * Keep reading surfaces quiet and reserve the spectrum for brand areas.
  */
 
@@ -116,6 +116,11 @@
 .VPHomeHero .image-src {
   max-width: 240px;
   max-height: 240px;
+}
+
+.VPHomeHero .image-src,
+.VPNavBarTitle .logo {
+  border-radius: 21.5%;
 }
 
 .VPHomeHero .name::after {

@@ -3,7 +3,8 @@ import { copyFile, readFile, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { chromium } from '@playwright/test'
 
-// The editable SVG is the single source for web, docs and install icons.
+// Legacy six-color S exports only. The selected app artwork is tracked in
+// site/app/constants/brand.ts and YunLeFun/icons; do not replace it with these.
 // Uses the existing Playwright dependency; no additional graphics tools needed.
 const sitePublic = new URL('../site/public/', import.meta.url)
 const docsPublic = new URL('../docs/public/', import.meta.url)
